@@ -1,5 +1,5 @@
-import { FRAME_TITLE, type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, KeyboardModule, type SoundCtl } from './modules'
+import { type FrameId } from './lessons'
+import { WaveFrame, PitchFrame, FineFrame, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 interface Props {
@@ -10,7 +10,7 @@ interface Props {
   onHelpFrame: (frame: FrameId) => void
 }
 
-/** 完成形の盤面。習ったフレームは本物、未習得はゴースト枠。周りは飾り（モック）で機材感を出す。 */
+/** 完成形の盤面。未習得のフレームも実体を薄く（ゴースト）表示し、習うと色がつく。周りは飾り（モック）。 */
 export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame }: Props) {
   const slotProps = (id: FrameId) => ({
     id,
@@ -41,7 +41,11 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
         </div>
 
         <Slot {...slotProps('keys')}>
-          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
+          {realized.has('keys') ? (
+            <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
+          ) : (
+            <KeyboardGhost />
+          )}
         </Slot>
       </div>
     </div>
@@ -63,21 +67,15 @@ function Slot({
   onHelp: (frame: FrameId) => void
   children: React.ReactNode
 }) {
-  if (realized) {
-    return (
-      <div className={'slot slot-' + id + ' pop-in'} data-slot={id}>
-        {showHelp && (
-          <button className="slot-help" onClick={() => onHelp(id)} aria-label="この解説をもう一度見る">
-            ?
-          </button>
-        )}
-        {children}
-      </div>
-    )
-  }
+  const cls = 'slot slot-' + id + (realized ? ' pop-in' : ' ghost' + (blink ? ' blink' : ''))
   return (
-    <div className={'slot slot-' + id + ' ghost' + (blink ? ' blink' : '')} data-slot={id}>
-      <div className="ghost-label">{FRAME_TITLE[id]}</div>
+    <div className={cls} data-slot={id}>
+      {realized && showHelp && (
+        <button className="slot-help" onClick={() => onHelp(id)} aria-label="この解説をもう一度見る">
+          ?
+        </button>
+      )}
+      {children}
     </div>
   )
 }

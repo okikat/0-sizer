@@ -376,21 +376,19 @@ b {
   border-radius: 14px;
   padding: 12px;
 }
+/* 未習得フレーム＝実体を薄く（ゴースト）表示。操作は不可。 */
 .slot.ghost {
-  display: flex;
-  align-items: center;
-  justify-content: center;
   border-style: dashed;
   border-color: #2f3a48;
   background: #11151b;
-  color: var(--sub);
-  opacity: 0.55;
+  opacity: 0.4;
+  filter: grayscale(0.5);
+  pointer-events: none;
 }
 .slot.slot-wave.ghost { min-height: 110px; }
 .slot.slot-pitch.ghost { min-height: 92px; }
 .slot.slot-fine.ghost { min-height: 92px; }
 .slot.slot-keys.ghost { min-height: 92px; }
-.ghost-label { font-size: 14px; letter-spacing: 1px; }
 .slot-help {
   position: absolute;
   top: 8px;
@@ -408,6 +406,7 @@ b {
 }
 .slot.blink {
   opacity: 1;
+  filter: none;
   border-style: solid;
   border-color: var(--accent);
   box-shadow: 0 0 0 2px rgba(90, 209, 196, 0.4), 0 0 26px rgba(90, 209, 196, 0.25);
