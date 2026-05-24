@@ -1,34 +1,57 @@
-export type LessonId = 'osc' | 'keys'
+// 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine'
+
+export const FRAME_TITLE: Record<FrameId, string> = {
+  keys: '鍵盤',
+  wave: '波形',
+  pitch: 'PITCH',
+  fine: '微調整',
+}
 
 export interface Lesson {
-  id: LessonId
-  /** ゴースト盤面のスロットに出すモジュール名 */
-  panelTitle: string
-  /** ポップアップ解説の見出し */
+  /** 点滅＆収納(FLIP)の対象になる主フレーム */
+  id: FrameId
+  /** このレッスンで盤面に現れるフレーム群 */
+  realizes: FrameId[]
   stageTitle: string
-  /** ポップアップ本文（要約。長文解説はここに集約する） */
   popup: string[]
 }
 
 export const LESSONS: Lesson[] = [
   {
-    id: 'osc',
-    panelTitle: 'オシレーター',
-    stageTitle: '音を作る：波形とPITCH',
-    popup: [
-      'シンセはまず「波形」で音のキャラを決めます。サイン=やわらか、三角=その中間、ノコギリ=ジャリッと豊か、矩形（くけい）=ピコピコ。',
-      '「PITCH」ツマミは全体の高さ（チューニング）。上下にドラッグで半音ずつ。Shiftで微調整、ダブルクリックで0に戻ります。',
-      '「鳴らす」を押すと音が出ます。波形を切り替えながら、計器に出る波のかたちと音の違いを聴き比べてみて。',
-    ],
-  },
-  {
     id: 'keys',
-    panelTitle: '鍵盤',
+    realizes: ['keys'],
     stageTitle: '弾く：鍵盤',
     popup: [
       '鍵盤は「ドレミ」を弾く担当。押している間だけ音が出ます。',
-      'スマホは指でタップ、PCは A S D F G H J K（黒鍵は W E T Y U）でも弾けます。',
-      'さっきのPITCHを動かすと、弾く音の全体がズレます。役割分担＝鍵盤で弾く／ツマミで調律。',
+      'スマホは指でタップ。PCは A S D F G H J K（黒鍵は W E T Y U）でも弾けます。',
+      'まずはいろいろ押して、音が出るのを確かめてみて。',
+    ],
+  },
+  {
+    id: 'wave',
+    realizes: ['wave'],
+    stageTitle: '音のキャラ：波形',
+    popup: [
+      'シンセはまず「波形」で音のキャラが決まります。サイン＝やわらか、三角＝その中間、ノコギリ＝ジャリッと豊か、矩形（くけい）＝ピコピコ。',
+      '下の鍵盤を鳴らしながら波形を切り替えると、計器の形と音色の違いが分かります。',
+    ],
+  },
+  {
+    id: 'pitch',
+    realizes: ['pitch', 'fine'],
+    stageTitle: '高さ：PITCH と微調整',
+    popup: [
+      '「PITCH」は全体の高さ（チューニング）。上下にドラッグで半音ずつ変わります。ダブルタップで0に戻ります。',
+      '「微調整」をONにすると、ゆっくり動いて細かく合わせられます。',
+      '鍵盤を弾きながらPITCHを動かすと、弾く音の全体がスーッとズレます。',
     ],
   },
 ]
+
+/** フレームを教えたレッスン（解説の再表示用）。 */
+export function lessonForFrame(frame: FrameId): Lesson {
+  return LESSONS.find((l) => l.realizes.includes(frame))!
+}
+
+export const ALL_FRAMES: FrameId[] = LESSONS.flatMap((l) => l.realizes)

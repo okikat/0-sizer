@@ -1,5 +1,5 @@
 import { Popup } from './Popup'
-import { OscillatorModule, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson } from './lessons'
 
 export interface Flight {
@@ -20,7 +20,19 @@ interface Props {
   sound: SoundCtl
 }
 
-/** スポットライト面：対象モジュールを中央下部に大きく出し、解説ポップアップ＋OKで盤面へ収める。 */
+function StageContent({ lesson, sound }: { lesson: Lesson; sound: SoundCtl }) {
+  if (lesson.id === 'keys') return <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
+  if (lesson.id === 'wave') return <WaveFrame type={sound.type} onType={sound.onType} playing={sound.playing} />
+  return (
+    <div className="pitch-cluster">
+      <PitchFrame onTune={sound.onTune} fine={sound.fine} />
+      <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+    </div>
+  )
+}
+
+/** スポットライト面：対象フレームを中央に大きく出し、解説ポップアップ＋OKで盤面へ収める。
+ * 鍵盤以外のレッスンでは、下に試し弾き用の鍵盤を置く（「鳴らす」ボタンの代わり）。 */
 export function LessonStage({ lesson, exiting, flight, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
   const flightStyle =
     exiting && flight
@@ -33,8 +45,14 @@ export function LessonStage({ lesson, exiting, flight, popupOpen, onClosePopup, 
         <button className="help-btn" onClick={onHelp} aria-label="ヒントをもう一度見る">
           ?
         </button>
-        {lesson.id === 'osc' ? <OscillatorModule {...sound.osc} /> : <KeyboardModule {...sound.keys} />}
+        <StageContent lesson={lesson} sound={sound} />
       </div>
+
+      {!exiting && lesson.id !== 'keys' && (
+        <div className="stage-keys">
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
+        </div>
+      )}
 
       {!exiting && (
         <button className="ok-btn" onClick={onOK}>

@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth } from './audio/useSynth'
-import { LESSONS, type LessonId } from './tutorial/lessons'
+import { LESSONS, ALL_FRAMES, lessonForFrame, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
@@ -15,7 +15,6 @@ const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
 const EXIT_MS = 560
 
-const allIds = () => new Set<LessonId>(LESSONS.map((l) => l.id))
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export default function App() {
@@ -25,55 +24,41 @@ export default function App() {
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
   const [lessonIndex, setLessonIndex] = useState(0)
   const [stage, setStage] = useState<Stage>('blink')
-  const [realized, setRealized] = useState<Set<LessonId>>(done ? allIds() : new Set())
+  const [realized, setRealized] = useState<Set<FrameId>>(done ? new Set(ALL_FRAMES) : new Set())
   const [popupOpen, setPopupOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
-  const [panelPopup, setPanelPopup] = useState<LessonId | null>(null)
+  const [menuOpen, setMenuOpen] = useState(false)
+  const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [flight, setFlight] = useState<Flight | null>(null)
   const stageRectRef = useRef<DOMRect | null>(null)
 
-  // --- 音まわりの状態 ---
+  // --- 音まわりの状態（音源は鍵盤。ドローン/鳴らすボタンは廃止） ---
   const [type, setType] = useState<OscillatorType>('sine')
-  const [drone, setDrone] = useState(false)
+  const [fine, setFine] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
-  const playing = drone || keyHeld
 
   const stopAll = useCallback(() => {
     noteOff()
-    setDrone(false)
     setKeyHeld(false)
   }, [noteOff])
 
   const sound: SoundCtl = {
-    osc: {
-      type,
-      onType: (t) => {
-        setType(t)
-        setWaveform(t)
-      },
-      playing,
-      drone,
-      onToggleDrone: () => {
-        if (drone) {
-          noteOff()
-          setDrone(false)
-        } else {
-          noteOn(69)
-          setDrone(true)
-        }
-      },
-      onTune: (v) => setTune(v),
+    type,
+    onType: (t) => {
+      setType(t)
+      setWaveform(t)
     },
-    keys: {
-      onNoteOn: (m) => {
-        setDrone(false)
-        setKeyHeld(true)
-        noteOn(m)
-      },
-      onNoteOff: () => {
-        setKeyHeld(false)
-        noteOff()
-      },
+    playing: keyHeld,
+    onTune: (v) => setTune(v),
+    fine,
+    onToggleFine: () => setFine((v) => !v),
+    onNoteOn: (m) => {
+      setKeyHeld(true)
+      noteOn(m)
+    },
+    onNoteOff: () => {
+      setKeyHeld(false)
+      noteOff()
     },
   }
 
@@ -138,14 +123,18 @@ export default function App() {
   const onOK = () => {
     const sEl = document.querySelector('[data-stage-module]') as HTMLElement | null
     stageRectRef.current = sEl ? sEl.getBoundingClientRect() : null
-    setRealized((prev) => new Set(prev).add(LESSONS[lessonIndex].id))
+    setRealized((prev) => {
+      const n = new Set(prev)
+      LESSONS[lessonIndex].realizes.forEach((f) => n.add(f))
+      return n
+    })
     setPopupOpen(false)
     setStage('exit')
   }
 
   const skip = () => {
     stopAll()
-    setRealized(allIds())
+    setRealized(new Set(ALL_FRAMES))
     localStorage.setItem(DONE_KEY, '1')
     setPhase('panel')
   }
@@ -161,7 +150,7 @@ export default function App() {
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
-  const popupLesson = panelPopup ? LESSONS.find((l) => l.id === panelPopup) : null
+  const popupLesson = panelPopup ? lessonForFrame(panelPopup) : null
 
   return (
     <div className="app-root">
@@ -170,8 +159,7 @@ export default function App() {
         blinkingId={phase === 'lesson' && stage === 'blink' ? LESSONS[lessonIndex].id : null}
         sound={sound}
         showHelp={showHelp}
-        onToggleHelp={() => setShowHelp((v) => !v)}
-        onHelpLesson={(id) => setPanelPopup(id)}
+        onHelpFrame={(f) => setPanelPopup(f)}
       />
 
       {phase === 'ghost' && (
@@ -196,17 +184,47 @@ export default function App() {
         />
       )}
 
-      {(phase === 'ghost' || phase === 'lesson') && (
-        <button className="skip-btn" onClick={skip}>
-          スキップ
-        </button>
-      )}
+      {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
 
-      {phase === 'panel' && (
-        <button className="replay-btn" onClick={replay}>
-          もう一度見る
-        </button>
-      )}
+      {/* 右上：解説表示トグル ＋ メニュー（三） */}
+      <div className="topbar">
+        {phase === 'panel' && (
+          <label className="help-toggle">
+            <input type="checkbox" checked={showHelp} onChange={() => setShowHelp((v) => !v)} />
+            解説表示
+          </label>
+        )}
+        <div className="menu-wrap">
+          <button className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="メニュー">
+            <span />
+            <span />
+            <span />
+          </button>
+          {menuOpen && (
+            <div className="menu">
+              {phase === 'panel' ? (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    replay()
+                  }}
+                >
+                  もう一度見る
+                </button>
+              ) : (
+                <button
+                  onClick={() => {
+                    setMenuOpen(false)
+                    skip()
+                  }}
+                >
+                  スキップ
+                </button>
+              )}
+            </div>
+          )}
+        </div>
+      </div>
 
       {popupLesson && (
         <Popup title={popupLesson.stageTitle} paragraphs={popupLesson.popup} onClose={() => setPanelPopup(null)} />

@@ -1,36 +1,49 @@
-import { LESSONS, type LessonId } from './lessons'
-import { OscillatorModule, KeyboardModule, type SoundCtl } from './modules'
+import { FRAME_TITLE, type FrameId } from './lessons'
+import { WaveFrame, PitchFrame, FineFrame, KeyboardModule, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 interface Props {
-  realized: Set<LessonId>
-  blinkingId: LessonId | null
+  realized: Set<FrameId>
+  blinkingId: FrameId | null
   sound: SoundCtl
   showHelp: boolean
-  onToggleHelp: () => void
-  onHelpLesson: (id: LessonId) => void
+  onHelpFrame: (frame: FrameId) => void
 }
 
-/** 完成形の盤面。習ったモジュールは本物、未習得はゴースト枠。周りは飾り（モック）で機材感を出す。 */
-export function SynthPanel({ realized, blinkingId, sound, showHelp, onToggleHelp, onHelpLesson }: Props) {
+/** 完成形の盤面。習ったフレームは本物、未習得はゴースト枠。周りは飾り（モック）で機材感を出す。 */
+export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame }: Props) {
+  const slotProps = (id: FrameId) => ({
+    id,
+    realized: realized.has(id),
+    blink: blinkingId === id,
+    showHelp,
+    onHelp: onHelpFrame,
+  })
+
   return (
     <div className="panel-wrap">
       <div className="panel-head">
         <span className="tag">0-sizer</span>
-        <label className="help-toggle">
-          <input type="checkbox" checked={showHelp} onChange={onToggleHelp} />
-          解説表示
-        </label>
       </div>
       <div className="panel-grid">
-        <Slot id="osc" realized={realized.has('osc')} blink={blinkingId === 'osc'} showHelp={showHelp} onHelp={onHelpLesson}>
-          <OscillatorModule compact showText={showHelp} {...sound.osc} />
+        <Slot {...slotProps('wave')}>
+          <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
         </Slot>
 
-        <MockSections />
+        <div className="board">
+          <div className="board-top">
+            <Slot {...slotProps('pitch')}>
+              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+            </Slot>
+            <Slot {...slotProps('fine')}>
+              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+            </Slot>
+          </div>
+          <MockSections />
+        </div>
 
-        <Slot id="keys" realized={realized.has('keys')} blink={blinkingId === 'keys'} showHelp={showHelp} onHelp={onHelpLesson}>
-          <KeyboardModule {...sound.keys} />
+        <Slot {...slotProps('keys')}>
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
         </Slot>
       </div>
     </div>
@@ -45,14 +58,13 @@ function Slot({
   onHelp,
   children,
 }: {
-  id: LessonId
+  id: FrameId
   realized: boolean
   blink: boolean
   showHelp: boolean
-  onHelp: (id: LessonId) => void
+  onHelp: (frame: FrameId) => void
   children: React.ReactNode
 }) {
-  const lesson = LESSONS.find((l) => l.id === id)!
   if (realized) {
     return (
       <div className={'slot slot-' + id + ' pop-in'} data-slot={id}>
@@ -67,7 +79,7 @@ function Slot({
   }
   return (
     <div className={'slot slot-' + id + ' ghost' + (blink ? ' blink' : '')} data-slot={id}>
-      <div className="ghost-label">{lesson.panelTitle}</div>
+      <div className="ghost-label">{FRAME_TITLE[id]}</div>
     </div>
   )
 }
