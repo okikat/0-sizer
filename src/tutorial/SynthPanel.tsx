@@ -34,7 +34,7 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
 
         <div className="board">
           <Slot {...slotProps('env')}>
-            <EnvModule compact showText={showHelp} env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+            <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
           </Slot>
           <div className="side-col">
             <Slot {...slotProps('pitch')}>

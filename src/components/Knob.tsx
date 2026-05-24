@@ -142,7 +142,7 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
         <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.054} strokeLinecap="round" />
         {showText && (
           <>
-            <text x={r} y={r + 1} textAnchor="middle" fill="#e6edf3" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
+            <text x={r} y={r + 1} textAnchor="middle" fill="#5ad1c4" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
               {f.main}
             </text>
             <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
