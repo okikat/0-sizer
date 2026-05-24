@@ -25,7 +25,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
       <div className="panel-head">
         <span className="tag">0-sizer</span>
       </div>
-      <div className="panel-grid">
+
+      {/* ツマミ類はスクロール領域、鍵盤は下に固定 */}
+      <div className="panel-scroll">
         <Slot {...slotProps('wave')}>
           <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
         </Slot>
@@ -39,15 +41,15 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
           </Slot>
           <MockSections />
         </div>
-
-        <Slot {...slotProps('keys')}>
-          {realized.has('keys') ? (
-            <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
-          ) : (
-            <KeyboardGhost />
-          )}
-        </Slot>
       </div>
+
+      <Slot {...slotProps('keys')}>
+        {realized.has('keys') ? (
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
+        ) : (
+          <KeyboardGhost />
+        )}
+      </Slot>
     </div>
   )
 }

@@ -345,21 +345,29 @@ b {
   overflow: hidden;
 }
 .panel-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: fadeIn 0.5s ease both; }
-.panel-head { margin-bottom: 10px; }
+.panel-head { margin-bottom: 8px; flex: 0 0 auto; }
 .panel-head .tag { font-size: 22px; }
 
-.panel-grid { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
-.panel-grid .slot-wave { flex: 0 0 auto; }
-.panel-grid .board {
+/* ツマミ類は縦スクロール、鍵盤は下に固定 */
+.panel-scroll {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: hidden;
+  overflow-y: auto;
+  overflow-x: hidden;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding-bottom: 4px;
+}
+.panel-scroll::-webkit-scrollbar { width: 6px; }
+.panel-scroll::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 3px; }
+.board {
   display: grid;
   grid-template-columns: repeat(2, 1fr);
   gap: 10px;
   align-content: start;
 }
-.panel-grid .slot-keys { flex: 0 0 auto; }
+.slot-keys { flex: 0 0 auto; margin-top: 10px; }
 /* PITCH・微調整は飾りモジュールと同じくらいの小さめサイズに */
 .slot-pitch,
 .slot-fine {
