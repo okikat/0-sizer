@@ -35,13 +35,13 @@ export function WaveFrame({
   const [showScope, setShowScope] = useState(true)
   return (
     <div className={'mod mod-wave' + (compact ? ' mod--compact' : '')}>
-      <div className="wave-head">
+      {showScope && <Scope type={type} playing={playing} />}
+      <div className="wave-row">
+        <WaveformPicker value={type} onChange={onType} compact={compact} />
         <button className="wave-toggle" onClick={() => setShowScope((s) => !s)} aria-label="波形図の表示切り替え">
-          波形図 {showScope ? '▾' : '▸'}
+          {showScope ? '▾' : '▸'}
         </button>
       </div>
-      {showScope && <Scope type={type} playing={playing} />}
-      <WaveformPicker value={type} onChange={onType} compact={compact} />
     </div>
   )
 }

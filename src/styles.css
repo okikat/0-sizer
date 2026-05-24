@@ -542,16 +542,20 @@ b {
 }
 
 /* --- フレーム内パーツ --- */
-.mod-wave .waves { margin-top: 10px; }
 .mod-wave.mod--compact .scope { height: 54px; }
-.wave-head { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.wave-row { display: flex; gap: 6px; align-items: stretch; margin-top: 8px; }
+.wave-row .waves { margin-top: 0; flex: 1; }
 .wave-toggle {
-  padding: 4px 10px;
-  font-size: 11px;
+  flex: 0 0 auto;
+  width: 30px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12px;
   color: var(--sub);
   background: #10151c;
   border: 1px solid var(--line);
-  border-radius: 999px;
+  border-radius: 10px;
   cursor: pointer;
 }
 .mod-pitch { display: flex; justify-content: center; }
