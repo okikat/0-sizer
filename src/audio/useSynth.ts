@@ -1,6 +1,16 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { midiToFreq } from '../lib/notes'
 
+// AudioParam をなめらかな指数カーブで target へ寄せ、十分に到達したら値を固定する。
+// setTargetAtTime は目標へ「永久に近づき続ける」自動化なので、固定しないとロングトーン中も
+// 極小値(denormal)の計算が走り続け、不定期な“ブツッ”ノイズの原因になる。tau*10 後にはほぼ
+// 到達済み(誤差 ~0.005%)なので、そこで setValueAtTime して自動化を止め一定値に張り付かせる。
+function glide(p: AudioParam, target: number, tau: number, now: number) {
+  p.cancelScheduledValues(now)
+  p.setTargetAtTime(target, now, tau)
+  p.setValueAtTime(target, now + tau * 10)
+}
+
 /**
  * モノフォニックなシンセエンジン。
  * オシレーター1個 + ゲイン1個を常駐させ、noteOn でゲインを上げ、noteOff で下げる。
@@ -39,22 +49,8 @@ export function useSynth() {
     const osc = oscRef.current
     if (ctx && osc && midiRef.current != null) {
       const f = midiToFreq(midiRef.current) * Math.pow(2, tuneRef.current / 12)
-      osc.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
+      glide(osc.frequency, f, 0.006, ctx.currentTime)
     }
-  }, [])
-
-  // 音量をなめらかな指数カーブで目標へ近づける。直線と違い「角(傾きの急変)」が
-  // 出ないので、純粋なサイン波でも“ブツッ”が出にくい。開始前に今の値で固定し、
-  // 連打/再発音でも値が飛ばないようにする。tau は時定数(大きいほどゆっくり)。
-  const rampGain = useCallback((target: number, tau: number) => {
-    const ctx = ctxRef.current
-    const gain = gainRef.current
-    if (!ctx || !gain) return
-    const now = ctx.currentTime
-    const p = gain.gain
-    p.cancelScheduledValues(now)
-    p.setValueAtTime(p.value, now)
-    p.setTargetAtTime(target, now, tau)
   }, [])
 
   const noteOn = useCallback(
@@ -62,14 +58,17 @@ export function useSynth() {
       ensure()
       midiRef.current = midi
       applyFreq()
-      rampGain(0.18, 0.012)
+      const ctx = ctxRef.current!
+      glide(gainRef.current!.gain, 0.18, 0.012, ctx.currentTime)
     },
-    [ensure, applyFreq, rampGain],
+    [ensure, applyFreq],
   )
 
   const noteOff = useCallback(() => {
-    rampGain(0, 0.09)
-  }, [rampGain])
+    const ctx = ctxRef.current
+    const gain = gainRef.current
+    if (ctx && gain) glide(gain.gain, 0, 0.09, ctx.currentTime)
+  }, [])
 
   const setWaveform = useCallback((t: OscillatorType) => {
     typeRef.current = t
