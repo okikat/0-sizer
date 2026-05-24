@@ -67,7 +67,7 @@ export function Scope({ type, playing }: Props) {
       if (playRef.current) phase += 0.02
       raf = requestAnimationFrame(draw)
     }
-    raf = requestAnimationFrame(draw)
+    draw()
     return () => cancelAnimationFrame(raf)
   }, [])
 
