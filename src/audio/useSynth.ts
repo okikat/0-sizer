@@ -16,7 +16,7 @@ function glide(p: AudioParam, target: number, tau: number, now: number) {
 // いずれも耳で微調整する前提の控えめな値。
 const VIBRATO_HZ = 5 // ピッチ揺れの速さ(Hz)
 const VIBRATO_CENTS = 4 // ピッチ揺れの深さ(セント)。半音=100セント。小さいほど純音寄り
-const NOISE_LEVEL = 0.02 // 混ぜるホワイトノイズの量。音に対して十分小さいヒス
+const NOISE_LEVEL = 0.006 // 混ぜるホワイトノイズの量。音に対して十分小さいヒス
 
 /**
  * モノフォニックなシンセエンジン。
