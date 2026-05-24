@@ -11,6 +11,13 @@ function glide(p: AudioParam, target: number, tau: number, now: number) {
   p.setValueAtTime(target, now + tau * 10)
 }
 
+// Bluetooth コーデックは“純音(静止した単一周波数)”を苦手とし、サイン波だとザラつく。
+// 対策として「信号を少しだけ動かす/濁す」ことで、コーデックが正常に働きザラつきが目立たなくなる。
+// いずれも耳で微調整する前提の控えめな値。
+const VIBRATO_HZ = 5 // ピッチ揺れの速さ(Hz)
+const VIBRATO_CENTS = 4 // ピッチ揺れの深さ(セント)。半音=100セント。小さいほど純音寄り
+const NOISE_LEVEL = 0.02 // 混ぜるホワイトノイズの量。音に対して十分小さいヒス
+
 /**
  * モノフォニックなシンセエンジン。
  * オシレーター1個 + ゲイン1個を常駐させ、noteOn でゲインを上げ、noteOff で下げる。
@@ -37,6 +44,30 @@ export function useSynth() {
       osc.frequency.value = 440
       osc.connect(gain)
       osc.start()
+
+      // (1) ピッチをごく小さく揺らす LFO → 信号が静止しなくなりコーデックが安定する。
+      const lfo = ctx.createOscillator()
+      lfo.frequency.value = VIBRATO_HZ
+      const lfoDepth = ctx.createGain()
+      lfoDepth.gain.value = VIBRATO_CENTS
+      lfo.connect(lfoDepth)
+      lfoDepth.connect(osc.detune)
+      lfo.start()
+
+      // (2) 微量ホワイトノイズ(ディザ)を同じエンベロープ経由で混ぜる → 量子化のジャリつきを
+      //     やさしいヒスに置き換える。gain 経由なので無音時はノイズも消える。
+      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+      const noise = ctx.createBufferSource()
+      noise.buffer = noiseBuf
+      noise.loop = true
+      const noiseLevel = ctx.createGain()
+      noiseLevel.gain.value = NOISE_LEVEL
+      noise.connect(noiseLevel)
+      noiseLevel.connect(gain)
+      noise.start()
+
       ctxRef.current = ctx
       gainRef.current = gain
       oscRef.current = osc
