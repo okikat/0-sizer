@@ -45,10 +45,10 @@ const SECTIONS: Section[] = [
   },
 ]
 
-/** 飾りモジュール群（2列グリッド）。 */
+/** 飾りモジュール群。盤面ボードのグリッドに直接並ぶセル。 */
 export function MockSections() {
   return (
-    <div className="mock-rack">
+    <>
       {SECTIONS.map((s) => (
         <div className="mock-sec" key={s.title}>
           <div className="mock-sec-title">{s.title}</div>
@@ -59,7 +59,7 @@ export function MockSections() {
           </div>
         </div>
       ))}
-    </div>
+    </>
   )
 }
 

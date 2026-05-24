@@ -11,8 +11,10 @@ interface Props {
   label?: string
   /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
   fine?: boolean
-  /** 値表示・操作ヒントなどの文字情報を出すか（盤面では「解説表示」トグルで制御）。 */
+  /** ダイヤル内の値表示を出すか（盤面では「解説表示」トグルで制御）。 */
   showText?: boolean
+  /** ツマミ下のドラッグ操作ヒントを出すか（盤面では枠が広がるので出さない）。 */
+  showHint?: boolean
   format?: (v: number) => KnobFormat
   onChange?: (v: number) => void
 }
@@ -35,7 +37,7 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
 }
 
 /** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。 */
-export function Knob({ min, max, defaultValue, size = 130, label, fine = false, showText = true, format, onChange }: Props) {
+export function Knob({ min, max, defaultValue, size = 130, label, fine = false, showText = true, showHint = true, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const gid = 'kcap' + useId().replace(/:/g, '')
@@ -149,7 +151,7 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
           </>
         )}
       </svg>
-      {showText && (
+      {showHint && (
         <div className="knob-hint">
           <span className="hint-mouse">上下にドラッグ ・ ダブルクリックで初期値</span>
           <span className="hint-touch">上下にドラッグ ・ ダブルタップで初期値</span>

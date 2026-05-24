@@ -39,9 +39,10 @@ export function PitchFrame({
   return (
     <div className="mod mod-pitch">
       <Knob
-        size={compact ? 70 : 108}
+        size={compact ? 56 : 108}
         fine={fine}
         showText={showText}
+        showHint={!compact}
         min={-12}
         max={12}
         defaultValue={0}

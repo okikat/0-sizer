@@ -54,4 +54,29 @@ export function lessonForFrame(frame: FrameId): Lesson {
   return LESSONS.find((l) => l.realizes.includes(frame))!
 }
 
+/** 盤面の「?」用：フレームごとの単独ヘルプ（その枠の話だけ）。 */
+export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }> = {
+  keys: {
+    title: '鍵盤',
+    paragraphs: [
+      '鍵盤は「ドレミ」を弾く担当。押している間だけ音が出ます。',
+      'スマホは指でタップ、PCは A S D F G H J K（黒鍵は W E T Y U）。',
+    ],
+  },
+  wave: {
+    title: '波形',
+    paragraphs: [
+      '波形で音のキャラが変わります。サイン＝やわらか／三角＝中間／ノコギリ＝ジャリッと豊か／矩形（くけい）＝ピコピコ。',
+    ],
+  },
+  pitch: {
+    title: 'PITCH',
+    paragraphs: ['PITCH は全体の高さ（チューニング）。上下にドラッグで半音ずつ、ダブルタップで0に戻ります。'],
+  },
+  fine: {
+    title: '微調整',
+    paragraphs: ['ON にすると、ツマミがゆっくり動いて細かく合わせられます（全てのツマミに効きます）。もう一度押すと OFF。'],
+  },
+}
+
 export const ALL_FRAMES: FrameId[] = LESSONS.flatMap((l) => l.realizes)

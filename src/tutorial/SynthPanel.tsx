@@ -31,14 +31,12 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
         </Slot>
 
         <div className="board">
-          <div className="board-top">
-            <Slot {...slotProps('pitch')}>
-              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
-            </Slot>
-            <Slot {...slotProps('fine')}>
-              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
-            </Slot>
-          </div>
+          <Slot {...slotProps('pitch')}>
+            <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+          </Slot>
+          <Slot {...slotProps('fine')}>
+            <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+          </Slot>
           <MockSections />
         </div>
 

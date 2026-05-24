@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth } from './audio/useSynth'
-import { LESSONS, ALL_FRAMES, lessonForFrame, type FrameId } from './tutorial/lessons'
+import { LESSONS, ALL_FRAMES, FRAME_HELP, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
@@ -150,7 +150,7 @@ export default function App() {
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
-  const popupLesson = panelPopup ? lessonForFrame(panelPopup) : null
+  const popupHelp = panelPopup ? FRAME_HELP[panelPopup] : null
 
   return (
     <div className="app-root">
@@ -226,8 +226,8 @@ export default function App() {
         </div>
       </div>
 
-      {popupLesson && (
-        <Popup title={popupLesson.stageTitle} paragraphs={popupLesson.popup} onClose={() => setPanelPopup(null)} />
+      {popupHelp && (
+        <Popup title={popupHelp.title} paragraphs={popupHelp.paragraphs} onClose={() => setPanelPopup(null)} />
       )}
     </div>
   )
