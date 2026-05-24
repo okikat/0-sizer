@@ -222,3 +222,270 @@ b {
   color: var(--sub);
   margin-top: 14px;
 }
+
+/* =========================================================
+   チュートリアル体験（スタート→イントロ→ゴースト盤面→レッスン→完成盤面）
+   ========================================================= */
+
+/* --- 共通アニメ --- */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes fadeUp {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+@keyframes popIn {
+  from { opacity: 0; transform: scale(0.92); }
+  to { opacity: 1; transform: scale(1); }
+}
+@keyframes blink {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.22; }
+}
+@keyframes stageEnter {
+  from { opacity: 0; transform: translateY(46px) scale(0.82); }
+  to { opacity: 1; transform: translateY(0) scale(1); }
+}
+@keyframes stageExit {
+  from { opacity: 1; transform: translateY(0) scale(1); }
+  to { opacity: 0; transform: translateY(30px) scale(0.66); }
+}
+.fade-in { animation: fadeIn 0.4s ease both; }
+.fade-up { animation: fadeUp 0.55s ease both; }
+.pop-in { animation: popIn 0.38s ease both; }
+
+/* --- フルスクリーンの画面（スタート/イントロ） --- */
+.screen {
+  position: fixed;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  padding: 24px;
+  background: radial-gradient(120% 120% at 50% 0%, #141b25 0%, var(--bg) 60%);
+}
+
+.start-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
+.brand .tag { font-size: 40px; letter-spacing: 1px; }
+.start-sub { color: var(--sub); font-size: 14px; margin: 0; }
+
+.cta {
+  margin-top: 8px;
+  padding: 13px 30px;
+  font-size: 16px;
+  font-weight: 700;
+  color: #06231f;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(90, 209, 196, 0.28);
+}
+.cta:active { transform: translateY(1px); }
+
+/* --- イントロ --- */
+.intro-screen { gap: 18px; cursor: pointer; }
+.intro-lines { max-width: 460px; min-height: 40vh; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
+.intro-line { font-size: 17px; line-height: 1.9; margin: 0; color: var(--txt); }
+.intro-next { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
+.intro-next.show { opacity: 1; pointer-events: auto; }
+
+/* --- 盤面（app-root） --- */
+.app-root {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px;
+  min-height: 100vh;
+}
+.panel-wrap { animation: fadeIn 0.5s ease both; }
+.panel-head { margin-bottom: 12px; }
+.panel-head .tag { font-size: 22px; }
+.panel-grid { display: flex; flex-direction: column; gap: 14px; }
+
+.slot {
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 14px;
+  padding: 16px;
+}
+.slot.ghost {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-style: dashed;
+  border-color: #2f3a48;
+  background: #11151b;
+  color: var(--sub);
+  opacity: 0.55;
+}
+.slot.slot-osc.ghost { min-height: 300px; }
+.slot.slot-keys.ghost { min-height: 190px; }
+.ghost-label { font-size: 14px; letter-spacing: 1px; }
+.slot.blink {
+  opacity: 1;
+  border-style: solid;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 2px rgba(90, 209, 196, 0.4), 0 0 26px rgba(90, 209, 196, 0.25);
+  animation: blink 0.36s ease-in-out 3;
+}
+
+/* --- ゴースト盤面プレビューのCTA --- */
+.ghost-cta {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  padding: 22px 16px calc(22px + env(safe-area-inset-bottom));
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 12px;
+  background: linear-gradient(to top, var(--bg) 30%, rgba(14, 17, 22, 0));
+}
+.ghost-cta-text { margin: 0; font-size: 14px; color: var(--txt); text-align: center; }
+
+/* --- レッスン・スポットライト --- */
+.stage-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: flex-end;
+  padding: 0 16px calc(20px + env(safe-area-inset-bottom));
+  background: rgba(6, 9, 13, 0.78);
+  backdrop-filter: blur(2px);
+}
+.stage-module {
+  position: relative;
+  width: 100%;
+  max-width: 528px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 18px 16px 16px;
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+}
+.stage-module.enter { animation: stageEnter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
+.stage-module.exit { animation: stageExit 0.5s ease both; }
+
+.help-btn {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 28px;
+  height: 28px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #10151c;
+  color: var(--sub);
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  z-index: 2;
+}
+.help-btn:active { color: var(--accent); border-color: var(--accent); }
+
+.ok-btn {
+  margin-top: 18px;
+  padding: 13px 46px;
+  font-size: 16px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: #2a1606;
+  background: var(--accent2);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  box-shadow: 0 6px 20px rgba(242, 166, 90, 0.32);
+}
+.ok-btn:active { transform: translateY(1px); }
+
+/* --- ポップアップ --- */
+.popup-backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 40;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(4, 6, 9, 0.6);
+}
+.popup {
+  max-width: 420px;
+  width: 100%;
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  padding: 20px;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+}
+.pop-in { animation: popIn 0.32s ease both; }
+.popup-title { margin: 0 0 10px; font-size: 16px; color: var(--accent); }
+.popup-p { margin: 8px 0; font-size: 13.5px; line-height: 1.75; color: #d4dde6; }
+.popup-ok {
+  margin-top: 14px;
+  width: 100%;
+  padding: 11px;
+  font-size: 14px;
+  font-weight: 700;
+  color: #06231f;
+  background: var(--accent);
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+/* --- モジュール内パーツ --- */
+.mod-osc .waves { margin-top: 12px; }
+.osc-bottom {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 22px;
+  flex-wrap: wrap;
+  margin-top: 14px;
+}
+.play-btn {
+  padding: 12px 22px;
+  font-size: 15px;
+  font-weight: 700;
+  color: #06231f;
+  background: var(--accent);
+  border: none;
+  border-radius: 999px;
+  cursor: pointer;
+  min-width: 116px;
+}
+.play-btn.on { color: #2a1606; background: var(--accent2); }
+.play-btn:active { transform: translateY(1px); }
+
+/* --- 角の操作（スキップ／もう一度見る） --- */
+.skip-btn,
+.replay-btn {
+  position: fixed;
+  top: calc(12px + env(safe-area-inset-top));
+  right: 14px;
+  z-index: 50;
+  padding: 7px 14px;
+  font-size: 12px;
+  color: var(--sub);
+  background: rgba(23, 28, 36, 0.85);
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.001ms !important;
+  }
+}
