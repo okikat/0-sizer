@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams } from './audio/useSynth'
+import { playGachanSound } from './audio/gachan'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
@@ -13,12 +14,14 @@ type Stage = 'blink' | 'active' | 'exit'
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-const EXIT_MS = 560
+const ANTICIPATE_MS = 150  // 予備動作（pull-back）の長さ
+const SLAM_MS = 460         // スラム（FLIP飛行）の長さ
+const EXIT_MS = ANTICIPATE_MS + SLAM_MS + 120  // = 730ms
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, getAudioContext } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -30,6 +33,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [flight, setFlight] = useState<Flight | null>(null)
+  const [gachanSlot, setGachanSlot] = useState<FrameId | null>(null)
+  const [shaking, setShaking] = useState(false)
   const stageRectRef = useRef<DOMRect | null>(null)
 
   // --- 音まわりの状態（音源は鍵盤。ドローン/鳴らすボタンは廃止） ---
@@ -74,6 +79,8 @@ export default function App() {
   const commitExit = useCallback(() => {
     stopAll()
     setFlight(null)
+    // lessonIndex を進める前に完了したスロットの ID を保存
+    const completedId = LESSONS[lessonIndex].id
     const next = lessonIndex + 1
     if (next < LESSONS.length) {
       setLessonIndex(next)
@@ -83,7 +90,18 @@ export default function App() {
       localStorage.setItem(DONE_KEY, '1')
       setPhase('panel')
     }
-  }, [lessonIndex, stopAll])
+    // GACHAN: スロット着弾エフェクト（ステージが消えてスロットが現れる瞬間に発火）
+    setGachanSlot(completedId)
+    setTimeout(() => setGachanSlot(null), 550)
+    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+    if (!prefersReduced) {
+      setShaking(true)
+      setTimeout(() => setShaking(false), 220)
+      const ctx = getAudioContext()
+      if (ctx) playGachanSound(ctx)
+      navigator.vibrate?.([12, 8, 6])
+    }
+  }, [lessonIndex, stopAll, getAudioContext])
 
   // 点滅→スポットライト→（OK後）盤面へ収まる、のタイミング制御。
   useEffect(() => {
@@ -101,24 +119,27 @@ export default function App() {
     }
   }, [phase, stage, commitExit])
 
-  // OK 後、ステージのモジュールを「実体化した盤面スロット」の位置・大きさへ飛ばす（FLIP）。
+  // OK 後、予備動作（ANTICIPATE_MS）を待ってから FLIP 開始。
+  // ステージのモジュールを「実体化した盤面スロット」の位置・大きさへ飛ばす。
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
-    const id = LESSONS[lessonIndex].id
-    const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
-    const s = stageRectRef.current
-    let f: Flight = { dx: 0, dy: 140, sx: 0.5, sy: 0.5 }
-    if (dEl && s) {
-      const d = dEl.getBoundingClientRect()
-      f = {
-        dx: d.left + d.width / 2 - (s.left + s.width / 2),
-        dy: d.top + d.height / 2 - (s.top + s.height / 2),
-        sx: clamp(d.width / s.width, 0.2, 1),
-        sy: clamp(d.height / s.height, 0.2, 1),
+    const t = setTimeout(() => {
+      const id = LESSONS[lessonIndex].id
+      const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
+      const s = stageRectRef.current
+      let f: Flight = { dx: 0, dy: 140, sx: 0.5, sy: 0.5 }
+      if (dEl && s) {
+        const d = dEl.getBoundingClientRect()
+        f = {
+          dx: d.left + d.width / 2 - (s.left + s.width / 2),
+          dy: d.top + d.height / 2 - (s.top + s.height / 2),
+          sx: clamp(d.width / s.width, 0.2, 1),
+          sy: clamp(d.height / s.height, 0.2, 1),
+        }
       }
-    }
-    const raf = requestAnimationFrame(() => setFlight(f))
-    return () => cancelAnimationFrame(raf)
+      requestAnimationFrame(() => setFlight(f))
+    }, ANTICIPATE_MS)
+    return () => clearTimeout(t)
   }, [phase, stage, lessonIndex])
 
   const beginLesson = (i: number) => {
@@ -169,6 +190,8 @@ export default function App() {
         sound={sound}
         showHelp={showHelp}
         onHelpFrame={(f) => setPanelPopup(f)}
+        shaking={shaking}
+        gachanSlot={gachanSlot}
       />
 
       {phase === 'ghost' && (

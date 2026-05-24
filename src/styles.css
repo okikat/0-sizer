@@ -566,8 +566,15 @@ b {
   transform-origin: center center;
 }
 .stage-module.enter { animation: stageEnter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
-/* exit はインライン transform（FLIP）へ向けて滑らかに収束させる */
-.stage-module.exit { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease; }
+/* 予備動作（anticipate）: わずかに引いてスケールアップ → スラムの「溜め」 */
+.stage-module.exit.anticipate {
+  transform: scale(1.05) translateY(-8px);
+  transition: transform 0.12s cubic-bezier(0.2, 0, 0.4, 1);
+}
+/* スラム（slam）: ease-in で加速しながらスロットへ突き刺さる */
+.stage-module.exit.slam {
+  transition: transform 0.46s cubic-bezier(0.4, 0, 1, 1), opacity 0.42s ease-in;
+}
 
 .help-btn {
   position: absolute;
@@ -799,6 +806,31 @@ b {
 
 /* レッスン中の試し弾き鍵盤 */
 .stage-keys { width: 100%; max-width: 528px; margin-top: 14px; }
+
+/* --- GACHAN: モジュールがスロットに嵌まった瞬間の衝撃エフェクト --- */
+
+/* 衝撃波リング：スロット境界から teal のリングが放射状に広がる */
+@keyframes gachan-ring {
+  0%   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 0px rgba(90, 209, 196, 0.7); }
+  25%  { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 5px rgba(90, 209, 196, 0.4); }
+  100% { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), 0 0 0 16px rgba(90, 209, 196, 0); }
+}
+.slot.gachan {
+  animation: gachan-ring 0.5s cubic-bezier(0.1, 0, 0.4, 1);
+}
+
+/* スクリーンシェイク：着弾の衝撃で画面が小刻みに揺れる */
+@keyframes screen-shake {
+  0%,  100% { transform: translate(0, 0); }
+  18%       { transform: translate(-4px, -2px); }
+  36%       { transform: translate(4px, 2px); }
+  54%       { transform: translate(-3px, -1px); }
+  72%       { transform: translate(2px, 1px); }
+  88%       { transform: translate(-1px, 0); }
+}
+.panel-wrap.shake {
+  animation: screen-shake 0.2s ease-out;
+}
 
 /* --- 盤面の飾り（モック）。グリッドのセルに合わせて伸縮。 --- */
 .mock-sec {

@@ -36,16 +36,26 @@ function StageContent({ lesson, sound }: { lesson: Lesson; sound: SoundCtl }) {
 }
 
 /** スポットライト面：対象フレームを中央に大きく出し、解説ポップアップ＋OKで盤面へ収める。
- * 鍵盤以外のレッスンでは、下に試し弾き用の鍵盤を置く（「鳴らす」ボタンの代わり）。 */
+ * 鍵盤以外のレッスンでは、下に試し弾き用の鍵盤を置く（「鳴らす」ボタンの代わり）。
+ *
+ * exit フェーズは 2 段階：
+ *   anticipate（flight=null）: モジュールが pull-back する予備動作
+ *   slam（flight!=null）:      ease-in で一気にスロットへ突き刺さる
+ */
 export function LessonStage({ lesson, exiting, flight, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
   const flightStyle =
     exiting && flight
       ? { transform: `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.sx}, ${flight.sy})`, opacity: 0 }
       : undefined
 
+  // exit フェーズを予備動作(anticipate) とスラム(slam) に分ける
+  const moduleClass =
+    'stage-module ' +
+    (exiting ? 'exit ' + (flight ? 'slam' : 'anticipate') : 'enter')
+
   return (
     <div className={'stage-layer' + (exiting ? ' leaving' : ' fade-in')}>
-      <div className={'stage-module ' + (exiting ? 'exit' : 'enter')} data-stage-module style={flightStyle}>
+      <div className={moduleClass} data-stage-module style={flightStyle}>
         <button className="help-btn" onClick={onHelp} aria-label="ヒントをもう一度見る">
           ?
         </button>

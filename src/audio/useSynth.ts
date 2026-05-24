@@ -175,5 +175,7 @@ export function useSynth() {
     }
   }, [])
 
-  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance }
+  const getAudioContext = useCallback(() => ctxRef.current, [])
+
+  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, getAudioContext }
 }

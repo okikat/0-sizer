@@ -29,10 +29,14 @@ interface Props {
   sound: SoundCtl
   showHelp: boolean
   onHelpFrame: (frame: FrameId) => void
+  /** GACHAN スクリーンシェイク中は true */
+  shaking: boolean
+  /** 衝撃波リングを表示するスロット ID（着弾直後に一時的にセット） */
+  gachanSlot: FrameId | null
 }
 
 /** 完成形の盤面。未習得のフレームも実体を薄く（ゴースト）表示し、習うと色がつく。周りは飾り（モック）。 */
-export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame }: Props) {
+export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, shaking, gachanSlot }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   useCellSize(gridRef)
 
@@ -42,10 +46,11 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
     blink: blinkingId === id,
     showHelp,
     onHelp: onHelpFrame,
+    gachan: gachanSlot === id,
   })
 
   return (
-    <div className="panel-wrap">
+    <div className={'panel-wrap' + (shaking ? ' shake' : '')}>
       <div className="panel-head">
         <span className="tag">0-sizer</span>
       </div>
@@ -89,6 +94,7 @@ function Slot({
   blink,
   showHelp,
   onHelp,
+  gachan,
   children,
 }: {
   id: FrameId
@@ -96,9 +102,15 @@ function Slot({
   blink: boolean
   showHelp: boolean
   onHelp: (frame: FrameId) => void
+  gachan: boolean
   children: React.ReactNode
 }) {
-  const cls = 'slot slot-' + id + (realized ? ' pop-in' : ' ghost' + (blink ? ' blink' : ''))
+  const cls =
+    'slot slot-' +
+    id +
+    (realized
+      ? ' pop-in' + (gachan ? ' gachan' : '')
+      : ' ghost' + (blink ? ' blink' : ''))
   return (
     <div className={cls} data-slot={id}>
       {realized && showHelp && (
