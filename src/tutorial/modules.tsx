@@ -28,23 +28,21 @@ export function OscillatorModule({
   onToggleDrone,
   onTune,
   compact = false,
-}: SoundCtl['osc'] & { compact?: boolean }) {
+  showText = true,
+}: SoundCtl['osc'] & { compact?: boolean; showText?: boolean }) {
   const [fine, setFine] = useState(false)
   return (
     <div className={'mod mod-osc' + (compact ? ' mod-osc--compact' : '')}>
       <Scope type={type} playing={playing} />
-      <WaveformPicker value={type} onChange={onType} />
+      <WaveformPicker value={type} onChange={onType} compact={compact} />
       <div className="osc-bottom">
-        <button
-          className={'fine-btn' + (fine ? ' on' : '')}
-          onClick={() => setFine((v) => !v)}
-          aria-pressed={fine}
-        >
-          微調整{fine ? ' ON' : ''}
+        <button className={'fine-btn' + (fine ? ' on' : '')} onClick={() => setFine((v) => !v)} aria-pressed={fine}>
+          微調整
         </button>
         <Knob
-          size={compact ? 92 : 108}
+          size={compact ? 70 : 108}
           fine={fine}
+          showText={showText}
           min={-12}
           max={12}
           defaultValue={0}

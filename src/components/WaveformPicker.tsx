@@ -1,6 +1,8 @@
 interface Props {
   value: OscillatorType
   onChange: (t: OscillatorType) => void
+  /** 盤面に収まる時はアイコンのみの縮小表示にする。 */
+  compact?: boolean
 }
 
 const ITEMS: { t: OscillatorType; sym: string; label: string }[] = [
@@ -10,18 +12,19 @@ const ITEMS: { t: OscillatorType; sym: string; label: string }[] = [
   { t: 'square', sym: '⊓', label: '矩形波' },
 ]
 
-/** 4波形のセレクタ。選ぶと音色（音のキャラ）が変わる。 */
-export function WaveformPicker({ value, onChange }: Props) {
+/** 4波形のセレクタ。選ぶと音色（音のキャラ）が変わる。compact ではアイコンのみ。 */
+export function WaveformPicker({ value, onChange, compact = false }: Props) {
   return (
-    <div className="waves">
+    <div className={'waves' + (compact ? ' waves--compact' : '')}>
       {ITEMS.map((it) => (
         <div
           key={it.t}
           className={'wave' + (value === it.t ? ' sel' : '')}
           onClick={() => onChange(it.t)}
+          aria-label={it.label}
         >
           <span className="sym">{it.sym}</span>
-          {it.label}
+          {!compact && <span className="wlabel">{it.label}</span>}
         </div>
       ))}
     </div>

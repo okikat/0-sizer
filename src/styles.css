@@ -140,6 +140,7 @@ b {
   color: var(--sub);
   margin-top: 2px;
 }
+.knob-hint .hint-touch { display: none; }
 
 /* 鍵盤 */
 .piano {
@@ -251,10 +252,6 @@ b {
   from { opacity: 0; transform: translateY(46px) scale(0.82); }
   to { opacity: 1; transform: translateY(0) scale(1); }
 }
-@keyframes stageExit {
-  from { opacity: 1; transform: translateY(0) scale(1); }
-  to { opacity: 0; transform: translateY(30px) scale(0.66); }
-}
 .fade-in { animation: fadeIn 0.4s ease both; }
 .pop-in { animation: popIn 0.38s ease both; }
 
@@ -314,23 +311,47 @@ b {
 .intro-next { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 .intro-next.show { opacity: 1; pointer-events: auto; }
 
-/* --- 盤面（app-root） --- */
+/* --- 盤面（app-root）：基本はスクロールせず1画面に収める --- */
 .app-root {
   max-width: 560px;
   margin: 0 auto;
-  padding: 16px;
-  min-height: 100vh;
+  padding: 12px;
+  height: 100vh;
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
 }
-.panel-wrap { animation: fadeIn 0.5s ease both; }
-.panel-head { margin-bottom: 12px; }
+.panel-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: fadeIn 0.5s ease both; }
+.panel-head {
+  margin-bottom: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
 .panel-head .tag { font-size: 22px; }
-.panel-grid { display: flex; flex-direction: column; gap: 14px; }
+.help-toggle {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-size: 12px;
+  color: var(--sub);
+  cursor: pointer;
+  user-select: none;
+}
+.help-toggle input { accent-color: var(--accent); }
+
+.panel-grid { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; }
+.panel-grid .slot-osc { flex: 0 0 auto; }
+.panel-grid .mock-rack { flex: 1 1 auto; min-height: 0; overflow: hidden; }
+.panel-grid .slot-keys { flex: 0 0 auto; }
 
 .slot {
+  position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 16px;
+  padding: 12px;
 }
 .slot.ghost {
   display: flex;
@@ -342,9 +363,24 @@ b {
   color: var(--sub);
   opacity: 0.55;
 }
-.slot.slot-osc.ghost { min-height: 250px; }
-.slot.slot-keys.ghost { min-height: 190px; }
+.slot.slot-osc.ghost { min-height: 200px; }
+.slot.slot-keys.ghost { min-height: 170px; }
 .ghost-label { font-size: 14px; letter-spacing: 1px; }
+.slot-help {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 3;
+  width: 26px;
+  height: 26px;
+  border: 1px solid var(--line);
+  border-radius: 7px;
+  background: #10151c;
+  color: var(--sub);
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
+}
 .slot.blink {
   opacity: 1;
   border-style: solid;
@@ -380,6 +416,12 @@ b {
   padding: 0 16px calc(20px + env(safe-area-inset-bottom));
   background: rgba(6, 9, 13, 0.78);
   backdrop-filter: blur(2px);
+  transition: background 0.5s ease, backdrop-filter 0.5s ease;
+}
+/* OK 後は暗幕も晴れていき、奥の実体化モジュールがそのまま現れる（シームレス） */
+.stage-layer.leaving {
+  background: rgba(6, 9, 13, 0);
+  backdrop-filter: blur(0);
 }
 .stage-module {
   position: relative;
@@ -390,9 +432,11 @@ b {
   border-radius: 16px;
   padding: 18px 16px 16px;
   box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  transform-origin: center center;
 }
 .stage-module.enter { animation: stageEnter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
-.stage-module.exit { animation: stageExit 0.5s ease both; }
+/* exit はインライン transform（FLIP）へ向けて滑らかに収束させる */
+.stage-module.exit { transition: transform 0.5s cubic-bezier(0.4, 0, 0.2, 1), opacity 0.5s ease; }
 
 .help-btn {
   position: absolute;
@@ -503,12 +547,16 @@ b {
 .play-btn.on { color: #2a1606; background: var(--accent2); }
 .play-btn:active { transform: translateY(1px); }
 
+/* 波形セレクタのアイコンのみ表示（縮小用） */
+.waves--compact { gap: 6px; margin-top: 8px; }
+.waves--compact .wave { padding: 7px 0; }
+.waves--compact .wave .sym { font-size: 20px; margin-bottom: 0; }
+
 /* 盤面に収まる時はコンパクト表示（計器を低く、間隔を詰める） */
-.mod-osc--compact .scope { height: 76px; }
-.mod-osc--compact .waves { gap: 6px; margin-top: 8px; }
-.mod-osc--compact .wave { padding: 8px 4px; font-size: 11px; }
-.mod-osc--compact .wave .sym { font-size: 18px; margin-bottom: 3px; }
-.mod-osc--compact .osc-bottom { margin-top: 8px; }
+.mod-osc--compact .scope { height: 46px; }
+.mod-osc--compact .osc-bottom { margin-top: 8px; gap: 4px; }
+.mod-osc--compact .fine-btn { padding: 7px 10px; font-size: 11px; }
+.mod-osc--compact .play-btn { padding: 9px 12px; font-size: 13px; }
 
 /* --- 盤面の飾り（モック） --- */
 .mock-rack {
@@ -601,6 +649,9 @@ b {
   /* キー文字を隠したら、音名を縦中央に収める */
   .wkey { justify-content: flex-end; }
   .bkey { justify-content: flex-end; }
+  /* 操作ヒントはタッチ向けの文言に切り替え（クリック→タップ） */
+  .knob-hint .hint-mouse { display: none; }
+  .knob-hint .hint-touch { display: inline; }
 }
 
 @media (prefers-reduced-motion: reduce) {

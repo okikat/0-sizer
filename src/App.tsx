@@ -1,20 +1,22 @@
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth } from './audio/useSynth'
 import { LESSONS, type LessonId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
 import { SynthPanel } from './tutorial/SynthPanel'
-import { LessonStage } from './tutorial/LessonStage'
+import { LessonStage, type Flight } from './tutorial/LessonStage'
+import { Popup } from './tutorial/Popup'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-const EXIT_MS = 520
+const EXIT_MS = 560
 
 const allIds = () => new Set<LessonId>(LESSONS.map((l) => l.id))
+const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export default function App() {
   const { noteOn, noteOff, setWaveform, setTune } = useSynth()
@@ -25,6 +27,10 @@ export default function App() {
   const [stage, setStage] = useState<Stage>('blink')
   const [realized, setRealized] = useState<Set<LessonId>>(done ? allIds() : new Set())
   const [popupOpen, setPopupOpen] = useState(false)
+  const [showHelp, setShowHelp] = useState(false)
+  const [panelPopup, setPanelPopup] = useState<LessonId | null>(null)
+  const [flight, setFlight] = useState<Flight | null>(null)
+  const stageRectRef = useRef<DOMRect | null>(null)
 
   // --- 音まわりの状態 ---
   const [type, setType] = useState<OscillatorType>('sine')
@@ -71,7 +77,21 @@ export default function App() {
     },
   }
 
-  // 点滅→スポットライト、OK→実体化のタイミング制御。
+  const commitExit = useCallback(() => {
+    stopAll()
+    setFlight(null)
+    const next = lessonIndex + 1
+    if (next < LESSONS.length) {
+      setLessonIndex(next)
+      setPopupOpen(false)
+      setStage('blink')
+    } else {
+      localStorage.setItem(DONE_KEY, '1')
+      setPhase('panel')
+    }
+  }, [lessonIndex, stopAll])
+
+  // 点滅→スポットライト→（OK後）盤面へ収まる、のタイミング制御。
   useEffect(() => {
     if (phase !== 'lesson') return
     if (stage === 'blink') {
@@ -82,27 +102,45 @@ export default function App() {
       return () => clearTimeout(t)
     }
     if (stage === 'exit') {
-      const t = setTimeout(() => {
-        stopAll()
-        setRealized((prev) => new Set(prev).add(LESSONS[lessonIndex].id))
-        if (lessonIndex + 1 < LESSONS.length) {
-          setLessonIndex(lessonIndex + 1)
-          setPopupOpen(false)
-          setStage('blink')
-        } else {
-          localStorage.setItem(DONE_KEY, '1')
-          setPhase('panel')
-        }
-      }, EXIT_MS)
+      const t = setTimeout(commitExit, EXIT_MS)
       return () => clearTimeout(t)
     }
-  }, [phase, stage, lessonIndex, stopAll])
+  }, [phase, stage, commitExit])
+
+  // OK 後、ステージのモジュールを「実体化した盤面スロット」の位置・大きさへ飛ばす（FLIP）。
+  useEffect(() => {
+    if (phase !== 'lesson' || stage !== 'exit') return
+    const id = LESSONS[lessonIndex].id
+    const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
+    const s = stageRectRef.current
+    let f: Flight = { dx: 0, dy: 140, sx: 0.5, sy: 0.5 }
+    if (dEl && s) {
+      const d = dEl.getBoundingClientRect()
+      f = {
+        dx: d.left + d.width / 2 - (s.left + s.width / 2),
+        dy: d.top + d.height / 2 - (s.top + s.height / 2),
+        sx: clamp(d.width / s.width, 0.2, 1),
+        sy: clamp(d.height / s.height, 0.2, 1),
+      }
+    }
+    const raf = requestAnimationFrame(() => setFlight(f))
+    return () => cancelAnimationFrame(raf)
+  }, [phase, stage, lessonIndex])
 
   const beginLesson = (i: number) => {
+    setFlight(null)
     setLessonIndex(i)
     setPopupOpen(false)
     setStage('blink')
     setPhase('lesson')
+  }
+
+  const onOK = () => {
+    const sEl = document.querySelector('[data-stage-module]') as HTMLElement | null
+    stageRectRef.current = sEl ? sEl.getBoundingClientRect() : null
+    setRealized((prev) => new Set(prev).add(LESSONS[lessonIndex].id))
+    setPopupOpen(false)
+    setStage('exit')
   }
 
   const skip = () => {
@@ -123,12 +161,17 @@ export default function App() {
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
+  const popupLesson = panelPopup ? LESSONS.find((l) => l.id === panelPopup) : null
+
   return (
     <div className="app-root">
       <SynthPanel
         realized={realized}
         blinkingId={phase === 'lesson' && stage === 'blink' ? LESSONS[lessonIndex].id : null}
         sound={sound}
+        showHelp={showHelp}
+        onToggleHelp={() => setShowHelp((v) => !v)}
+        onHelpLesson={(id) => setPanelPopup(id)}
       />
 
       {phase === 'ghost' && (
@@ -144,10 +187,11 @@ export default function App() {
         <LessonStage
           lesson={LESSONS[lessonIndex]}
           exiting={stage === 'exit'}
+          flight={flight}
           popupOpen={popupOpen}
           onClosePopup={() => setPopupOpen(false)}
           onHelp={() => setPopupOpen(true)}
-          onOK={() => setStage('exit')}
+          onOK={onOK}
           sound={sound}
         />
       )}
@@ -162,6 +206,10 @@ export default function App() {
         <button className="replay-btn" onClick={replay}>
           もう一度見る
         </button>
+      )}
+
+      {popupLesson && (
+        <Popup title={popupLesson.stageTitle} paragraphs={popupLesson.popup} onClose={() => setPanelPopup(null)} />
       )}
     </div>
   )

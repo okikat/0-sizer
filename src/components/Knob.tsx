@@ -11,6 +11,8 @@ interface Props {
   label?: string
   /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
   fine?: boolean
+  /** 値表示・操作ヒントなどの文字情報を出すか（盤面では「解説表示」トグルで制御）。 */
+  showText?: boolean
   format?: (v: number) => KnobFormat
   onChange?: (v: number) => void
 }
@@ -33,7 +35,7 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
 }
 
 /** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。 */
-export function Knob({ min, max, defaultValue, size = 130, label, fine = false, format, onChange }: Props) {
+export function Knob({ min, max, defaultValue, size = 130, label, fine = false, showText = true, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const gid = 'kcap' + useId().replace(/:/g, '')
@@ -41,8 +43,10 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
   const lastTap = useRef(0)
 
   const r = size / 2
-  const trackR = r - 10
-  const capR = r - 26
+  // 半径に対する比率で各寸法を決める（小さいサイズでも崩れないように）。
+  const trackR = r * 0.846
+  const capR = r * 0.6
+  const arcW = r * 0.092
   const norm = (value - min) / (max - min)
   const ang = A0 + norm * (A1 - A0)
 
@@ -86,8 +90,8 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
   const ticks = []
   for (let i = 0; i <= 10; i++) {
     const ta = A0 + (i / 10) * (A1 - A0)
-    const [ax, ay] = polar(r, r, trackR + 4, ta)
-    const [bx, by] = polar(r, r, trackR + (i % 5 === 0 ? 12 : 8), ta)
+    const [ax, ay] = polar(r, r, trackR + r * 0.03, ta)
+    const [bx, by] = polar(r, r, trackR + (i % 5 === 0 ? r * 0.092 : r * 0.062), ta)
     ticks.push(
       <line
         key={i}
@@ -101,8 +105,8 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
     )
   }
 
-  const [i0x, i0y] = polar(r, r, capR - 20, ang)
-  const [i1x, i1y] = polar(r, r, capR - 4, ang)
+  const [i0x, i0y] = polar(r, r, capR - r * 0.31, ang)
+  const [i1x, i1y] = polar(r, r, capR - r * 0.06, ang)
   const f = format ? format(value) : { main: String(Math.round(value)) }
   const mainFont = Math.round(size * 0.14)
   const subFont = Math.round(size * 0.085)
@@ -130,18 +134,27 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
           </radialGradient>
         </defs>
         <g>{ticks}</g>
-        <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#222a34" strokeWidth={6} strokeLinecap="round" />
-        <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={6} strokeLinecap="round" />
+        <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#222a34" strokeWidth={arcW} strokeLinecap="round" />
+        <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={arcW} strokeLinecap="round" />
         <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#0c1116" strokeWidth={2} />
-        <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={3.5} strokeLinecap="round" />
-        <text x={r} y={r + 1} textAnchor="middle" fill="#e6edf3" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
-          {f.main}
-        </text>
-        <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
-          {f.sub ?? ''}
-        </text>
+        <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.054} strokeLinecap="round" />
+        {showText && (
+          <>
+            <text x={r} y={r + 1} textAnchor="middle" fill="#e6edf3" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
+              {f.main}
+            </text>
+            <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
+              {f.sub ?? ''}
+            </text>
+          </>
+        )}
       </svg>
-      <div className="knob-hint">↕ ドラッグ ・ ダブルクリックで初期値</div>
+      {showText && (
+        <div className="knob-hint">
+          <span className="hint-mouse">上下にドラッグ ・ ダブルクリックで初期値</span>
+          <span className="hint-touch">上下にドラッグ ・ ダブルタップで初期値</span>
+        </div>
+      )}
     </div>
   )
 }
