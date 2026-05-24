@@ -110,24 +110,77 @@ What this means for you:
 - Mobile-first; panel is one screen with keyboard pinned and knobs
   scrolling.
 
+## Grid layout convention
+Module sizes are expressed as **横×縦 (width×height)** in grid cells (each
+cell = 1/8 of panel width, square). Current placement:
+
+| Frame / mock | W×H | grid-column | grid-row |
+|---|---|---|---|
+| wave | 8×1 | 1–8 | 1 |
+| env | 4×4 | 1–4 | 2–5 |
+| filter | 4×2 | 5–8 | 2–3 |
+| pitch | 2×2 | 5–6 | 4–5 |
+| fine | 2×2 | 7–8 | 4–5 |
+| mock LFO | 4×2 | 1–4 | 6–7 |
+| mock MIX | 4×2 | 5–8 | 6–7 |
+
+Keyboard is **outside** the grid, pinned below `.panel-scroll`.
+
+## Visual design (NEXT to implement)
+**Erica Synths-inspired** physical look — "っぽく" only, not a copy.
+Reference: Erica Synths Black series. User chose this style because Hirasawa
+Susumu uses the brand; teal accent is already there and stays.
+
+Palette:
+- Panel body: **matte black** (`#0f1114` or similar near-black)
+- Labels / text: **white silkscreen** style (clean, no serifs, generous
+  letter-spacing)
+- Knob body: dark/black; indicator line & active arc: **teal** (current
+  `#5ad1c4` or close)
+- Tick marks: white/grey, minimal
+- Active / live elements (held keys, LCD readout glow): teal
+- Sub / inactive text: mid-grey
+
+Style keywords: **minimal**, hardware-physical, slight matte texture or
+shadow (no skeuomorphic shine), no gradients on panel body.
+
+Future (not now): premium plan visual variants — different panel colorways.
+
+## Assembly animation (NEXT after visual polish)
+Dramatic "GACHAN!" effect when a module settles into the panel after OK:
+
+1. Module hovers after OK → brief pull-back / scale-up anticipation
+2. **Slam** into slot — hard, satisfying
+3. On impact:
+   - Shockwave ring radiates from slot
+   - Subtle screen shake (1–2 frames)
+   - Synthesized "KA-CHAK" sound (short metallic click — Web Audio,
+     no asset files)
+   - Haptics if available (`navigator.vibrate`)
+4. Ghost connector/terminal hints visible behind empty slots; they
+   **light up** (teal pulse) when a module connects
+5. Reduce-motion: skip shake/sound, keep a quick scale-pop only
+
+The current FLIP is the structural foundation; wrap it with this layer.
+
 ## Done so far
 5 real lessons (keyboard, waveform, PITCH+微調整, envelope/ADSR, **filter**)
 + a dense scrollable panel with decorative mocks (LFO, MIX). Cinematic
 onboarding (start, intro, ghost preview, per-module spotlight with popup/?,
-FLIP settle).
+FLIP settle). 8-col square-cell responsive grid.
 
 ## Likely next steps / open items
-- The user's vision: a **"パネル編集モード"** — a grid where modules can be
-  freely resized/rearranged within constraints, plus pin scroll-vs-fixed.
-  We've done the near-term *fixed* dense grid; the interactive editor is the
-  bigger future feature (drag/resize/persist).
-- FILTER (lowpass) is now real. Possible follow-ups: a filter ENV/keytrack,
-  or another filter type — but only if the beginner asks. Next mock to
-  realize would be **LFO** (a `setInterval`/`OscillatorNode` modulating
-  pitch or cutoff) or **MIX** (master VOL/PAN).
-- **Verify on device**: the FILTER lesson (CUTOFF should clearly muffle the
-  tone, RES should add the "ミョーン" peak), plus the earlier sleep-resume
-  audio fix and keyboard C-marker visibility.
+1. **Visual redesign** (Erica Synths-inspired, see above) — start with one
+   physical-style knob to nail the look, then roll out to the full panel.
+2. **Assembly animation** (GACHAN) — after visual pass is solid.
+3. Real-time oscilloscope: replace preset-wave scope with an `AnalyserNode`
+   showing the actual audio output. User said "あってもいい" — future.
+4. i18n: extract strings to a dictionary for future English support.
+   Do this the next time you touch any copy.
+5. Next lesson candidates (only if user asks): LFO (OscillatorNode modulating
+   pitch/cutoff), MIX (master VOL/PAN). The mock sections show these.
+6. **Verify on device**: wave buttons centred in 1-cell strip, iOS magnifier
+   gone, FILTER 4×2 with CUTOFF/RES side-by-side.
 - Minor: `mock.tsx` still has an unused `slider` widget kind.
 - Only test is `src/lib/notes.test.ts`.
 
