@@ -36,23 +36,17 @@ const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Ma
 // RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜16（強め）に対応させる。
 const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
 
-/** 波形フレーム：計器＋波形選択。 */
+/** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。 */
 export function WaveFrame({
   type,
   onType,
   playing,
   compact = false,
 }: Pick<SoundCtl, 'type' | 'onType' | 'playing'> & { compact?: boolean }) {
-  const [showScope, setShowScope] = useState(true)
   return (
     <div className={'mod mod-wave' + (compact ? ' mod--compact' : '')}>
-      {showScope && <Scope type={type} playing={playing} />}
-      <div className="wave-row">
-        <WaveformPicker value={type} onChange={onType} compact={compact} />
-        <button className="frame-toggle" onClick={() => setShowScope((s) => !s)} aria-label="波形図の表示切り替え">
-          {showScope ? '▾' : '▸'}
-        </button>
-      </div>
+      {!compact && <Scope type={type} playing={playing} />}
+      <WaveformPicker value={type} onChange={onType} compact={compact} />
     </div>
   )
 }
@@ -128,6 +122,7 @@ export function FilterFrame({
 }: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine'> & { compact?: boolean; showText?: boolean }) {
   return (
     <div className="mod mod-filter">
+      {compact && <div className="mod-title">FILTER</div>}
       <Knob
         fine={fine}
         showText={showText}

@@ -127,16 +127,26 @@ b {
   color: var(--accent);
 }
 
-/* ノブ */
+/* ノブ：ダイヤル＋ラベル（下に内蔵）。表示サイズは文脈が決める。 */
 .knob-wrap {
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
+  min-width: 0;
+  max-width: 100%;
+}
+.knob-dial {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  min-height: 0;
 }
 .knob-label {
-  font-size: 13px;
+  font-size: 12px;
   color: var(--sub);
+  text-align: center;
 }
 .knob-svg {
   touch-action: none;
@@ -444,14 +454,15 @@ b {
   gap: 8px;
   justify-content: center;
 }
-/* モジュールの配置（列開始 / 横マス, 行開始 / 縦マス）。穴なしで敷き詰める。 */
-.slot-wave     { grid-column: 1 / span 4; grid-row: 1 / span 3; }
-.slot-pitch    { grid-column: 5 / span 2; grid-row: 1 / span 3; }
-.slot-fine     { grid-column: 7 / span 2; grid-row: 1 / span 1; }
-.mock-sec--lfo { grid-column: 7 / span 2; grid-row: 2 / span 2; }
-.slot-env      { grid-column: 1 / span 4; grid-row: 4 / span 6; }
-.slot-filter   { grid-column: 5 / span 4; grid-row: 4 / span 3; }
-.mock-sec--mix { grid-column: 5 / span 4; grid-row: 7 / span 3; }
+/* モジュールの配置（列開始 / 横マス, 行開始 / 縦マス）。穴なしで敷き詰める。
+   波形=上部の帯 / ENV左 / FILTER縦長 / PITCH・微調整を縦積み / 下段にモック。 */
+.slot-wave     { grid-column: 1 / span 8; grid-row: 1 / span 1; }
+.slot-env      { grid-column: 1 / span 4; grid-row: 2 / span 4; }
+.slot-filter   { grid-column: 5 / span 2; grid-row: 2 / span 4; }
+.slot-pitch    { grid-column: 7 / span 2; grid-row: 2 / span 2; }
+.slot-fine     { grid-column: 7 / span 2; grid-row: 4 / span 2; }
+.mock-sec--lfo { grid-column: 1 / span 4; grid-row: 6 / span 2; }
+.mock-sec--mix { grid-column: 5 / span 4; grid-row: 6 / span 2; }
 
 .slot {
   position: relative;
@@ -619,8 +630,10 @@ b {
 }
 
 /* --- フレーム内パーツ --- */
-/* グリッド内：波形は縦に計器＋セレクタ、枠の中央に。 */
-.slot-wave .mod-wave { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
+/* グリッド内の波形：セレクタのみを横一列で枠いっぱいに。 */
+.slot-wave .mod-wave { height: 100%; display: flex; align-items: stretch; }
+.slot-wave .waves { width: 100%; height: 100%; margin-top: 0; }
+.slot-wave .wave { display: flex; align-items: center; justify-content: center; }
 .wave-row { display: flex; gap: 6px; align-items: stretch; margin-top: 8px; }
 .wave-row .waves { margin-top: 0; flex: 1; }
 .env-row { display: flex; gap: 6px; align-items: stretch; }
@@ -644,16 +657,22 @@ b {
 .mod-pitch { display: flex; justify-content: center; align-items: center; }
 .mod-filter { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
-/* グリッド内の微調整トグルは細い1マスにフィットさせる。 */
+/* グリッド内の微調整トグルは1マスにフィットさせる。 */
 .slot-fine .fine-btn { width: 100%; height: 100%; justify-content: center; padding: 0 8px; }
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
 
-/* グリッド内ノブ：枠幅に合わせて伸縮。PITCH は枠いっぱい、FILTER は2つで半分ずつ。 */
-.slot-pitch .knob-wrap { width: 100%; }
-.slot-filter .knob-wrap { width: 50%; min-width: 0; }
-/* レッスン中（スポットライト）のノブは固定サイズで大きめに。 */
-.stage-module .knob-wrap { width: 140px; max-width: 42vw; }
-.knob-wrap { max-width: 100%; min-width: 0; }
+/* モジュール見出し（FILTER 等、枠の中の小見出し）。 */
+.mod-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); flex: 0 0 auto; text-align: center; }
+
+/* グリッド内ノブ：セルいっぱい。ダイヤルが余白を埋め、ラベルは内側下。 */
+.slot .knob-wrap { width: 100%; height: 100%; justify-content: center; gap: 2px; }
+.slot .knob-dial { flex: 1 1 auto; min-height: 0; }
+.slot .knob-svg { width: auto; height: 100%; }
+/* FILTER は縦長：見出し＋2ツマミを縦に積み、ツマミは高さを分け合う。 */
+.slot-filter .mod-filter { flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; }
+.slot-filter .knob-wrap { height: auto; flex: 1 1 0; min-height: 0; }
+/* スポットライト（レッスン）のノブは固定サイズで大きめに。 */
+.stage-module .knob-dial { width: 130px; max-width: 42vw; }
 
 /* 実機シンセのボタン風。左に点灯する LED。 */
 .fine-btn {

@@ -119,40 +119,42 @@ export function Knob({ min, max, defaultValue, label, fine = false, showText = t
 
   return (
     <div className="knob-wrap">
+      <div className="knob-dial">
+        <svg
+          className="knob-svg"
+          viewBox={`0 0 ${VB} ${VB}`}
+          style={{ touchAction: 'none' }}
+          onPointerDown={onDown}
+          onPointerMove={onMove}
+          onPointerUp={onUp}
+          onPointerCancel={onUp}
+          onWheel={onWheel}
+        >
+          <defs>
+            <radialGradient id={gid} cx="38%" cy="32%" r="75%">
+              <stop offset="0%" stopColor="#39414d" />
+              <stop offset="55%" stopColor="#222a34" />
+              <stop offset="100%" stopColor="#141a22" />
+            </radialGradient>
+          </defs>
+          <g>{ticks}</g>
+          <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#222a34" strokeWidth={arcW} strokeLinecap="round" />
+          <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={arcW} strokeLinecap="round" />
+          <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#0c1116" strokeWidth={2} />
+          <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.054} strokeLinecap="round" />
+          {showText && (
+            <>
+              <text x={r} y={r + 1} textAnchor="middle" fill="#5ad1c4" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
+                {f.main}
+              </text>
+              <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
+                {f.sub ?? ''}
+              </text>
+            </>
+          )}
+        </svg>
+      </div>
       {label && <div className="knob-label">{label}</div>}
-      <svg
-        className="knob-svg"
-        viewBox={`0 0 ${VB} ${VB}`}
-        style={{ touchAction: 'none' }}
-        onPointerDown={onDown}
-        onPointerMove={onMove}
-        onPointerUp={onUp}
-        onPointerCancel={onUp}
-        onWheel={onWheel}
-      >
-        <defs>
-          <radialGradient id={gid} cx="38%" cy="32%" r="75%">
-            <stop offset="0%" stopColor="#39414d" />
-            <stop offset="55%" stopColor="#222a34" />
-            <stop offset="100%" stopColor="#141a22" />
-          </radialGradient>
-        </defs>
-        <g>{ticks}</g>
-        <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#222a34" strokeWidth={arcW} strokeLinecap="round" />
-        <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={arcW} strokeLinecap="round" />
-        <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#0c1116" strokeWidth={2} />
-        <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.054} strokeLinecap="round" />
-        {showText && (
-          <>
-            <text x={r} y={r + 1} textAnchor="middle" fill="#5ad1c4" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
-              {f.main}
-            </text>
-            <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
-              {f.sub ?? ''}
-            </text>
-          </>
-        )}
-      </svg>
       {showHint && (
         <div className="knob-hint">
           <span className="hint-mouse">上下にドラッグ ・ ダブルクリックで初期値</span>
