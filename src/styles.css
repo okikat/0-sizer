@@ -248,16 +248,20 @@ b {
 /* ドの目印（白鍵の上端。下のドレミ表記と被らない） */
 .ckey-mark {
   position: absolute;
-  top: 3px;
+  top: 2px;
   left: 50%;
   transform: translateX(-50%);
-  font-size: 11px;
+  font-size: 12px;
   line-height: 1;
-  color: #9aa7b5;
+  color: #33404d;
   pointer-events: none;
-  z-index: 1;
+  z-index: 3;
 }
-.ckey-mark.home { color: var(--accent2); }
+.ckey-mark.home {
+  color: #d9660f;
+  font-size: 15px;
+  font-weight: 700;
+}
 
 /* 位置ナビ：ホーム復帰ボタン＋現在位置バー（ミニ俯瞰） */
 .kbd-nav { display: flex; align-items: center; gap: 8px; }

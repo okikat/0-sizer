@@ -59,7 +59,8 @@ export function useSynth() {
       gainRef.current = gain
       oscRef.current = osc
     }
-    if (ctxRef.current.state === 'suspended') void ctxRef.current.resume()
+    // 'suspended' に加え Safari の 'interrupted'（通話・スリープ後）も再開する。
+    if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
   }, [])
 
   const applyFreq = useCallback(() => {
@@ -120,6 +121,23 @@ export function useSynth() {
     },
     [applyFreq],
   )
+
+  // スリープ復帰・タブ復帰・通話後などで AudioContext が止まる。戻ってきたら先回りで再開し、
+  // 「数秒鳴らない」を防ぐ。pointerdown(capture)でも再開し、iOS のジェスチャー要件にも対応。
+  useEffect(() => {
+    const resume = () => {
+      const ctx = ctxRef.current
+      if (ctx && ctx.state !== 'running') void ctx.resume()
+    }
+    document.addEventListener('visibilitychange', resume)
+    window.addEventListener('focus', resume)
+    window.addEventListener('pointerdown', resume, true)
+    return () => {
+      document.removeEventListener('visibilitychange', resume)
+      window.removeEventListener('focus', resume)
+      window.removeEventListener('pointerdown', resume, true)
+    }
+  }, [])
 
   useEffect(() => {
     return () => {
