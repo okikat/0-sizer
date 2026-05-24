@@ -11,6 +11,9 @@
 * {
   box-sizing: border-box;
   -webkit-tap-highlight-color: transparent;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
 }
 
 button {
@@ -541,6 +544,16 @@ b {
 /* --- フレーム内パーツ --- */
 .mod-wave .waves { margin-top: 10px; }
 .mod-wave.mod--compact .scope { height: 54px; }
+.wave-head { display: flex; justify-content: flex-end; margin-bottom: 6px; }
+.wave-toggle {
+  padding: 4px 10px;
+  font-size: 11px;
+  color: var(--sub);
+  background: #10151c;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
 .mod-pitch { display: flex; justify-content: center; }
 .mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
@@ -591,21 +604,28 @@ b {
   border-radius: 10px;
 }
 .mod-env.mod--compact .env-graph { height: 56px; }
-.env-sliders { display: flex; justify-content: space-around; align-items: flex-end; gap: 8px; }
+.env-sliders { display: flex; justify-content: center; align-items: flex-end; gap: 14px; }
 
 .slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
 .slider-val { font-size: 10px; color: var(--sub); height: 12px; }
-.slider-track {
-  position: relative;
-  width: 10px;
-  height: 70px;
-  background: #1b222c;
-  border: 1px solid #0c1116;
-  border-radius: 5px;
+/* 当たり判定は横に広く（指で外しにくく・誤スクロール防止）。見た目のバーは細いまま。 */
+.slider-hit {
+  width: 44px;
+  height: 72px;
+  display: flex;
+  justify-content: center;
+  align-items: stretch;
   cursor: ns-resize;
   touch-action: none;
 }
-.mod-env.mod--compact .slider-track { height: 52px; }
+.mod-env.mod--compact .slider-hit { height: 54px; }
+.slider-track {
+  position: relative;
+  width: 10px;
+  background: #1b222c;
+  border: 1px solid #0c1116;
+  border-radius: 5px;
+}
 .slider-fill {
   position: absolute;
   left: 0;
@@ -618,8 +638,8 @@ b {
 .slider-handle {
   position: absolute;
   left: 50%;
-  width: 20px;
-  height: 12px;
+  width: 26px;
+  height: 14px;
   transform: translateX(-50%);
   background: linear-gradient(#39414d, #20262f);
   border: 1px solid #0c1116;

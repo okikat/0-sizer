@@ -44,14 +44,16 @@ export function Slider({ min, max, value, label, fine = false, showValue = true,
     <div className="slider-wrap">
       {showValue && <div className="slider-val">{format ? format(value) : value.toFixed(2)}</div>}
       <div
-        className="slider-track"
+        className="slider-hit"
         onPointerDown={onDown}
         onPointerMove={onMove}
         onPointerUp={onUp}
         onPointerCancel={onUp}
       >
-        <div className="slider-fill" style={{ height: `${pct}%` }} />
-        <div className="slider-handle" style={{ bottom: `calc(${pct}% - 6px)` }} />
+        <div className="slider-track">
+          <div className="slider-fill" style={{ height: `${pct}%` }} />
+          <div className="slider-handle" style={{ bottom: `calc(${pct}% - 7px)` }} />
+        </div>
       </div>
       <div className="slider-label">{label}</div>
     </div>
