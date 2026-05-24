@@ -105,7 +105,7 @@ export function Knob({ min, max, defaultValue, label, fine = false, showText = t
         y1={ay}
         x2={bx}
         y2={by}
-        stroke={i % 5 === 0 ? '#5b6776' : '#39424f'}
+        stroke={i % 5 === 0 ? '#637080' : '#2e3a48'}
         strokeWidth={i % 5 === 0 ? 2 : 1}
       />,
     )
@@ -131,17 +131,17 @@ export function Knob({ min, max, defaultValue, label, fine = false, showText = t
           onWheel={onWheel}
         >
           <defs>
-            <radialGradient id={gid} cx="38%" cy="32%" r="75%">
-              <stop offset="0%" stopColor="#39414d" />
-              <stop offset="55%" stopColor="#222a34" />
-              <stop offset="100%" stopColor="#141a22" />
+            <radialGradient id={gid} cx="45%" cy="32%" r="70%">
+              <stop offset="0%" stopColor="#252e3a" />
+              <stop offset="50%" stopColor="#161e28" />
+              <stop offset="100%" stopColor="#0c1218" />
             </radialGradient>
           </defs>
           <g>{ticks}</g>
-          <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#222a34" strokeWidth={arcW} strokeLinecap="round" />
+          <path d={arcPath(r, r, trackR, A0, A1)} fill="none" stroke="#121a26" strokeWidth={arcW} strokeLinecap="round" />
           <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={arcW} strokeLinecap="round" />
-          <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#0c1116" strokeWidth={2} />
-          <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.054} strokeLinecap="round" />
+          <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#09101a" strokeWidth={2} />
+          <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={r * 0.046} strokeLinecap="round" />
           {showText && (
             <>
               <text x={r} y={r + 1} textAnchor="middle" fill="#5ad1c4" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">

@@ -1,9 +1,9 @@
 :root {
-  --bg: #0e1116;
-  --panel: #171c24;
-  --line: #2a3340;
-  --txt: #e6edf3;
-  --sub: #9aa7b5;
+  --bg: #07090c;
+  --panel: #111820;
+  --line: #1c2a38;
+  --txt: #dce6ed;
+  --sub: #7a8fa0;
   --accent: #5ad1c4;
   --accent2: #f2a65a;
 }
@@ -56,7 +56,8 @@ h1 {
 .tag {
   color: var(--accent);
   font-weight: 700;
-  letter-spacing: 0.5px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
 }
 .lead {
   color: var(--sub);
@@ -93,8 +94,8 @@ b {
   width: 100%;
   height: auto; /* canvas のアスペクト(528:110)を保ったまま枠幅に追従 */
   display: block;
-  background: #0b0e13;
-  border-radius: 10px;
+  background: #060810;
+  border-radius: 5px;
   border: 1px solid var(--line);
 }
 
@@ -107,8 +108,8 @@ b {
 .wave {
   padding: 12px 6px;
   border: 1px solid var(--line);
-  border-radius: 12px;
-  background: #10151c;
+  border-radius: 5px;
+  background: #0a0e15;
   color: var(--txt);
   text-align: center;
   cursor: pointer;
@@ -123,7 +124,8 @@ b {
 }
 .wave.sel {
   border-color: var(--accent);
-  background: #13231f;
+  background: #0d1e1a;
+  box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(90, 209, 196, 0.18);
 }
 .wave.sel .sym {
   color: var(--accent);
@@ -146,8 +148,11 @@ b {
   min-height: 0;
 }
 .knob-label {
-  font-size: 12px;
-  color: var(--sub);
+  font-size: 10px;
+  letter-spacing: 2px;
+  text-transform: uppercase;
+  font-weight: 700;
+  color: var(--txt);
   text-align: center;
 }
 .knob-svg {
@@ -373,11 +378,11 @@ b {
   justify-content: center;
   text-align: center;
   padding: 24px;
-  background: radial-gradient(120% 120% at 50% 0%, #141b25 0%, var(--bg) 60%);
+  background: radial-gradient(120% 120% at 50% 0%, #0e1820 0%, var(--bg) 60%);
 }
 
 .start-inner { display: flex; flex-direction: column; align-items: center; gap: 14px; }
-.brand .tag { font-size: 40px; letter-spacing: 1px; }
+.brand .tag { font-size: 40px; letter-spacing: 4px; }
 .start-sub { color: var(--sub); font-size: 14px; margin: 0; }
 
 .cta {
@@ -470,19 +475,20 @@ b {
   position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 14px;
+  border-radius: 8px;
   padding: 6px;
   overflow: hidden;
   min-width: 0;
   min-height: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 /* スロット内のモジュールは枠いっぱいに広がる。 */
 .slot > .mod { width: 100%; height: 100%; min-width: 0; min-height: 0; }
 /* 未習得フレーム＝実体を薄く（ゴースト）表示。操作は不可。 */
 .slot.ghost {
   border-style: dashed;
-  border-color: #2f3a48;
-  background: #11151b;
+  border-color: #1a2838;
+  background: #090c11;
   opacity: 0.4;
   filter: grayscale(0.5);
   pointer-events: none;
@@ -554,9 +560,9 @@ b {
   max-width: 528px;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 18px 16px 16px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.5);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
   transform-origin: center center;
 }
 .stage-module.enter { animation: stageEnter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
@@ -611,9 +617,9 @@ b {
   width: 100%;
   background: var(--panel);
   border: 1px solid var(--line);
-  border-radius: 16px;
+  border-radius: 10px;
   padding: 20px;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.55);
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .pop-in { animation: popIn 0.32s ease both; }
 .popup-title { margin: 0 0 10px; font-size: 16px; color: var(--accent); }
@@ -666,7 +672,7 @@ b {
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
 
 /* モジュール見出し（FILTER 等、枠の中の小見出し）。 */
-.mod-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); flex: 0 0 auto; text-align: center; }
+.mod-title { font-size: 9px; letter-spacing: 2px; color: var(--txt); font-weight: 700; flex: 0 0 auto; text-align: center; text-transform: uppercase; }
 
 /* グリッド内ノブ：セルいっぱい。ダイヤルが余白を埋め、ラベルは内側下。 */
 .slot .knob-wrap { width: 100%; height: 100%; justify-content: center; gap: 2px; }
@@ -721,9 +727,9 @@ b {
   width: 100%;
   height: 84px;
   display: block;
-  background: #0b0e13;
+  background: #060810;
   border: 1px solid var(--line);
-  border-radius: 10px;
+  border-radius: 5px;
 }
 /* グリッド内ENVは枠いっぱいに伸縮。グラフは比率維持、スライダーは縦に伸びる。 */
 .mod-env.mod--compact .env-graph { height: auto; aspect-ratio: 200 / 70; flex: 0 0 auto; }
@@ -784,7 +790,7 @@ b {
   border-radius: 3px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
 }
-.slider-label { font-size: 12px; font-weight: 700; color: var(--sub); }
+.slider-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--txt); }
 
 /* 波形セレクタのアイコンのみ表示（縮小用） */
 .waves--compact { gap: 6px; margin-top: 8px; }
