@@ -1,11 +1,10 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { midiToFreq } from '../lib/notes'
 
-// 純音(サイン波)は周波数成分が1本しかなく、Bluetooth のコーデックが扱いを誤って
-// プツプツとザラつくことがある。そこで「サイン」だけはごく僅かな倍音を加えた波形にして
-// スペクトルに厚みを持たせ、コーデックが正常に働くようにする。耳にはほぼサイン波のまま。
-// 値は imag[n] = n 倍音の量(0:DC, 1:基音, 2:2倍音, 3:3倍音)。耳で微調整できる。
-const SINE_PARTIALS = [0, 1, 0.08, 0.04]
+// 純音(サイン波)は Bluetooth のコーデックが扱いを誤りプツプツする。極小レベルの
+// ホワイトノイズを常に少しだけ混ぜて信号を“動かす”ことでプツプツを抑える。
+// gain(エンベロープ)経由なので、音が鳴っていない間はノイズも消える。耳で微調整する値。
+const NOISE_LEVEL = 0.004
 
 /**
  * モノフォニックなシンセエンジン。
@@ -20,36 +19,37 @@ export function useSynth() {
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const midiRef = useRef<number | null>(null)
-  const sineWaveRef = useRef<PeriodicWave | null>(null)
-
-  // サインのときだけ倍音入りの自作波形、それ以外は標準の波形を使う。
-  const applyType = useCallback((osc: OscillatorNode, t: OscillatorType) => {
-    if (t === 'sine' && sineWaveRef.current) osc.setPeriodicWave(sineWaveRef.current)
-    else osc.type = t
-  }, [])
 
   const ensure = useCallback(() => {
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctor()
-      sineWaveRef.current = ctx.createPeriodicWave(
-        new Float32Array(SINE_PARTIALS.length),
-        new Float32Array(SINE_PARTIALS),
-      )
       const gain = ctx.createGain()
       gain.gain.value = 0
       gain.connect(ctx.destination)
       const osc = ctx.createOscillator()
-      applyType(osc, typeRef.current)
+      osc.type = typeRef.current
       osc.frequency.value = 440
       osc.connect(gain)
       osc.start()
+      // 極小レベルのホワイトノイズを混ぜる(エンベロープ経由なので無音時は消える)。
+      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+      const noise = ctx.createBufferSource()
+      noise.buffer = noiseBuf
+      noise.loop = true
+      const noiseLevel = ctx.createGain()
+      noiseLevel.gain.value = NOISE_LEVEL
+      noise.connect(noiseLevel)
+      noiseLevel.connect(gain)
+      noise.start()
       ctxRef.current = ctx
       gainRef.current = gain
       oscRef.current = osc
     }
     if (ctxRef.current.state === 'suspended') void ctxRef.current.resume()
-  }, [applyType])
+  }, [])
 
   const applyFreq = useCallback(() => {
     const ctx = ctxRef.current
@@ -78,13 +78,10 @@ export function useSynth() {
     if (ctx && gain) gain.gain.setTargetAtTime(0, ctx.currentTime, 0.05)
   }, [])
 
-  const setWaveform = useCallback(
-    (t: OscillatorType) => {
-      typeRef.current = t
-      if (oscRef.current) applyType(oscRef.current, t)
-    },
-    [applyType],
-  )
+  const setWaveform = useCallback((t: OscillatorType) => {
+    typeRef.current = t
+    if (oscRef.current) oscRef.current.type = t
+  }, [])
 
   const setTune = useCallback(
     (semitones: number) => {
