@@ -28,7 +28,9 @@ export function useSynth() {
   const ensure = useCallback(() => {
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      const ctx = new Ctor()
+      // latencyHint:'playback' で出力バッファを大きめにする。小さい既定バッファだと
+      // 描画など他処理のわずかな詰まりで underrun(プチプチ)が起きやすいため。
+      const ctx = new Ctor({ latencyHint: 'playback' })
       const gain = ctx.createGain()
       gain.gain.value = 0
       gain.connect(ctx.destination)
@@ -41,7 +43,9 @@ export function useSynth() {
       gainRef.current = gain
       oscRef.current = osc
     }
-    if (ctxRef.current.state === 'suspended') void ctxRef.current.resume()
+    // モバイル(特に iOS)は suspended だけでなく interrupted になることがあるので、
+    // running 以外なら必ず再開する。resume はユーザー操作(noteOn)の中で呼ぶ必要がある。
+    if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
   }, [])
 
   const applyFreq = useCallback(() => {
