@@ -44,10 +44,10 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
               <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
             </Slot>
           </div>
-          <Slot {...slotProps('filter')}>
-            <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
-          </Slot>
           <div className="mock-area">
+            <Slot {...slotProps('filter')}>
+              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+            </Slot>
             <MockSections />
           </div>
         </div>

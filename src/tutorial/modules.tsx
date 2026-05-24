@@ -33,8 +33,8 @@ const F_MIN = 80
 const F_MAX = 16000
 const cutoffNormToHz = (n: number) => F_MIN * Math.pow(F_MAX / F_MIN, n)
 const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Math.round(hz)}`)
-// RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜12（強め）に対応させる。
-const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (12 - 0.7)
+// RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜16（強め）に対応させる。
+const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
 
 /** 波形フレーム：計器＋波形選択。 */
 export function WaveFrame({
