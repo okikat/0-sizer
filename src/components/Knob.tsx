@@ -7,7 +7,6 @@ interface Props {
   min: number
   max: number
   defaultValue: number
-  size?: number
   label?: string
   /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
   fine?: boolean
@@ -19,10 +18,14 @@ interface Props {
   onChange?: (v: number) => void
 }
 
+// 描画は固定の viewBox(100)で行い、表示サイズは CSS（セル）に任せる＝伸縮自在。
+const VB = 100
 const A0 = -135
 const A1 = 135
 // 微調整時はゆっくり動く。PC は Shift、スマホは「微調整」ボタンで ON。
 const FINE = 0.25
+// ドラッグ感度の基準（この px 動かすと min→max）。描画サイズに依らず一定。
+const SENS_SPAN = 150
 
 function polar(cx: number, cy: number, r: number, angleDeg: number): [number, number] {
   const a = (angleDeg * Math.PI) / 180
@@ -36,16 +39,17 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
   return `M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}`
 }
 
-/** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。 */
-export function Knob({ min, max, defaultValue, size = 130, label, fine = false, showText = true, showHint = true, format, onChange }: Props) {
+/** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。
+ *  表示サイズは親（グリッドのセル等）が決め、本体はその枠いっぱいにスケールする。 */
+export function Knob({ min, max, defaultValue, label, fine = false, showText = true, showHint = true, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const gid = 'kcap' + useId().replace(/:/g, '')
   const drag = useRef<{ lastY: number } | null>(null)
   const lastTap = useRef(0)
 
-  const r = size / 2
-  // 半径に対する比率で各寸法を決める（小さいサイズでも崩れないように）。
+  const r = VB / 2
+  // 半径に対する比率で各寸法を決める（どのサイズでも崩れないように）。
   const trackR = r * 0.846
   const capR = r * 0.6
   const arcW = r * 0.092
@@ -78,7 +82,7 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
     if (!drag.current) return
     const dy = drag.current.lastY - e.clientY
     drag.current.lastY = e.clientY
-    const sens = ((max - min) / size) * (e.shiftKey || fine ? FINE : 1)
+    const sens = ((max - min) / SENS_SPAN) * (e.shiftKey || fine ? FINE : 1)
     set(valueRef.current + dy * sens)
   }
   const onUp = () => {
@@ -110,17 +114,15 @@ export function Knob({ min, max, defaultValue, size = 130, label, fine = false, 
   const [i0x, i0y] = polar(r, r, capR - r * 0.31, ang)
   const [i1x, i1y] = polar(r, r, capR - r * 0.06, ang)
   const f = format ? format(value) : { main: String(Math.round(value)) }
-  const mainFont = Math.round(size * 0.14)
-  const subFont = Math.round(size * 0.085)
+  const mainFont = Math.round(VB * 0.14)
+  const subFont = Math.round(VB * 0.085)
 
   return (
     <div className="knob-wrap">
       {label && <div className="knob-label">{label}</div>}
       <svg
         className="knob-svg"
-        width={size}
-        height={size}
-        viewBox={`0 0 ${size} ${size}`}
+        viewBox={`0 0 ${VB} ${VB}`}
         style={{ touchAction: 'none' }}
         onPointerDown={onDown}
         onPointerMove={onMove}

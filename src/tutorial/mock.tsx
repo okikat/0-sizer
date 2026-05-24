@@ -34,7 +34,7 @@ export function MockSections() {
   return (
     <>
       {SECTIONS.map((s) => (
-        <div className="mock-sec" key={s.title}>
+        <div className={'mock-sec mock-sec--' + s.title.toLowerCase()} key={s.title}>
           <div className="mock-sec-title">{s.title}</div>
           <div className="mock-widgets">
             {s.widgets.map((w, i) => (

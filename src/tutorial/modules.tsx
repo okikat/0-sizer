@@ -67,7 +67,6 @@ export function PitchFrame({
   return (
     <div className="mod mod-pitch">
       <Knob
-        size={compact ? 56 : 108}
         fine={fine}
         showText={showText}
         showHint={!compact}
@@ -127,11 +126,9 @@ export function FilterFrame({
   compact = false,
   showText = true,
 }: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine'> & { compact?: boolean; showText?: boolean }) {
-  const size = compact ? 56 : 108
   return (
     <div className="mod mod-filter">
       <Knob
-        size={size}
         fine={fine}
         showText={showText}
         showHint={!compact}
@@ -143,7 +140,6 @@ export function FilterFrame({
         onChange={(v) => onCutoff(cutoffNormToHz(v))}
       />
       <Knob
-        size={size}
         fine={fine}
         showText={showText}
         showHint={!compact}

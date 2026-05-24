@@ -1,6 +1,27 @@
+import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
 import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
 import { MockSections } from './mock'
+
+const COLS = 8
+const GAP = 8
+
+/** グリッドの実幅を測り、1セル(正方形)の一辺を CSS 変数 --cell に流し込む。
+ *  画面幅 ÷ 8 を高さにも使う＝どの端末でも横スクロールや余白の持て余しが出ない。 */
+function useCellSize(ref: RefObject<HTMLDivElement | null>) {
+  useLayoutEffect(() => {
+    const el = ref.current
+    if (!el) return
+    const update = () => {
+      const w = el.clientWidth
+      if (w > 0) el.style.setProperty('--cell', `${(w - (COLS - 1) * GAP) / COLS}px`)
+    }
+    update()
+    const ro = new ResizeObserver(update)
+    ro.observe(el)
+    return () => ro.disconnect()
+  }, [ref])
+}
 
 interface Props {
   realized: Set<FrameId>
@@ -12,6 +33,9 @@ interface Props {
 
 /** 完成形の盤面。未習得のフレームも実体を薄く（ゴースト）表示し、習うと色がつく。周りは飾り（モック）。 */
 export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame }: Props) {
+  const gridRef = useRef<HTMLDivElement>(null)
+  useCellSize(gridRef)
+
   const slotProps = (id: FrameId) => ({
     id,
     realized: realized.has(id),
@@ -26,30 +50,25 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
         <span className="tag">0-sizer</span>
       </div>
 
-      {/* ツマミ類はスクロール領域、鍵盤は下に固定 */}
+      {/* モジュールは8列・正方形セルのグリッドに配置。鍵盤は下に固定。 */}
       <div className="panel-scroll">
-        <Slot {...slotProps('wave')}>
-          <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
-        </Slot>
-
-        <div className="board">
+        <div className="grid" ref={gridRef}>
+          <Slot {...slotProps('wave')}>
+            <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
+          </Slot>
+          <Slot {...slotProps('pitch')}>
+            <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+          </Slot>
+          <Slot {...slotProps('fine')}>
+            <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+          </Slot>
           <Slot {...slotProps('env')}>
             <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
           </Slot>
-          <div className="side-col">
-            <Slot {...slotProps('pitch')}>
-              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
-            </Slot>
-            <Slot {...slotProps('fine')}>
-              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
-            </Slot>
-          </div>
-          <div className="mock-area">
-            <Slot {...slotProps('filter')}>
-              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
-            </Slot>
-            <MockSections />
-          </div>
+          <Slot {...slotProps('filter')}>
+            <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+          </Slot>
+          <MockSections />
         </div>
       </div>
 

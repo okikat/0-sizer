@@ -89,7 +89,7 @@ b {
 
 .scope {
   width: 100%;
-  height: 110px;
+  height: auto; /* canvas のアスペクト(528:110)を保ったまま枠幅に追従 */
   display: block;
   background: #0b0e13;
   border-radius: 10px;
@@ -144,6 +144,9 @@ b {
   user-select: none;
   -webkit-user-select: none;
   display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1; /* 枠幅に合わせた正方形でスケール */
 }
 .knob-svg:active {
   cursor: grabbing;
@@ -432,35 +435,36 @@ b {
 }
 .panel-scroll::-webkit-scrollbar { width: 6px; }
 .panel-scroll::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 3px; }
-/* 密グリッド：エンベロープ(広)の横に PITCH/微調整(縦並び)を滑り込ませる */
-.board {
+/* 8列・正方形セルのグリッド。1辺 --cell は JS が実測してセット（画面幅÷8 を高さにも使う）。 */
+.grid {
+  --cell: 44px; /* JS が上書きするまでの仮値 */
   display: grid;
-  grid-template-columns: 2fr 1fr;
-  gap: 10px;
-  align-content: start;
-  align-items: start; /* 各枠は中身ぶんの高さだけ（余白で間延びさせない） */
-}
-.side-col { display: flex; flex-direction: column; gap: 10px; }
-.mock-area { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
-.slot-keys { flex: 0 0 auto; margin-top: 10px; }
-/* PITCH・微調整は飾りモジュールと同じくらいの小さめサイズに */
-.slot-pitch,
-.slot-fine {
-  padding: 8px;
-  display: flex;
-  align-items: center;
+  grid-template-columns: repeat(8, var(--cell));
+  grid-auto-rows: var(--cell);
+  gap: 8px;
   justify-content: center;
 }
-/* フィルターは2ツマミ。飾りモジュールと同じ列幅（半分）に収める。 */
-.slot-filter { padding: 8px; }
+/* モジュールの配置（列開始 / 横マス, 行開始 / 縦マス）。穴なしで敷き詰める。 */
+.slot-wave     { grid-column: 1 / span 4; grid-row: 1 / span 3; }
+.slot-pitch    { grid-column: 5 / span 2; grid-row: 1 / span 3; }
+.slot-fine     { grid-column: 7 / span 2; grid-row: 1 / span 1; }
+.mock-sec--lfo { grid-column: 7 / span 2; grid-row: 2 / span 2; }
+.slot-env      { grid-column: 1 / span 4; grid-row: 4 / span 6; }
+.slot-filter   { grid-column: 5 / span 4; grid-row: 4 / span 3; }
+.mock-sec--mix { grid-column: 5 / span 4; grid-row: 7 / span 3; }
 
 .slot {
   position: relative;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 14px;
-  padding: 12px;
+  padding: 6px;
+  overflow: hidden;
+  min-width: 0;
+  min-height: 0;
 }
+/* スロット内のモジュールは枠いっぱいに広がる。 */
+.slot > .mod { width: 100%; height: 100%; min-width: 0; min-height: 0; }
 /* 未習得フレーム＝実体を薄く（ゴースト）表示。操作は不可。 */
 .slot.ghost {
   border-style: dashed;
@@ -470,10 +474,8 @@ b {
   filter: grayscale(0.5);
   pointer-events: none;
 }
-.slot.slot-wave.ghost { min-height: 110px; }
-.slot.slot-pitch.ghost { min-height: 92px; }
-.slot.slot-fine.ghost { min-height: 92px; }
-.slot.slot-filter.ghost { min-height: 110px; }
+/* 鍵盤だけはグリッド外（下に固定）。 */
+.slot-keys { flex: 0 0 auto; margin-top: 10px; padding: 10px; }
 .slot.slot-keys.ghost { min-height: 92px; }
 .slot-help {
   position: absolute;
@@ -617,13 +619,15 @@ b {
 }
 
 /* --- フレーム内パーツ --- */
-.mod-wave.mod--compact .scope { height: 54px; }
+/* グリッド内：波形は縦に計器＋セレクタ、枠の中央に。 */
+.slot-wave .mod-wave { display: flex; flex-direction: column; justify-content: center; gap: 6px; }
 .wave-row { display: flex; gap: 6px; align-items: stretch; margin-top: 8px; }
 .wave-row .waves { margin-top: 0; flex: 1; }
-.env-row { display: flex; gap: 6px; align-items: center; }
+.env-row { display: flex; gap: 6px; align-items: stretch; }
 .env-row .env-sliders { flex: 1; }
 .frame-toggle {
   flex: 0 0 auto;
+  align-self: center;
   width: 28px;
   min-height: 34px;
   display: flex;
@@ -637,10 +641,19 @@ b {
   border-radius: 10px;
   cursor: pointer;
 }
-.mod-pitch { display: flex; justify-content: center; }
-.mod-filter { display: flex; align-items: flex-start; justify-content: center; gap: 10px; }
+.mod-pitch { display: flex; justify-content: center; align-items: center; }
+.mod-filter { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
+/* グリッド内の微調整トグルは細い1マスにフィットさせる。 */
+.slot-fine .fine-btn { width: 100%; height: 100%; justify-content: center; padding: 0 8px; }
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
+
+/* グリッド内ノブ：枠幅に合わせて伸縮。PITCH は枠いっぱい、FILTER は2つで半分ずつ。 */
+.slot-pitch .knob-wrap { width: 100%; }
+.slot-filter .knob-wrap { width: 50%; min-width: 0; }
+/* レッスン中（スポットライト）のノブは固定サイズで大きめに。 */
+.stage-module .knob-wrap { width: 140px; max-width: 42vw; }
+.knob-wrap { max-width: 100%; min-width: 0; }
 
 /* 実機シンセのボタン風。左に点灯する LED。 */
 .fine-btn {
@@ -688,8 +701,10 @@ b {
   border: 1px solid var(--line);
   border-radius: 10px;
 }
-.mod-env.mod--compact .env-graph { height: 44px; }
-.mod-env.mod--compact .slider-wrap { gap: 3px; }
+/* グリッド内ENVは枠いっぱいに伸縮。グラフは比率維持、スライダーは縦に伸びる。 */
+.mod-env.mod--compact .env-graph { height: auto; aspect-ratio: 200 / 70; flex: 0 0 auto; }
+.mod-env.mod--compact .env-row { flex: 1 1 auto; min-height: 0; }
+.mod-env.mod--compact .slider-wrap { gap: 3px; height: 100%; justify-content: flex-start; flex: 1 1 0; min-width: 0; }
 .env-sliders { display: flex; justify-content: center; align-items: flex-end; gap: 14px; }
 
 .slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
@@ -716,8 +731,8 @@ b {
   cursor: ns-resize;
   touch-action: none;
 }
-.mod-env.mod--compact .slider-hit { width: 28px; height: 54px; }
-.mod-env.mod--compact .env-sliders { gap: 6px; }
+.mod-env.mod--compact .slider-hit { width: 100%; height: auto; flex: 1 1 auto; }
+.mod-env.mod--compact .env-sliders { gap: 6px; align-items: stretch; height: 100%; }
 .slider-track {
   position: relative;
   width: 10px;
@@ -755,19 +770,25 @@ b {
 /* レッスン中の試し弾き鍵盤 */
 .stage-keys { width: 100%; max-width: 528px; margin-top: 14px; }
 
-/* --- 盤面の飾り（モック） --- */
+/* --- 盤面の飾り（モック）。グリッドのセルに合わせて伸縮。 --- */
 .mock-sec {
   border: 1px dashed #2f3a48;
   border-radius: 12px;
   background: #11151b;
-  padding: 10px 8px;
+  padding: 8px;
   opacity: 0.5;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
 }
-.mock-sec-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); margin-bottom: 8px; }
+.mock-sec-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); margin-bottom: 6px; flex: 0 0 auto; }
 .mock-widgets {
+  flex: 1 1 auto;
   display: flex;
   gap: 10px;
-  align-items: flex-end;
+  align-items: center;
   justify-content: space-around;
   flex-wrap: wrap;
 }
