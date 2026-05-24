@@ -43,22 +43,18 @@ export function useSynth() {
     }
   }, [])
 
-  // 音量を「今出ている値」から直線で目標値へつなぐ。
-  // setTargetAtTime と違いゼロちょうどに着地するので、極小値(denormal)の尻尾が
-  // 残らず、それが原因の“ブツッ”というノイズが出ない。値も飛ばないのでクリックもしない。
-  const rampGain = useCallback((target: number, seconds: number) => {
+  // 音量をなめらかな指数カーブで目標へ近づける。直線と違い「角(傾きの急変)」が
+  // 出ないので、純粋なサイン波でも“ブツッ”が出にくい。開始前に今の値で固定し、
+  // 連打/再発音でも値が飛ばないようにする。tau は時定数(大きいほどゆっくり)。
+  const rampGain = useCallback((target: number, tau: number) => {
     const ctx = ctxRef.current
     const gain = gainRef.current
     if (!ctx || !gain) return
     const now = ctx.currentTime
     const p = gain.gain
-    if (typeof p.cancelAndHoldAtTime === 'function') {
-      p.cancelAndHoldAtTime(now)
-    } else {
-      p.cancelScheduledValues(now)
-      p.setValueAtTime(p.value, now)
-    }
-    p.linearRampToValueAtTime(target, now + seconds)
+    p.cancelScheduledValues(now)
+    p.setValueAtTime(p.value, now)
+    p.setTargetAtTime(target, now, tau)
   }, [])
 
   const noteOn = useCallback(
@@ -66,13 +62,13 @@ export function useSynth() {
       ensure()
       midiRef.current = midi
       applyFreq()
-      rampGain(0.18, 0.008)
+      rampGain(0.18, 0.012)
     },
     [ensure, applyFreq, rampGain],
   )
 
   const noteOff = useCallback(() => {
-    rampGain(0, 0.08)
+    rampGain(0, 0.09)
   }, [rampGain])
 
   const setWaveform = useCallback((t: OscillatorType) => {
