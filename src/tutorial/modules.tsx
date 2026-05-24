@@ -123,28 +123,30 @@ export function FilterFrame({
   return (
     <div className="mod mod-filter">
       {compact && <div className="mod-title">FILTER</div>}
-      <Knob
-        fine={fine}
-        showText={showText}
-        showHint={!compact}
-        min={0}
-        max={1}
-        defaultValue={1}
-        label="CUTOFF"
-        format={(v) => ({ main: fmtHz(cutoffNormToHz(v)) })}
-        onChange={(v) => onCutoff(cutoffNormToHz(v))}
-      />
-      <Knob
-        fine={fine}
-        showText={showText}
-        showHint={!compact}
-        min={0}
-        max={10}
-        defaultValue={0}
-        label="RES"
-        format={(v) => ({ main: String(Math.round(v)) })}
-        onChange={(v) => onRes(resAmtToQ(v))}
-      />
+      <div className="filter-knobs">
+        <Knob
+          fine={fine}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={1}
+          defaultValue={1}
+          label="CUTOFF"
+          format={(v) => ({ main: fmtHz(cutoffNormToHz(v)) })}
+          onChange={(v) => onCutoff(cutoffNormToHz(v))}
+        />
+        <Knob
+          fine={fine}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={0}
+          label="RES"
+          format={(v) => ({ main: String(Math.round(v)) })}
+          onChange={(v) => onRes(resAmtToQ(v))}
+        />
+      </div>
     </div>
   )
 }

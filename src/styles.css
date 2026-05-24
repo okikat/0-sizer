@@ -34,11 +34,13 @@ body {
   -webkit-user-select: none;
   -webkit-touch-callout: none;
 }
-/* 解説の本文だけは読めるよう選択可に戻す */
+/* このアプリは全面でテキスト選択を無効化（長押しの虫眼鏡/コールアウトを完全に抑止）。
+   解説ポップアップも「読む」専用で選択は不要。 */
 .popup-title,
 .popup-p {
-  user-select: text;
-  -webkit-user-select: text;
+  user-select: none;
+  -webkit-user-select: none;
+  -webkit-touch-callout: none;
 }
 
 main {
@@ -454,12 +456,12 @@ b {
   gap: 8px;
   justify-content: center;
 }
-/* モジュールの配置（列開始 / 横マス, 行開始 / 縦マス）。穴なしで敷き詰める。
-   波形=上部の帯 / ENV左 / FILTER縦長 / PITCH・微調整を縦積み / 下段にモック。 */
+/* モジュールの配置（横マス×縦マス）。穴なしで敷き詰める。
+   波形=上部の帯 / ENV左 / FILTER(4×2)右上 / その下に PITCH・微調整 / 下段にモック。 */
 .slot-wave     { grid-column: 1 / span 8; grid-row: 1 / span 1; }
 .slot-env      { grid-column: 1 / span 4; grid-row: 2 / span 4; }
-.slot-filter   { grid-column: 5 / span 2; grid-row: 2 / span 4; }
-.slot-pitch    { grid-column: 7 / span 2; grid-row: 2 / span 2; }
+.slot-filter   { grid-column: 5 / span 4; grid-row: 2 / span 2; }
+.slot-pitch    { grid-column: 5 / span 2; grid-row: 4 / span 2; }
 .slot-fine     { grid-column: 7 / span 2; grid-row: 4 / span 2; }
 .mock-sec--lfo { grid-column: 1 / span 4; grid-row: 6 / span 2; }
 .mock-sec--mix { grid-column: 5 / span 4; grid-row: 6 / span 2; }
@@ -630,10 +632,11 @@ b {
 }
 
 /* --- フレーム内パーツ --- */
-/* グリッド内の波形：セレクタのみを横一列で枠いっぱいに。 */
-.slot-wave .mod-wave { height: 100%; display: flex; align-items: stretch; }
-.slot-wave .waves { width: 100%; height: 100%; margin-top: 0; }
-.slot-wave .wave { display: flex; align-items: center; justify-content: center; }
+/* グリッド内の波形：セレクタのみ。ボタンは小さめで枠の上下中央に。 */
+.slot-wave .mod-wave { height: 100%; display: flex; align-items: center; }
+.slot-wave .waves { width: 100%; margin-top: 0; }
+.slot-wave .wave { display: flex; align-items: center; justify-content: center; padding: 3px 0; }
+.slot-wave .wave .sym { font-size: 18px; margin-bottom: 0; }
 .wave-row { display: flex; gap: 6px; align-items: stretch; margin-top: 8px; }
 .wave-row .waves { margin-top: 0; flex: 1; }
 .env-row { display: flex; gap: 6px; align-items: stretch; }
@@ -655,7 +658,8 @@ b {
   cursor: pointer;
 }
 .mod-pitch { display: flex; justify-content: center; align-items: center; }
-.mod-filter { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.mod-filter { display: flex; align-items: center; justify-content: center; }
+.filter-knobs { display: flex; align-items: center; justify-content: center; gap: 10px; }
 .mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
 /* グリッド内の微調整トグルは1マスにフィットさせる。 */
 .slot-fine .fine-btn { width: 100%; height: 100%; justify-content: center; padding: 0 8px; }
@@ -668,9 +672,10 @@ b {
 .slot .knob-wrap { width: 100%; height: 100%; justify-content: center; gap: 2px; }
 .slot .knob-dial { flex: 1 1 auto; min-height: 0; }
 .slot .knob-svg { width: auto; height: 100%; }
-/* FILTER は縦長：見出し＋2ツマミを縦に積み、ツマミは高さを分け合う。 */
-.slot-filter .mod-filter { flex-direction: column; align-items: center; justify-content: flex-start; gap: 2px; }
-.slot-filter .knob-wrap { height: auto; flex: 1 1 0; min-height: 0; }
+/* FILTER(4×2)：上に見出し、その下に CUTOFF・RES を横並び。 */
+.slot-filter .mod-filter { flex-direction: column; align-items: stretch; justify-content: center; gap: 2px; }
+.slot-filter .filter-knobs { flex: 1 1 auto; min-height: 0; gap: 8px; }
+.slot-filter .knob-wrap { width: auto; flex: 1 1 0; min-width: 0; }
 /* スポットライト（レッスン）のノブは固定サイズで大きめに。 */
 .stage-module .knob-dial { width: 130px; max-width: 42vw; }
 
