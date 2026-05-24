@@ -15,6 +15,8 @@ interface Props {
 
 const A0 = -135
 const A1 = 135
+// Shift を押している間は微調整(ゆっくり動く)。プロのシンセ/DAW と同じ操作感。
+const FINE = 0.25
 
 function polar(cx: number, cy: number, r: number, angleDeg: number): [number, number] {
   const a = (angleDeg * Math.PI) / 180
@@ -28,11 +30,13 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
   return `M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}`
 }
 
-/** 盤面に置ける汎用ロータリーノブ。上下ドラッグ＝ノブ高さ全体で min→max、ホイールでも微調整。 */
+/** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・Shiftで微調整・ホイール調整・ダブルクリックで初期値。 */
 export function Knob({ min, max, defaultValue, size = 130, label, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
+  const valueRef = useRef(defaultValue)
   const gid = 'kcap' + useId().replace(/:/g, '')
-  const drag = useRef<{ startY: number; startVal: number } | null>(null)
+  const drag = useRef<{ lastY: number } | null>(null)
+  const lastTap = useRef(0)
 
   const r = size / 2
   const trackR = r - 10
@@ -42,25 +46,39 @@ export function Knob({ min, max, defaultValue, size = 130, label, format, onChan
 
   const set = (v: number) => {
     const c = Math.max(min, Math.min(max, v))
+    valueRef.current = c
     setValue(c)
     onChange?.(c)
   }
 
   const onDown = (e: ReactPointerEvent<SVGSVGElement>) => {
-    drag.current = { startY: e.clientY, startVal: value }
-    e.currentTarget.setPointerCapture?.(e.pointerId)
     e.preventDefault()
+    // ダブルクリック/ダブルタップで初期値に戻す。dblclick は touch では preventDefault の
+    // 影響で発火しないことがあるので、自前で2回連続の押下を検知する。
+    if (e.timeStamp - lastTap.current < 300) {
+      lastTap.current = 0
+      drag.current = null
+      set(defaultValue)
+      return
+    }
+    lastTap.current = e.timeStamp
+    drag.current = { lastY: e.clientY }
+    e.currentTarget.setPointerCapture?.(e.pointerId)
   }
+  // 直前位置からの増分で動かす。こうすると Shift の切り替えで値が飛ばない。
   const onMove = (e: ReactPointerEvent<SVGSVGElement>) => {
     if (!drag.current) return
-    const dy = drag.current.startY - e.clientY
-    set(drag.current.startVal + dy * ((max - min) / size))
+    const dy = drag.current.lastY - e.clientY
+    drag.current.lastY = e.clientY
+    const sens = ((max - min) / size) * (e.shiftKey ? FINE : 1)
+    set(valueRef.current + dy * sens)
   }
   const onUp = () => {
     drag.current = null
   }
   const onWheel = (e: ReactWheelEvent<SVGSVGElement>) => {
-    set(value - Math.sign(e.deltaY) * Math.max(0.1, (max - min) / 33))
+    const step = Math.max(0.1, (max - min) / 33) * (e.shiftKey ? FINE : 1)
+    set(valueRef.current - Math.sign(e.deltaY) * step)
   }
 
   const ticks = []
@@ -119,7 +137,7 @@ export function Knob({ min, max, defaultValue, size = 130, label, format, onChan
           {f.sub ?? ''}
         </text>
       </svg>
-      <div className="knob-hint">↕ 上下にドラッグ</div>
+      <div className="knob-hint">↕ ドラッグ ・ Shift で微調整 ・ ダブルクリックで初期値</div>
     </div>
   )
 }
