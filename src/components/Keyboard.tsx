@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
+import type { PointerEvent as ReactPointerEvent } from 'react'
 
 interface Props {
   onNoteOn: (midi: number) => void
@@ -7,37 +8,65 @@ interface Props {
   showLabels?: boolean
 }
 
-const WHITES = [
-  { m: 60, l: 'ド', k: 'A' },
-  { m: 62, l: 'レ', k: 'S' },
-  { m: 64, l: 'ミ', k: 'D' },
-  { m: 65, l: 'ファ', k: 'F' },
-  { m: 67, l: 'ソ', k: 'G' },
-  { m: 69, l: 'ラ', k: 'H' },
-  { m: 71, l: 'シ', k: 'J' },
-  { m: 72, l: 'ド', k: 'K' },
-]
-const BLACKS = [
-  { m: 61, pos: 1, k: 'W' },
-  { m: 63, pos: 2, k: 'E' },
-  { m: 66, pos: 4, k: 'T' },
-  { m: 68, pos: 5, k: 'Y' },
-  { m: 70, pos: 6, k: 'U' },
-]
+const LOW = 48 // C3
+const HIGH = 84 // C6
+const WKEY_W = 40
+const BW = WKEY_W * 0.6
+const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11]
+const BLACK_OFFSETS = [1, 3, 6, 8, 10]
+const NAME: Record<number, string> = { 0: 'ド', 2: 'レ', 4: 'ミ', 5: 'ファ', 7: 'ソ', 9: 'ラ', 11: 'シ' }
+// PC キーは「ホームのオクターブ（C4〜C5）」だけに割り当てる。
 const KMAP: Record<string, number> = {
   a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72,
 }
+const KLABEL: Record<number, string> = {
+  60: 'A', 61: 'W', 62: 'S', 63: 'E', 64: 'D', 65: 'F', 66: 'T', 67: 'G', 68: 'Y', 69: 'H', 70: 'U', 71: 'J', 72: 'K',
+}
 
-/** 1オクターブの鍵盤。離散の音を弾く担当（マウス/タッチ + PCキー a s d f g h j k / w e t y u）。 */
+interface White { m: number; wi: number; name: string; isC: boolean; oct: number }
+interface Black { m: number; x: number }
+
+function buildKeys() {
+  const whites: White[] = []
+  const blacks: Black[] = []
+  const wiByMidi: Record<number, number> = {}
+  let wi = 0
+  for (let m = LOW; m <= HIGH; m++) {
+    const pc = m % 12
+    if (WHITE_OFFSETS.includes(pc)) {
+      wiByMidi[m] = wi
+      whites.push({ m, wi, name: NAME[pc], isC: pc === 0, oct: Math.floor(m / 12) - 1 })
+      wi++
+    }
+  }
+  for (let m = LOW; m <= HIGH; m++) {
+    const pc = m % 12
+    if (BLACK_OFFSETS.includes(pc)) {
+      const lw = wiByMidi[m - 1]
+      if (lw != null) blacks.push({ m, x: (lw + 1) * WKEY_W })
+    }
+  }
+  return { whites, blacks }
+}
+
+const { whites: WHITES, blacks: BLACKS } = buildKeys()
+const TOTAL_W = WHITES.length * WKEY_W
+const HOME_X = (WHITES.find((w) => w.m === 60)!.wi + 3.5) * WKEY_W // ホームのオクターブ中央
+// ホーム(C4)からの距離で記号を変える：0=◎ / 1=● / 2以上=・
+const cMark = (oct: number) => {
+  const d = Math.abs(oct - 4)
+  return d === 0 ? '◎' : d === 1 ? '●' : '・'
+}
+
+/** 多オクターブの鍵盤。キーは弾く専用、移動は下のバー。ドの位置を◎/●/・で示す。 */
 export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
   const [active, setActive] = useState<Set<number>>(new Set())
-  const ww = 100 / WHITES.length
-  const bw = ww * 0.6
-  // 指(ポインタ)ごとに押している音を覚える。1個だけ覚える実装だと複数指で
-  // 取りこぼし、離しても鍵盤が押されたまま(鳴りっぱなし)になる。
+  const [win, setWin] = useState({ left: 0, width: 1 })
   const pointers = useRef<Map<number, number>>(new Map())
-  // 押している音の「順番」。離したとき、残っている直近の音へ戻す(モノ=最後優先)。
   const held = useRef<number[]>([])
+  const scrollRef = useRef<HTMLDivElement>(null)
+  const barRef = useRef<HTMLDivElement>(null)
+  const barDrag = useRef(false)
 
   const press = useCallback(
     (m: number) => {
@@ -99,38 +128,107 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
     }
   }, [press, release])
 
+  const syncWin = useCallback(() => {
+    const el = scrollRef.current
+    if (!el) return
+    const sw = el.scrollWidth || 1
+    setWin({ left: el.scrollLeft / sw, width: el.clientWidth / sw })
+  }, [])
+
+  const center = useCallback((smooth: boolean) => {
+    const el = scrollRef.current
+    if (!el) return
+    el.scrollTo({ left: Math.max(0, HOME_X - el.clientWidth / 2), behavior: smooth ? 'smooth' : 'auto' })
+  }, [])
+
+  useEffect(() => {
+    center(false)
+    syncWin()
+  }, [center, syncWin])
+
+  const barTo = (clientX: number) => {
+    const bar = barRef.current
+    const el = scrollRef.current
+    if (!bar || !el) return
+    const r = bar.getBoundingClientRect()
+    const frac = Math.min(1, Math.max(0, (clientX - r.left) / r.width))
+    el.scrollLeft = frac * el.scrollWidth - el.clientWidth / 2
+  }
+  const onBarDown = (e: ReactPointerEvent<HTMLDivElement>) => {
+    barDrag.current = true
+    e.currentTarget.setPointerCapture?.(e.pointerId)
+    barTo(e.clientX)
+    e.preventDefault()
+  }
+  const onBarMove = (e: ReactPointerEvent<HTMLDivElement>) => {
+    if (barDrag.current) barTo(e.clientX)
+  }
+  const onBarUp = () => {
+    barDrag.current = false
+  }
+
   return (
-    <div className="piano">
-      {WHITES.map((k, i) => (
-        <div
-          key={k.m}
-          className={'wkey' + (active.has(k.m) ? ' active' : '')}
-          style={{ left: `${i * ww}%`, width: `${ww}%` }}
-          onPointerDown={(e) => {
-            pointers.current.set(e.pointerId, k.m)
-            press(k.m)
-            e.preventDefault()
-          }}
-        >
-          <span className="kk">{k.k}</span>
-          {showLabels && <span className="kn">{k.l}</span>}
+    <div className="kbd">
+      <div className="kbd-scroll" ref={scrollRef} onScroll={syncWin}>
+        <div className="piano" style={{ width: TOTAL_W }}>
+          {WHITES.map((w) => (
+            <div
+              key={w.m}
+              className={'wkey' + (active.has(w.m) ? ' active' : '')}
+              style={{ left: w.wi * WKEY_W, width: WKEY_W }}
+              onPointerDown={(e) => {
+                pointers.current.set(e.pointerId, w.m)
+                press(w.m)
+                e.preventDefault()
+              }}
+            >
+              {w.isC && <span className={'ckey-mark' + (w.oct === 4 ? ' home' : '')}>{cMark(w.oct)}</span>}
+              {KLABEL[w.m] && <span className="kk">{KLABEL[w.m]}</span>}
+              {showLabels && <span className="kn">{w.name}</span>}
+            </div>
+          ))}
+          {BLACKS.map((b) => (
+            <div
+              key={b.m}
+              className={'bkey' + (active.has(b.m) ? ' active' : '')}
+              style={{ left: b.x - BW / 2, width: BW }}
+              onPointerDown={(e) => {
+                pointers.current.set(e.pointerId, b.m)
+                press(b.m)
+                e.preventDefault()
+              }}
+            >
+              {KLABEL[b.m] && <span className="kk">{KLABEL[b.m]}</span>}
+              {showLabels && <span className="kn">♯</span>}
+            </div>
+          ))}
         </div>
-      ))}
-      {BLACKS.map((k) => (
+      </div>
+
+      <div className="kbd-nav">
+        <button className="kbd-home" onClick={() => center(true)} aria-label="ホーム位置(ド)に戻る">
+          ◎
+        </button>
         <div
-          key={k.m}
-          className={'bkey' + (active.has(k.m) ? ' active' : '')}
-          style={{ left: `${k.pos * ww - bw / 2}%`, width: `${bw}%` }}
-          onPointerDown={(e) => {
-            pointers.current.set(e.pointerId, k.m)
-            press(k.m)
-            e.preventDefault()
-          }}
+          className="kbd-bar"
+          ref={barRef}
+          onPointerDown={onBarDown}
+          onPointerMove={onBarMove}
+          onPointerUp={onBarUp}
+          onPointerCancel={onBarUp}
         >
-          <span className="kk">{k.k}</span>
-          {showLabels && <span className="kn">♯</span>}
+          <div className="kbd-bar-win" style={{ left: `${win.left * 100}%`, width: `${win.width * 100}%` }} />
+          {WHITES.filter((w) => w.isC).map((w) => (
+            <span
+              key={w.m}
+              className={'kbd-bar-c' + (w.oct === 4 ? ' home' : '')}
+              style={{ left: `${((w.wi * WKEY_W + WKEY_W / 2) / TOTAL_W) * 100}%` }}
+            >
+              {cMark(w.oct)}
+            </span>
+          ))}
         </div>
-      ))}
+      </div>
     </div>
   )
 }
