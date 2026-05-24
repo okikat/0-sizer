@@ -8,6 +8,27 @@ Owner speaks Japanese — reply in Japanese. They test on a phone via the
 deployed URL; the cloud agent **cannot run a browser or hear audio**, so
 state plainly when something needs on-device verification.
 
+## ⚠️ How the user learns — READ FIRST
+**The user has never touched a synth, and that is the whole point.** Their
+method: have the AI build the app, then learn each concept *fresh, from the
+app itself*, as a real first-time beginner — and feed back whatever is
+confusing so it gets fixed in the app.
+
+What this means for you:
+- **Teach inside the app, not in chat.** The teaching surface is the in-app
+  copy: lesson popups (`LESSONS[].popup`) and the `?` help (`FRAME_HELP`).
+  Put real care there — plain, friendly Japanese, everyday analogies, no
+  jargon, no English term without a gloss.
+- **Do NOT explain synth concepts in chat.** When you add/change a module,
+  do not write a chat tutorial on what a filter / envelope / waveform "is".
+  The user deliberately avoids reading those — they want to meet each idea
+  for the first time *in the app*, with a clear head. Explaining in chat
+  spoils that and is unwanted.
+- Chat is for plans, decisions, trade-offs, honest pushback, and "here's
+  what to check on device" — not for teaching the synth itself.
+- If a concept is hard to grasp, the fix is **better in-app copy**, not a
+  longer chat message.
+
 ## Stack / run / deploy
 - Vite + React 19 + TypeScript, Web Audio API. No router, no extra deps.
 - Commands: `npm run dev`, `npm run build`, `npm run lint`, `npm test`
@@ -111,13 +132,9 @@ FLIP settle).
 - Only test is `src/lib/notes.test.ts`.
 
 ## Working style the user likes
-- **The user has never touched a synth.** Their method: have the AI build the
-  app, then learn *from the app itself* as a true beginner, and feed back
-  what's confusing. So the **in-app copy is the teaching surface** — write
-  the lesson popups (`LESSONS[].popup`) and `?` help (`FRAME_HELP`) in plain,
-  friendly Japanese with everyday analogies, no jargon. They often will NOT
-  read long chat explanations of synth concepts on purpose (they want to meet
-  each idea fresh inside the app). Don't spoil concepts in chat.
+- **Don't explain synth concepts in chat — teach in the app instead.** (See
+  "How the user learns — READ FIRST" up top. This is the single most
+  important thing to honor.)
 - Discuss/confirm before big changes; they often ask "is this weird?" and
   want prior-art / honest pushback. Keep replies concrete.
 - Do NOT use the AskUserQuestion multiple-choice picker — it hides the chat
