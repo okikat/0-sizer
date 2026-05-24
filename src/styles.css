@@ -13,6 +13,13 @@
   -webkit-tap-highlight-color: transparent;
 }
 
+button {
+  font-family: inherit;
+  user-select: none;
+  -webkit-user-select: none;
+  touch-action: manipulation;
+}
+
 body {
   margin: 0;
   background: var(--bg);
@@ -232,10 +239,6 @@ b {
   from { opacity: 0; }
   to { opacity: 1; }
 }
-@keyframes fadeUp {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
 @keyframes popIn {
   from { opacity: 0; transform: scale(0.92); }
   to { opacity: 1; transform: scale(1); }
@@ -253,7 +256,6 @@ b {
   to { opacity: 0; transform: translateY(30px) scale(0.66); }
 }
 .fade-in { animation: fadeIn 0.4s ease both; }
-.fade-up { animation: fadeUp 0.55s ease both; }
 .pop-in { animation: popIn 0.38s ease both; }
 
 /* --- フルスクリーンの画面（スタート/イントロ） --- */
@@ -289,8 +291,26 @@ b {
 
 /* --- イントロ --- */
 .intro-screen { gap: 18px; cursor: pointer; }
-.intro-lines { max-width: 460px; min-height: 40vh; display: flex; flex-direction: column; justify-content: center; gap: 10px; }
-.intro-line { font-size: 17px; line-height: 1.9; margin: 0; color: var(--txt); }
+.intro-lines { max-width: 460px; min-height: 40vh; display: flex; flex-direction: column; justify-content: center; }
+/* 新しい行が「生えてくる」ことで上の行がふわっと押し上がる（カクッと跳ねない）。
+   max-height を 0→ で伸ばすと中央寄せの再計算がなめらかになり、前の行が滑らかに上昇する。 */
+.intro-line {
+  font-size: 17px;
+  line-height: 1.9;
+  color: var(--txt);
+  margin: 0;
+  overflow: hidden;
+  animation: lineIn 0.6s cubic-bezier(0.22, 0.7, 0.3, 1) both;
+}
+@keyframes lineIn {
+  from { max-height: 0; margin-top: 0; opacity: 0; transform: translateY(6px); }
+  to { max-height: 7em; margin-top: 12px; opacity: 1; transform: translateY(0); }
+}
+.intro-line:first-child { animation-name: lineInFirst; }
+@keyframes lineInFirst {
+  from { max-height: 0; opacity: 0; transform: translateY(6px); }
+  to { max-height: 7em; opacity: 1; transform: translateY(0); }
+}
 .intro-next { opacity: 0; pointer-events: none; transition: opacity 0.5s ease; }
 .intro-next.show { opacity: 1; pointer-events: auto; }
 
@@ -322,7 +342,7 @@ b {
   color: var(--sub);
   opacity: 0.55;
 }
-.slot.slot-osc.ghost { min-height: 300px; }
+.slot.slot-osc.ghost { min-height: 250px; }
 .slot.slot-keys.ghost { min-height: 190px; }
 .ghost-label { font-size: 14px; letter-spacing: 1px; }
 .slot.blink {
@@ -445,26 +465,115 @@ b {
 /* --- モジュール内パーツ --- */
 .mod-osc .waves { margin-top: 12px; }
 .osc-bottom {
-  display: flex;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
   align-items: center;
-  justify-content: center;
-  gap: 22px;
-  flex-wrap: wrap;
+  gap: 6px;
   margin-top: 14px;
 }
-.play-btn {
-  padding: 12px 22px;
-  font-size: 15px;
+.osc-bottom .knob-wrap { grid-column: 2; justify-self: center; }
+
+.fine-btn {
+  justify-self: start;
+  padding: 9px 12px;
+  font-size: 12px;
   font-weight: 700;
+  white-space: nowrap;
+  color: var(--sub);
+  background: #10151c;
+  border: 1px solid var(--line);
+  border-radius: 999px;
+  cursor: pointer;
+}
+.fine-btn.on { color: #06231f; background: var(--accent); border-color: var(--accent); }
+.fine-btn:active { transform: translateY(1px); }
+
+.play-btn {
+  justify-self: end;
+  padding: 11px 16px;
+  font-size: 14px;
+  font-weight: 700;
+  white-space: nowrap;
   color: #06231f;
   background: var(--accent);
   border: none;
   border-radius: 999px;
   cursor: pointer;
-  min-width: 116px;
 }
 .play-btn.on { color: #2a1606; background: var(--accent2); }
 .play-btn:active { transform: translateY(1px); }
+
+/* 盤面に収まる時はコンパクト表示（計器を低く、間隔を詰める） */
+.mod-osc--compact .scope { height: 76px; }
+.mod-osc--compact .waves { gap: 6px; margin-top: 8px; }
+.mod-osc--compact .wave { padding: 8px 4px; font-size: 11px; }
+.mod-osc--compact .wave .sym { font-size: 18px; margin-bottom: 3px; }
+.mod-osc--compact .osc-bottom { margin-top: 8px; }
+
+/* --- 盤面の飾り（モック） --- */
+.mock-rack {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+.mock-sec {
+  border: 1px dashed #2f3a48;
+  border-radius: 12px;
+  background: #11151b;
+  padding: 10px 8px;
+  opacity: 0.5;
+}
+.mock-sec-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); margin-bottom: 8px; }
+.mock-widgets {
+  display: flex;
+  gap: 10px;
+  align-items: flex-end;
+  justify-content: space-around;
+  flex-wrap: wrap;
+}
+.mw { display: flex; flex-direction: column; align-items: center; gap: 5px; color: #5b6776; }
+.mw-knob {
+  position: relative;
+  width: 34px;
+  height: 34px;
+  border-radius: 50%;
+  background: radial-gradient(circle at 38% 32%, #39414d, #141a22);
+  border: 1px solid #0c1116;
+}
+.mw-knob-ind {
+  position: absolute;
+  left: 50%;
+  top: 4px;
+  width: 2px;
+  height: 9px;
+  background: #6b7886;
+  border-radius: 1px;
+  transform: translateX(-50%);
+}
+.mw-slider { position: relative; width: 8px; height: 42px; background: #1b222c; border-radius: 4px; }
+.mw-slider-fill { position: absolute; left: 0; right: 0; bottom: 0; background: #2f3a48; border-radius: 4px; }
+.mw-slider-knob {
+  position: absolute;
+  left: 50%;
+  width: 16px;
+  height: 10px;
+  background: #39414d;
+  border: 1px solid #0c1116;
+  border-radius: 3px;
+  transform: translateX(-50%);
+}
+.mw-wide { flex: 1 1 100%; }
+.mw-ind {
+  width: 100%;
+  height: 26px;
+  background: #0b0e13;
+  border: 1px solid #1d2530;
+  border-radius: 6px;
+  padding: 2px 4px;
+  color: #39424f;
+}
+.mw-ind svg { width: 100%; height: 100%; display: block; }
+.mw-label { font-size: 9px; letter-spacing: 0.5px; }
 
 /* --- 角の操作（スキップ／もう一度見る） --- */
 .skip-btn,
@@ -480,6 +589,18 @@ b {
   border: 1px solid var(--line);
   border-radius: 999px;
   cursor: pointer;
+}
+
+/* タッチ端末（スマホ等）では PC 用のキー文字（A S D ...）を隠す。
+   hover 不可かつ粗いポインタ＝指、を条件にして自動で出し分ける。 */
+@media (hover: none) and (pointer: coarse) {
+  .wkey .kk,
+  .bkey .kk {
+    display: none;
+  }
+  /* キー文字を隠したら、音名を縦中央に収める */
+  .wkey { justify-content: flex-end; }
+  .bkey { justify-content: flex-end; }
 }
 
 @media (prefers-reduced-motion: reduce) {

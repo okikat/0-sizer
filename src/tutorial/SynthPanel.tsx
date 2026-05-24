@@ -1,5 +1,6 @@
 import { LESSONS, type LessonId } from './lessons'
 import { OscillatorModule, KeyboardModule, type SoundCtl } from './modules'
+import { MockSections } from './mock'
 
 interface Props {
   realized: Set<LessonId>
@@ -7,7 +8,7 @@ interface Props {
   sound: SoundCtl
 }
 
-/** 完成形の盤面。各モジュールは「実体化済み＝本物」か「未習得＝ゴースト枠」で表示する。 */
+/** 完成形の盤面。習ったモジュールは本物、未習得はゴースト枠。周りは飾り（モック）で機材感を出す。 */
 export function SynthPanel({ realized, blinkingId, sound }: Props) {
   return (
     <div className="panel-wrap">
@@ -16,8 +17,11 @@ export function SynthPanel({ realized, blinkingId, sound }: Props) {
       </div>
       <div className="panel-grid">
         <Slot id="osc" realized={realized.has('osc')} blink={blinkingId === 'osc'}>
-          <OscillatorModule {...sound.osc} />
+          <OscillatorModule compact {...sound.osc} />
         </Slot>
+
+        <MockSections />
+
         <Slot id="keys" realized={realized.has('keys')} blink={blinkingId === 'keys'}>
           <KeyboardModule {...sound.keys} />
         </Slot>

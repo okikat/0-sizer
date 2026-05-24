@@ -28,7 +28,7 @@ export function IntroScreen({ onDone }: Props) {
     <div className="screen intro-screen" onClick={() => !done && setN(LINES.length)}>
       <div className="intro-lines">
         {LINES.slice(0, n).map((l, i) => (
-          <p key={i} className="intro-line fade-up">
+          <p key={i} className="intro-line">
             {l}
           </p>
         ))}

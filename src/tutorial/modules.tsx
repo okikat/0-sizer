@@ -1,3 +1,4 @@
+import { useState } from 'react'
 import { Knob } from '../components/Knob'
 import { Keyboard } from '../components/Keyboard'
 import { Scope } from '../components/Scope'
@@ -18,14 +19,32 @@ export interface SoundCtl {
   }
 }
 
-/** オシレーター一式：計器＋波形選択＋PITCHツマミ＋「鳴らす」。盤面でもチュートリアルでも同じものを使う。 */
-export function OscillatorModule({ type, onType, playing, drone, onToggleDrone, onTune }: SoundCtl['osc']) {
+/** オシレーター一式：計器＋波形選択＋PITCHツマミ＋微調整／鳴らす。盤面でもチュートリアルでも同じものを使う。 */
+export function OscillatorModule({
+  type,
+  onType,
+  playing,
+  drone,
+  onToggleDrone,
+  onTune,
+  compact = false,
+}: SoundCtl['osc'] & { compact?: boolean }) {
+  const [fine, setFine] = useState(false)
   return (
-    <div className="mod mod-osc">
+    <div className={'mod mod-osc' + (compact ? ' mod-osc--compact' : '')}>
       <Scope type={type} playing={playing} />
       <WaveformPicker value={type} onChange={onType} />
       <div className="osc-bottom">
+        <button
+          className={'fine-btn' + (fine ? ' on' : '')}
+          onClick={() => setFine((v) => !v)}
+          aria-pressed={fine}
+        >
+          微調整{fine ? ' ON' : ''}
+        </button>
         <Knob
+          size={compact ? 92 : 108}
+          fine={fine}
           min={-12}
           max={12}
           defaultValue={0}

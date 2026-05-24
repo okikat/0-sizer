@@ -9,13 +9,15 @@ interface Props {
   defaultValue: number
   size?: number
   label?: string
+  /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
+  fine?: boolean
   format?: (v: number) => KnobFormat
   onChange?: (v: number) => void
 }
 
 const A0 = -135
 const A1 = 135
-// Shift を押している間は微調整(ゆっくり動く)。プロのシンセ/DAW と同じ操作感。
+// 微調整時はゆっくり動く。PC は Shift、スマホは「微調整」ボタンで ON。
 const FINE = 0.25
 
 function polar(cx: number, cy: number, r: number, angleDeg: number): [number, number] {
@@ -30,8 +32,8 @@ function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): str
   return `M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}`
 }
 
-/** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・Shiftで微調整・ホイール調整・ダブルクリックで初期値。 */
-export function Knob({ min, max, defaultValue, size = 130, label, format, onChange }: Props) {
+/** 盤面に置ける汎用ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。 */
+export function Knob({ min, max, defaultValue, size = 130, label, fine = false, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const gid = 'kcap' + useId().replace(/:/g, '')
@@ -70,14 +72,14 @@ export function Knob({ min, max, defaultValue, size = 130, label, format, onChan
     if (!drag.current) return
     const dy = drag.current.lastY - e.clientY
     drag.current.lastY = e.clientY
-    const sens = ((max - min) / size) * (e.shiftKey ? FINE : 1)
+    const sens = ((max - min) / size) * (e.shiftKey || fine ? FINE : 1)
     set(valueRef.current + dy * sens)
   }
   const onUp = () => {
     drag.current = null
   }
   const onWheel = (e: ReactWheelEvent<SVGSVGElement>) => {
-    const step = Math.max(0.1, (max - min) / 33) * (e.shiftKey ? FINE : 1)
+    const step = Math.max(0.1, (max - min) / 33) * (e.shiftKey || fine ? FINE : 1)
     set(valueRef.current - Math.sign(e.deltaY) * step)
   }
 
@@ -102,6 +104,8 @@ export function Knob({ min, max, defaultValue, size = 130, label, format, onChan
   const [i0x, i0y] = polar(r, r, capR - 20, ang)
   const [i1x, i1y] = polar(r, r, capR - 4, ang)
   const f = format ? format(value) : { main: String(Math.round(value)) }
+  const mainFont = Math.round(size * 0.14)
+  const subFont = Math.round(size * 0.085)
 
   return (
     <div className="knob-wrap">
@@ -130,14 +134,14 @@ export function Knob({ min, max, defaultValue, size = 130, label, format, onChan
         <path d={arcPath(r, r, trackR, A0, ang)} fill="none" stroke="#5ad1c4" strokeWidth={6} strokeLinecap="round" />
         <circle cx={r} cy={r} r={capR} fill={`url(#${gid})`} stroke="#0c1116" strokeWidth={2} />
         <line x1={i0x} y1={i0y} x2={i1x} y2={i1y} stroke="#5ad1c4" strokeWidth={3.5} strokeLinecap="round" />
-        <text x={r} y={r + 1} textAnchor="middle" fill="#e6edf3" fontSize={18} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
+        <text x={r} y={r + 1} textAnchor="middle" fill="#e6edf3" fontSize={mainFont} fontWeight={700} fontFamily="ui-monospace,Menlo,monospace">
           {f.main}
         </text>
-        <text x={r} y={r + 18} textAnchor="middle" fill="#9aa7b5" fontSize={11}>
+        <text x={r} y={r + mainFont} textAnchor="middle" fill="#9aa7b5" fontSize={subFont}>
           {f.sub ?? ''}
         </text>
       </svg>
-      <div className="knob-hint">↕ ドラッグ ・ Shift で微調整 ・ ダブルクリックで初期値</div>
+      <div className="knob-hint">↕ ドラッグ ・ ダブルクリックで初期値</div>
     </div>
   )
 }
