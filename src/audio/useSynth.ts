@@ -43,23 +43,37 @@ export function useSynth() {
     }
   }, [])
 
+  // 音量を「今出ている値」から直線で目標値へつなぐ。
+  // setTargetAtTime と違いゼロちょうどに着地するので、極小値(denormal)の尻尾が
+  // 残らず、それが原因の“ブツッ”というノイズが出ない。値も飛ばないのでクリックもしない。
+  const rampGain = useCallback((target: number, seconds: number) => {
+    const ctx = ctxRef.current
+    const gain = gainRef.current
+    if (!ctx || !gain) return
+    const now = ctx.currentTime
+    const p = gain.gain
+    if (typeof p.cancelAndHoldAtTime === 'function') {
+      p.cancelAndHoldAtTime(now)
+    } else {
+      p.cancelScheduledValues(now)
+      p.setValueAtTime(p.value, now)
+    }
+    p.linearRampToValueAtTime(target, now + seconds)
+  }, [])
+
   const noteOn = useCallback(
     (midi: number) => {
       ensure()
       midiRef.current = midi
       applyFreq()
-      const ctx = ctxRef.current!
-      const gain = gainRef.current!
-      gain.gain.setTargetAtTime(0.18, ctx.currentTime, 0.008)
+      rampGain(0.18, 0.008)
     },
-    [ensure, applyFreq],
+    [ensure, applyFreq, rampGain],
   )
 
   const noteOff = useCallback(() => {
-    const ctx = ctxRef.current
-    const gain = gainRef.current
-    if (ctx && gain) gain.gain.setTargetAtTime(0, ctx.currentTime, 0.05)
-  }, [])
+    rampGain(0, 0.08)
+  }, [rampGain])
 
   const setWaveform = useCallback((t: OscillatorType) => {
     typeRef.current = t
