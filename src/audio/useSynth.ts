@@ -36,6 +36,23 @@ export function useSynth() {
       lfo.connect(lfoDepth)
       lfoDepth.connect(osc.detune)
       lfo.start()
+      // プツプツ(コーデックのザラつき)対策に、高域を削った“暗いノイズ”をごく僅か混ぜる。
+      // 白いノイズより耳につきにくい。gain 経由なので無音時は一緒に消える。値は耳で微調整。
+      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+      const noise = ctx.createBufferSource()
+      noise.buffer = noiseBuf
+      noise.loop = true
+      const noiseLP = ctx.createBiquadFilter()
+      noiseLP.type = 'lowpass'
+      noiseLP.frequency.value = 2500 // 高域を削って“暗く”する(下げるほど大人しい音)
+      const noiseLevel = ctx.createGain()
+      noiseLevel.gain.value = 0.01 // ノイズの量(耳につくなら下げる)
+      noise.connect(noiseLP)
+      noiseLP.connect(noiseLevel)
+      noiseLevel.connect(gain)
+      noise.start()
       ctxRef.current = ctx
       gainRef.current = gain
       oscRef.current = osc
