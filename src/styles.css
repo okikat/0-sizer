@@ -451,6 +451,8 @@ b {
   align-items: center;
   justify-content: center;
 }
+/* フィルターは2ツマミ。横幅いっぱいに置いて余裕を持たせる。 */
+.slot-filter { grid-column: 1 / -1; padding: 8px; }
 
 .slot {
   position: relative;
@@ -471,6 +473,7 @@ b {
 .slot.slot-wave.ghost { min-height: 110px; }
 .slot.slot-pitch.ghost { min-height: 92px; }
 .slot.slot-fine.ghost { min-height: 92px; }
+.slot.slot-filter.ghost { min-height: 110px; }
 .slot.slot-keys.ghost { min-height: 92px; }
 .slot-help {
   position: absolute;
@@ -635,6 +638,7 @@ b {
   cursor: pointer;
 }
 .mod-pitch { display: flex; justify-content: center; }
+.mod-filter { display: flex; align-items: flex-start; justify-content: center; gap: 22px; }
 .mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
 

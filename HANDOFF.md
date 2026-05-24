@@ -35,21 +35,26 @@ state plainly when something needs on-device verification.
   - Top-right: hamburger menu (もう一度見る / スキップ) + 解説表示 toggle.
   - `localStorage['0sizer.tutorialDone'] === '1'` → returning users start
     at `panel` with everything realized.
-- `src/audio/useSynth.ts` — monophonic synth: 1 oscillator + 1 gain
-  (envelope), tiny noise floor (anti-crackle on Bluetooth). API:
-  `noteOn/noteOff/setWaveform/setTune/setEnv`. ADSR scheduled with linear
-  ramps from the current value. Resumes the AudioContext on
-  visibilitychange/focus/pointerdown (sleep-resume fix). `EnvParams` type.
+- `src/audio/useSynth.ts` — monophonic synth: osc → **lowpass filter** →
+  gain (envelope) → out; tiny noise floor mixed straight into gain
+  (anti-crackle on Bluetooth, unfiltered). API:
+  `noteOn/noteOff/setWaveform/setTune/setEnv/setCutoff/setResonance`. Filter
+  defaults fully open (16k / Q 0.7) so untouched sound is unchanged. ADSR
+  scheduled with linear ramps from the current value. Resumes the
+  AudioContext on visibilitychange/focus/pointerdown (sleep-resume fix).
+  `EnvParams` type.
 - `src/tutorial/`
-  - `lessons.ts` — `FrameId = keys|wave|pitch|fine|env`, `LESSONS`
-    (order: keys → wave → pitch → env; a lesson `realizes` 1+ frames; pitch
-    realizes pitch+fine), `FRAME_TITLE`, `FRAME_HELP` (per-frame `?` text),
-    `ALL_FRAMES`, `lessonForFrame`.
+  - `lessons.ts` — `FrameId = keys|wave|pitch|fine|env|filter`, `LESSONS`
+    (order: keys → wave → pitch → env → filter; a lesson `realizes` 1+
+    frames; pitch realizes pitch+fine), `FRAME_TITLE`, `FRAME_HELP`
+    (per-frame `?` text), `ALL_FRAMES`, `lessonForFrame`.
   - `modules.tsx` — `SoundCtl` + frame components: `WaveFrame`
     (Scope+picker, collapsible scope), `PitchFrame` (Knob), `FineFrame`
     (hardware-style toggle = global fine), `EnvModule` (EnvGraph + 4
-    Sliders, collapsible graph), `KeyboardModule`, `KeyboardGhost` (static,
-    listener-free, for ghosts).
+    Sliders, collapsible graph), `FilterFrame` (CUTOFF + RES Knobs;
+    cutoff knob is 0..1 mapped log to 80Hz–16kHz, RES is 0..10 mapped to
+    Q 0.7–12), `KeyboardModule`, `KeyboardGhost` (static, listener-free,
+    for ghosts).
   - `SynthPanel.tsx` — the panel: fixed header, **scrollable module area**
     (`.panel-scroll`), **keyboard pinned at bottom**. Board is a dense grid:
     ENV (wide col) beside PITCH+微調整 (`.side-col`), mocks span below.
@@ -85,26 +90,40 @@ state plainly when something needs on-device verification.
   scrolling.
 
 ## Done so far
-4 real lessons (keyboard, waveform, PITCH+微調整, envelope/ADSR) + a dense
-scrollable panel with decorative mocks. Cinematic onboarding (start, intro,
-ghost preview, per-module spotlight with popup/?, FLIP settle).
+5 real lessons (keyboard, waveform, PITCH+微調整, envelope/ADSR, **filter**)
++ a dense scrollable panel with decorative mocks (LFO, MIX). Cinematic
+onboarding (start, intro, ghost preview, per-module spotlight with popup/?,
+FLIP settle).
 
 ## Likely next steps / open items
 - The user's vision: a **"パネル編集モード"** — a grid where modules can be
   freely resized/rearranged within constraints, plus pin scroll-vs-fixed.
   We've done the near-term *fixed* dense grid; the interactive editor is the
   bigger future feature (drag/resize/persist).
-- Next real module candidate: **FILTER** (currently a mock). Would need a
-  `BiquadFilterNode` in `useSynth` (osc → filter → gain) + CUTOFF/RES UI.
-- Verify the sleep-resume audio fix and the keyboard C-marker visibility on
-  device.
+- FILTER (lowpass) is now real. Possible follow-ups: a filter ENV/keytrack,
+  or another filter type — but only if the beginner asks. Next mock to
+  realize would be **LFO** (a `setInterval`/`OscillatorNode` modulating
+  pitch or cutoff) or **MIX** (master VOL/PAN).
+- **Verify on device**: the FILTER lesson (CUTOFF should clearly muffle the
+  tone, RES should add the "ミョーン" peak), plus the earlier sleep-resume
+  audio fix and keyboard C-marker visibility.
 - Minor: `mock.tsx` still has an unused `slider` widget kind.
 - Only test is `src/lib/notes.test.ts`.
 
 ## Working style the user likes
+- **The user has never touched a synth.** Their method: have the AI build the
+  app, then learn *from the app itself* as a true beginner, and feed back
+  what's confusing. So the **in-app copy is the teaching surface** — write
+  the lesson popups (`LESSONS[].popup`) and `?` help (`FRAME_HELP`) in plain,
+  friendly Japanese with everyday analogies, no jargon. They often will NOT
+  read long chat explanations of synth concepts on purpose (they want to meet
+  each idea fresh inside the app). Don't spoil concepts in chat.
 - Discuss/confirm before big changes; they often ask "is this weird?" and
   want prior-art / honest pushback. Keep replies concrete.
 - Do NOT use the AskUserQuestion multiple-choice picker — it hides the chat
   text. Ask in plain text.
 - Small, verifiable increments; commit + push each round; summarize what to
   check on-device.
+- **Branch/deploy**: develop directly on `main` (push = auto-deploy). No PRs
+  for this project (they cap PR usage elsewhere and this is a hobby app, so
+  no review trail needed). `npm install` first in a fresh container.

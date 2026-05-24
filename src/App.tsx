@@ -18,7 +18,7 @@ const EXIT_MS = 560
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -59,6 +59,8 @@ export default function App() {
       setEnvState(next)
       setEnv(next)
     },
+    onCutoff: (hz) => setCutoff(hz),
+    onRes: (q) => setResonance(q),
     onNoteOn: (m) => {
       setKeyHeld(true)
       noteOn(m)

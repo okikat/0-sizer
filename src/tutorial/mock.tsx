@@ -13,13 +13,6 @@ interface Section {
 
 const SECTIONS: Section[] = [
   {
-    title: 'FILTER',
-    widgets: [
-      { kind: 'knob', label: 'CUTOFF', angle: -40 },
-      { kind: 'knob', label: 'RES', angle: 55 },
-    ],
-  },
-  {
     title: 'LFO',
     widgets: [
       { kind: 'knob', label: 'RATE', angle: 15 },

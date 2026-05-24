@@ -18,12 +18,23 @@ export interface SoundCtl {
   onToggleFine: () => void
   env: EnvParams
   onEnvChange: (key: EnvKey, value: number) => void
+  onCutoff: (hz: number) => void
+  onRes: (q: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
 }
 
 const fmtTime = (v: number) => (v < 1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`)
 const fmtPct = (v: number) => `${Math.round(v * 100)} %`
+
+// カットオフは「つまみ 0〜1」を低音域寄りの対数カーブで 80Hz〜16kHz に対応させる。
+// 人は周波数を対数で感じるので、つまみの動きと聴感が合うようにする。
+const F_MIN = 80
+const F_MAX = 16000
+const cutoffNormToHz = (n: number) => F_MIN * Math.pow(F_MAX / F_MIN, n)
+const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Math.round(hz)}`)
+// RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜12（強め）に対応させる。
+const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (12 - 0.7)
 
 /** 波形フレーム：計器＋波形選択。 */
 export function WaveFrame({
@@ -104,6 +115,45 @@ export function EnvModule({
           {showGraph ? '▾' : '▸'}
         </button>
       </div>
+    </div>
+  )
+}
+
+/** フィルターフレーム：CUTOFF と RES の2ツマミ（ローパス）。 */
+export function FilterFrame({
+  onCutoff,
+  onRes,
+  fine,
+  compact = false,
+  showText = true,
+}: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine'> & { compact?: boolean; showText?: boolean }) {
+  const size = compact ? 56 : 108
+  return (
+    <div className="mod mod-filter">
+      <Knob
+        size={size}
+        fine={fine}
+        showText={showText}
+        showHint={!compact}
+        min={0}
+        max={1}
+        defaultValue={1}
+        label="CUTOFF"
+        format={(v) => ({ main: fmtHz(cutoffNormToHz(v)) })}
+        onChange={(v) => onCutoff(cutoffNormToHz(v))}
+      />
+      <Knob
+        size={size}
+        fine={fine}
+        showText={showText}
+        showHint={!compact}
+        min={0}
+        max={10}
+        defaultValue={0}
+        label="RES"
+        format={(v) => ({ main: String(Math.round(v)) })}
+        onChange={(v) => onRes(resAmtToQ(v))}
+      />
     </div>
   )
 }

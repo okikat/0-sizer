@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'env'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'env' | 'filter'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -7,6 +7,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   pitch: 'PITCH',
   fine: '微調整',
   env: 'エンベロープ',
+  filter: 'フィルター',
 }
 
 export interface Lesson {
@@ -63,6 +64,18 @@ export const LESSONS: Lesson[] = [
       'R ＝ Release（リリース／余韻）',
     ],
   },
+  {
+    id: 'filter',
+    realizes: ['filter'],
+    stageTitle: '明るさ：フィルター',
+    popup: [
+      'フィルターは音の「明るさ」を決める担当。隣の部屋から音を聞くと、高い音がこもって聞こえますよね。あれと同じで、高い音をけずって、やわらかい・暗い音にできます。',
+      '「CUTOFF」を下げるほど高い音がけずれて、音がこもっていきます。上げるほど明るくクリアに。下の鍵盤を押しっぱなしにして、回しながら聴き比べてみて。',
+      '「RES」は、けずる境目あたりの音を逆に強調して、「ミョーン」としたシンセらしいクセを足します。0なら素直、上げるほどクセが強くなります。',
+      'CUTOFF（カットオフ）＝どこから上の高い音をけずるか、の境目。',
+      'RES ＝ Resonance（レゾナンス／響き）。境目のあたりをどれだけ強調するか。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -97,6 +110,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     title: 'エンベロープ',
     paragraphs: [
       '音量の時間変化（A＝立ち上がり／D＝減衰／S＝持続音量／R＝余韻）。鍵盤を押す→離すで形が音になります。',
+    ],
+  },
+  filter: {
+    title: 'フィルター',
+    paragraphs: [
+      '音の明るさを調整します。CUTOFF を下げると高い音がけずれてこもり、上げると明るくクリアに。',
+      'RES はけずる境目あたりを強調して、シンセらしいクセ（ミョーン）を足します。0で素直、上げるほど強く。',
     ],
   },
 }

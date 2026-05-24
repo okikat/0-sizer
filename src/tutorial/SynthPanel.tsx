@@ -1,5 +1,5 @@
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, EnvModule, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 interface Props {
@@ -44,6 +44,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
               <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
             </Slot>
           </div>
+          <Slot {...slotProps('filter')}>
+            <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+          </Slot>
           <div className="mock-area">
             <MockSections />
           </div>

@@ -1,5 +1,5 @@
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, EnvModule, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson } from './lessons'
 
 export interface Flight {
@@ -25,6 +25,8 @@ function StageContent({ lesson, sound }: { lesson: Lesson; sound: SoundCtl }) {
   if (lesson.id === 'wave') return <WaveFrame type={sound.type} onType={sound.onType} playing={sound.playing} />
   if (lesson.id === 'env')
     return <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+  if (lesson.id === 'filter')
+    return <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
   return (
     <div className="pitch-cluster">
       <PitchFrame onTune={sound.onTune} fine={sound.fine} />
