@@ -16,7 +16,7 @@ function glide(p: AudioParam, target: number, tau: number, now: number) {
 // いずれも耳で微調整する前提の控えめな値。
 const VIBRATO_HZ = 5 // ピッチ揺れの速さ(Hz)
 const VIBRATO_CENTS = 4 // ピッチ揺れの深さ(セント)。半音=100セント。小さいほど純音寄り
-const NOISE_LEVEL = 0.006 // 混ぜるホワイトノイズの量。音に対して十分小さいヒス
+const NOISE_LEVEL = 0 // 混ぜるホワイトノイズの量。0 で無効。揺れだけで足りる場合は 0
 
 /**
  * モノフォニックなシンセエンジン。
@@ -54,19 +54,21 @@ export function useSynth() {
       lfoDepth.connect(osc.detune)
       lfo.start()
 
-      // (2) 微量ホワイトノイズ(ディザ)を同じエンベロープ経由で混ぜる → 量子化のジャリつきを
-      //     やさしいヒスに置き換える。gain 経由なので無音時はノイズも消える。
-      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
-      const data = noiseBuf.getChannelData(0)
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-      const noise = ctx.createBufferSource()
-      noise.buffer = noiseBuf
-      noise.loop = true
-      const noiseLevel = ctx.createGain()
-      noiseLevel.gain.value = NOISE_LEVEL
-      noise.connect(noiseLevel)
-      noiseLevel.connect(gain)
-      noise.start()
+      // (2) 任意: 微量ホワイトノイズ(ディザ)を同じエンベロープ経由で混ぜる → 量子化のジャリつきを
+      //     やさしいヒスに置き換える。gain 経由なので無音時はノイズも消える。NOISE_LEVEL=0 で無効。
+      if (NOISE_LEVEL > 0) {
+        const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
+        const data = noiseBuf.getChannelData(0)
+        for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+        const noise = ctx.createBufferSource()
+        noise.buffer = noiseBuf
+        noise.loop = true
+        const noiseLevel = ctx.createGain()
+        noiseLevel.gain.value = NOISE_LEVEL
+        noise.connect(noiseLevel)
+        noiseLevel.connect(gain)
+        noise.start()
+      }
 
       ctxRef.current = ctx
       gainRef.current = gain

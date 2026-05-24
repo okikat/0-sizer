@@ -39,9 +39,6 @@ export function Scope({ type, playing }: Props) {
     if (!g) return
     let raf = 0
     let phase = 0
-    let last = 0
-    // 描画は 30fps に間引く（毎フレームの canvas 描画が音声処理を圧迫しないように）。
-    const minDelta = 1000 / 30
 
     const draw = () => {
       const w = cv.width
@@ -59,25 +56,18 @@ export function Scope({ type, playing }: Props) {
       g.lineWidth = 2.5
       g.beginPath()
       const cycles = 3
-      // 2px 刻みで点数を半分にして描画コストを下げる（見た目はほぼ同じ）。
-      for (let x = 0; x <= w; x += 2) {
+      for (let x = 0; x <= w; x++) {
         const t = (x / w) * cycles + phase
         const y = mid - waveValue(typeRef.current, t) * (h * 0.38)
         if (x === 0) g.moveTo(x, y)
         else g.lineTo(x, y)
       }
       g.stroke()
-    }
 
-    const loop = (ts: number) => {
-      if (ts - last >= minDelta) {
-        last = ts
-        draw()
-        if (playRef.current) phase += 0.04
-      }
-      raf = requestAnimationFrame(loop)
+      if (playRef.current) phase += 0.02
+      raf = requestAnimationFrame(draw)
     }
-    raf = requestAnimationFrame(loop)
+    raf = requestAnimationFrame(draw)
     return () => cancelAnimationFrame(raf)
   }, [])
 
