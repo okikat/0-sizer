@@ -31,15 +31,18 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
   const [active, setActive] = useState<Set<number>>(new Set())
   const ww = 100 / WHITES.length
   const bw = ww * 0.6
-  const pointerMidi = useRef<number | null>(null)
+  // 指(ポインタ)ごとに押している音を覚える。1個だけ覚える実装だと複数指で
+  // 取りこぼし、離しても鍵盤が押されたまま(鳴りっぱなし)になる。
+  const pointers = useRef<Map<number, number>>(new Map())
+  // 押している音の「順番」。離したとき、残っている直近の音へ戻す(モノ=最後優先)。
+  const held = useRef<number[]>([])
 
   const press = useCallback(
     (m: number) => {
-      setActive((prev) => {
-        const next = new Set(prev)
-        next.add(m)
-        return next
-      })
+      const h = held.current
+      if (h.includes(m)) return
+      h.push(m)
+      setActive(new Set(h))
       onNoteOn(m)
     },
     [onNoteOn],
@@ -47,25 +50,31 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
 
   const release = useCallback(
     (m: number) => {
-      setActive((prev) => {
-        const next = new Set(prev)
-        next.delete(m)
-        if (next.size === 0) onNoteOff()
-        return next
-      })
+      const h = held.current
+      const i = h.indexOf(m)
+      if (i === -1) return
+      const wasTop = i === h.length - 1
+      h.splice(i, 1)
+      setActive(new Set(h))
+      if (h.length === 0) onNoteOff()
+      else if (wasTop) onNoteOn(h[h.length - 1])
     },
-    [onNoteOff],
+    [onNoteOff, onNoteOn],
   )
 
   useEffect(() => {
-    const up = () => {
-      if (pointerMidi.current != null) {
-        release(pointerMidi.current)
-        pointerMidi.current = null
-      }
+    const up = (e: PointerEvent) => {
+      const m = pointers.current.get(e.pointerId)
+      if (m == null) return
+      pointers.current.delete(e.pointerId)
+      release(m)
     }
     window.addEventListener('pointerup', up)
-    return () => window.removeEventListener('pointerup', up)
+    window.addEventListener('pointercancel', up)
+    return () => {
+      window.removeEventListener('pointerup', up)
+      window.removeEventListener('pointercancel', up)
+    }
   }, [release])
 
   useEffect(() => {
@@ -96,7 +105,7 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
           className={'wkey' + (active.has(k.m) ? ' active' : '')}
           style={{ left: `${i * ww}%`, width: `${ww}%` }}
           onPointerDown={(e) => {
-            pointerMidi.current = k.m
+            pointers.current.set(e.pointerId, k.m)
             press(k.m)
             e.preventDefault()
           }}
@@ -111,7 +120,7 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
           className={'bkey' + (active.has(k.m) ? ' active' : '')}
           style={{ left: `${k.pos * ww - bw / 2}%`, width: `${bw}%` }}
           onPointerDown={(e) => {
-            pointerMidi.current = k.m
+            pointers.current.set(e.pointerId, k.m)
             press(k.m)
             e.preventDefault()
           }}
