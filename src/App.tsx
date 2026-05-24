@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSynth } from './audio/useSynth'
+import { useSynth, type EnvParams } from './audio/useSynth'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
@@ -18,7 +18,7 @@ const EXIT_MS = 560
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -36,6 +36,7 @@ export default function App() {
   const [type, setType] = useState<OscillatorType>('sine')
   const [fine, setFine] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
+  const [env, setEnvState] = useState<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
   const stopAll = useCallback(() => {
     noteOff()
@@ -52,6 +53,12 @@ export default function App() {
     onTune: (v) => setTune(v),
     fine,
     onToggleFine: () => setFine((v) => !v),
+    env,
+    onEnvChange: (key, value) => {
+      const next = { ...env, [key]: value }
+      setEnvState(next)
+      setEnv(next)
+    },
     onNoteOn: (m) => {
       setKeyHeld(true)
       noteOn(m)

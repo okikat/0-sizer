@@ -580,6 +580,54 @@ b {
   box-shadow: 0 0 7px var(--accent), 0 0 2px #fff;
 }
 
+/* エンベロープ（A/D/S/R） */
+.mod-env { display: flex; flex-direction: column; gap: 10px; }
+.env-graph {
+  width: 100%;
+  height: 84px;
+  display: block;
+  background: #0b0e13;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+}
+.mod-env.mod--compact .env-graph { height: 56px; }
+.env-sliders { display: flex; justify-content: space-around; align-items: flex-end; gap: 8px; }
+
+.slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
+.slider-val { font-size: 10px; color: var(--sub); height: 12px; }
+.slider-track {
+  position: relative;
+  width: 10px;
+  height: 70px;
+  background: #1b222c;
+  border: 1px solid #0c1116;
+  border-radius: 5px;
+  cursor: ns-resize;
+  touch-action: none;
+}
+.mod-env.mod--compact .slider-track { height: 52px; }
+.slider-fill {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: var(--accent);
+  border-radius: 5px;
+  opacity: 0.5;
+}
+.slider-handle {
+  position: absolute;
+  left: 50%;
+  width: 20px;
+  height: 12px;
+  transform: translateX(-50%);
+  background: linear-gradient(#39414d, #20262f);
+  border: 1px solid #0c1116;
+  border-radius: 3px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.slider-label { font-size: 12px; font-weight: 700; color: var(--sub); }
+
 /* 波形セレクタのアイコンのみ表示（縮小用） */
 .waves--compact { gap: 6px; margin-top: 8px; }
 .waves--compact .wave { padding: 7px 0; }

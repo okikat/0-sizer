@@ -12,6 +12,16 @@ const NOISE_LEVEL = 0.004
  * 周波数は「弾いた音(midi)」×「TUNE(半音)」で決まる。
  * AudioContext はブラウザの autoplay 制限のため、最初の noteOn(ユーザー操作)で生成する。
  */
+// 音量エンベロープのピーク（元の 0.18 相当）。
+const PEAK = 0.2
+
+export interface EnvParams {
+  attack: number
+  decay: number
+  sustain: number
+  release: number
+}
+
 export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
   const oscRef = useRef<OscillatorNode | null>(null)
@@ -19,6 +29,7 @@ export function useSynth() {
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const midiRef = useRef<number | null>(null)
+  const envRef = useRef<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
   const ensure = useCallback(() => {
     if (!ctxRef.current) {
@@ -67,7 +78,16 @@ export function useSynth() {
       applyFreq()
       const ctx = ctxRef.current!
       const gain = gainRef.current!
-      gain.gain.setTargetAtTime(0.18, ctx.currentTime, 0.008)
+      const now = ctx.currentTime
+      const { attack, decay, sustain } = envRef.current
+      const a = Math.max(0.005, attack)
+      const d = Math.max(0.005, decay)
+      // 現在値から再スケジュール（連打・リリース途中の押し直しでもクリックしない）。
+      const cur = Math.max(gain.gain.value, 0.0001)
+      gain.gain.cancelScheduledValues(now)
+      gain.gain.setValueAtTime(cur, now)
+      gain.gain.linearRampToValueAtTime(PEAK, now + a)
+      gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
     },
     [ensure, applyFreq],
   )
@@ -75,7 +95,17 @@ export function useSynth() {
   const noteOff = useCallback(() => {
     const ctx = ctxRef.current
     const gain = gainRef.current
-    if (ctx && gain) gain.gain.setTargetAtTime(0, ctx.currentTime, 0.05)
+    if (!ctx || !gain) return
+    const now = ctx.currentTime
+    const r = Math.max(0.01, envRef.current.release)
+    const cur = gain.gain.value
+    gain.gain.cancelScheduledValues(now)
+    gain.gain.setValueAtTime(cur, now)
+    gain.gain.linearRampToValueAtTime(0.0001, now + r)
+  }, [])
+
+  const setEnv = useCallback((e: EnvParams) => {
+    envRef.current = e
   }, [])
 
   const setWaveform = useCallback((t: OscillatorType) => {
@@ -102,5 +132,5 @@ export function useSynth() {
     }
   }, [])
 
-  return { noteOn, noteOff, setWaveform, setTune }
+  return { noteOn, noteOff, setWaveform, setTune, setEnv }
 }

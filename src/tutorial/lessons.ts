@@ -1,11 +1,12 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'env'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
   wave: '波形',
   pitch: 'PITCH',
   fine: '微調整',
+  env: 'エンベロープ',
 }
 
 export interface Lesson {
@@ -47,6 +48,16 @@ export const LESSONS: Lesson[] = [
       '鍵盤を弾きながらPITCHを動かすと、弾く音の全体がスーッとズレます。',
     ],
   },
+  {
+    id: 'env',
+    realizes: ['env'],
+    stageTitle: '時間変化：エンベロープ（A D S R）',
+    popup: [
+      'エンベロープは「音量の時間変化」。鍵盤を押してから離すまでの、音のふくらみ方を作ります。',
+      'A＝立ち上がり（押した直後の伸び）／D＝減衰（ピークから下がる）／S＝持続の音量（押し続けの大きさ）／R＝余韻（離した後の伸び）。',
+      '下の鍵盤を「押しっぱなし→離す」で試しながらスライダーを動かすと、グラフと音が一緒に変わります。例：Aを長くすると、フワッと入る音に。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -76,6 +87,12 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
   fine: {
     title: '微調整',
     paragraphs: ['ON にすると、ツマミがゆっくり動いて細かく合わせられます（全てのツマミに効きます）。もう一度押すと OFF。'],
+  },
+  env: {
+    title: 'エンベロープ',
+    paragraphs: [
+      '音量の時間変化（A＝立ち上がり／D＝減衰／S＝持続音量／R＝余韻）。鍵盤を押す→離すで形が音になります。',
+    ],
   },
 }
 

@@ -1,5 +1,5 @@
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, EnvModule, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 interface Props {
@@ -30,6 +30,10 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
       <div className="panel-scroll">
         <Slot {...slotProps('wave')}>
           <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
+        </Slot>
+
+        <Slot {...slotProps('env')}>
+          <EnvModule compact showText={showHelp} env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
         </Slot>
 
         <div className="board">

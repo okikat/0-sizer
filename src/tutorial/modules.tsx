@@ -2,6 +2,11 @@ import { Knob } from '../components/Knob'
 import { Keyboard } from '../components/Keyboard'
 import { Scope } from '../components/Scope'
 import { WaveformPicker } from '../components/WaveformPicker'
+import { Slider } from '../components/Slider'
+import { EnvGraph } from '../components/EnvGraph'
+import type { EnvParams } from '../audio/useSynth'
+
+export type EnvKey = keyof EnvParams
 
 export interface SoundCtl {
   type: OscillatorType
@@ -10,9 +15,14 @@ export interface SoundCtl {
   onTune: (v: number) => void
   fine: boolean
   onToggleFine: () => void
+  env: EnvParams
+  onEnvChange: (key: EnvKey, value: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
 }
+
+const fmtTime = (v: number) => (v < 1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`)
+const fmtPct = (v: number) => `${Math.round(v * 100)} %`
 
 /** 波形フレーム：計器＋波形選択。 */
 export function WaveFrame({
@@ -61,6 +71,27 @@ export function FineFrame({ fine, onToggleFine }: Pick<SoundCtl, 'fine' | 'onTog
       <button className={'fine-btn' + (fine ? ' on' : '')} onClick={onToggleFine} aria-pressed={fine}>
         微調整
       </button>
+    </div>
+  )
+}
+
+/** エンベロープ（A/D/S/R）フレーム：形のグラフ＋4スライダー。 */
+export function EnvModule({
+  env,
+  onEnvChange,
+  fine,
+  compact = false,
+  showText = true,
+}: Pick<SoundCtl, 'env' | 'onEnvChange' | 'fine'> & { compact?: boolean; showText?: boolean }) {
+  return (
+    <div className={'mod mod-env' + (compact ? ' mod--compact' : '')}>
+      <EnvGraph attack={env.attack} decay={env.decay} sustain={env.sustain} release={env.release} />
+      <div className="env-sliders">
+        <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
+        <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
+        <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} showValue={showText} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
+        <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
+      </div>
     </div>
   )
 }

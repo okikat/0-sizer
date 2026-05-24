@@ -20,15 +20,6 @@ const SECTIONS: Section[] = [
     ],
   },
   {
-    title: 'ENV',
-    widgets: [
-      { kind: 'slider', label: 'A', level: 0.35 },
-      { kind: 'slider', label: 'D', level: 0.55 },
-      { kind: 'slider', label: 'S', level: 0.7 },
-      { kind: 'slider', label: 'R', level: 0.4 },
-    ],
-  },
-  {
     title: 'LFO',
     widgets: [
       { kind: 'knob', label: 'RATE', angle: 15 },
