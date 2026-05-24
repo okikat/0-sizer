@@ -28,9 +28,7 @@ export function useSynth() {
   const ensure = useCallback(() => {
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      // latencyHint:'playback' で出力バッファを大きめにする。小さい既定バッファだと
-      // 描画など他処理のわずかな詰まりで underrun(プチプチ)が起きやすいため。
-      const ctx = new Ctor({ latencyHint: 'playback' })
+      const ctx = new Ctor()
       const gain = ctx.createGain()
       gain.gain.value = 0
       gain.connect(ctx.destination)
