@@ -364,12 +364,15 @@ b {
 }
 .panel-scroll::-webkit-scrollbar { width: 6px; }
 .panel-scroll::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 3px; }
+/* 密グリッド：エンベロープ(広)の横に PITCH/微調整(縦並び)を滑り込ませる */
 .board {
   display: grid;
-  grid-template-columns: repeat(2, 1fr);
+  grid-template-columns: 2fr 1fr;
   gap: 10px;
   align-content: start;
 }
+.side-col { display: flex; flex-direction: column; gap: 10px; }
+.mock-area { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(2, 1fr); gap: 10px; }
 .slot-keys { flex: 0 0 auto; margin-top: 10px; }
 /* PITCH・微調整は飾りモジュールと同じくらいの小さめサイズに */
 .slot-pitch,
@@ -545,13 +548,17 @@ b {
 .mod-wave.mod--compact .scope { height: 54px; }
 .wave-row { display: flex; gap: 6px; align-items: stretch; margin-top: 8px; }
 .wave-row .waves { margin-top: 0; flex: 1; }
-.wave-toggle {
+.env-row { display: flex; gap: 6px; align-items: center; }
+.env-row .env-sliders { flex: 1; }
+.frame-toggle {
   flex: 0 0 auto;
-  width: 30px;
+  width: 28px;
+  min-height: 34px;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 17px;
+  line-height: 1;
   color: var(--sub);
   background: #10151c;
   border: 1px solid var(--line);
@@ -611,7 +618,19 @@ b {
 .env-sliders { display: flex; justify-content: center; align-items: flex-end; gap: 14px; }
 
 .slider-wrap { display: flex; flex-direction: column; align-items: center; gap: 5px; }
-.slider-val { font-size: 10px; color: var(--sub); height: 12px; }
+/* 値表示は高さ固定（解説ON/OFFで枠が伸び縮みしない）。計器(LCD)風。 */
+.slider-val { height: 14px; display: flex; align-items: center; }
+.slider-val span {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 9px;
+  color: var(--accent);
+  background: #0b0e13;
+  border: 1px solid var(--line);
+  border-radius: 3px;
+  padding: 0 3px;
+  line-height: 1.3;
+  white-space: nowrap;
+}
 /* 当たり判定は横に広く（指で外しにくく・誤スクロール防止）。見た目のバーは細いまま。 */
 .slider-hit {
   width: 44px;
@@ -622,7 +641,8 @@ b {
   cursor: ns-resize;
   touch-action: none;
 }
-.mod-env.mod--compact .slider-hit { height: 54px; }
+.mod-env.mod--compact .slider-hit { width: 28px; height: 54px; }
+.mod-env.mod--compact .env-sliders { gap: 6px; }
 .slider-track {
   position: relative;
   width: 10px;

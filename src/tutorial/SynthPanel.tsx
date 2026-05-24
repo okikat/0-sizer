@@ -32,18 +32,21 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
           <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
         </Slot>
 
-        <Slot {...slotProps('env')}>
-          <EnvModule compact showText={showHelp} env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
-        </Slot>
-
         <div className="board">
-          <Slot {...slotProps('pitch')}>
-            <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+          <Slot {...slotProps('env')}>
+            <EnvModule compact showText={showHelp} env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
           </Slot>
-          <Slot {...slotProps('fine')}>
-            <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
-          </Slot>
-          <MockSections />
+          <div className="side-col">
+            <Slot {...slotProps('pitch')}>
+              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+            </Slot>
+            <Slot {...slotProps('fine')}>
+              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+            </Slot>
+          </div>
+          <div className="mock-area">
+            <MockSections />
+          </div>
         </div>
       </div>
 

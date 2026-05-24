@@ -38,7 +38,7 @@ export function WaveFrame({
       {showScope && <Scope type={type} playing={playing} />}
       <div className="wave-row">
         <WaveformPicker value={type} onChange={onType} compact={compact} />
-        <button className="wave-toggle" onClick={() => setShowScope((s) => !s)} aria-label="波形図の表示切り替え">
+        <button className="frame-toggle" onClick={() => setShowScope((s) => !s)} aria-label="波形図の表示切り替え">
           {showScope ? '▾' : '▸'}
         </button>
       </div>
@@ -90,14 +90,20 @@ export function EnvModule({
   compact = false,
   showText = true,
 }: Pick<SoundCtl, 'env' | 'onEnvChange' | 'fine'> & { compact?: boolean; showText?: boolean }) {
+  const [showGraph, setShowGraph] = useState(true)
   return (
     <div className={'mod mod-env' + (compact ? ' mod--compact' : '')}>
-      <EnvGraph attack={env.attack} decay={env.decay} sustain={env.sustain} release={env.release} />
-      <div className="env-sliders">
-        <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
-        <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
-        <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} showValue={showText} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
-        <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
+      {showGraph && <EnvGraph attack={env.attack} decay={env.decay} sustain={env.sustain} release={env.release} />}
+      <div className="env-row">
+        <div className="env-sliders">
+          <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
+          <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
+          <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} showValue={showText} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
+          <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} showValue={showText} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
+        </div>
+        <button className="frame-toggle" onClick={() => setShowGraph((s) => !s)} aria-label="エンベロープ図の表示切り替え">
+          {showGraph ? '▾' : '▸'}
+        </button>
       </div>
     </div>
   )

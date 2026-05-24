@@ -42,7 +42,7 @@ export function Slider({ min, max, value, label, fine = false, showValue = true,
 
   return (
     <div className="slider-wrap">
-      {showValue && <div className="slider-val">{format ? format(value) : value.toFixed(2)}</div>}
+      <div className="slider-val">{showValue && <span>{format ? format(value) : value.toFixed(2)}</span>}</div>
       <div
         className="slider-hit"
         onPointerDown={onDown}
