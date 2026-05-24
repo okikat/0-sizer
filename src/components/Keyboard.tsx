@@ -3,6 +3,8 @@ import { useCallback, useEffect, useRef, useState } from 'react'
 interface Props {
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
+  /** 鍵盤上の音名（ドレミ・♯）を出すか。盤面では「解説表示」と連動。 */
+  showLabels?: boolean
 }
 
 const WHITES = [
@@ -27,7 +29,7 @@ const KMAP: Record<string, number> = {
 }
 
 /** 1オクターブの鍵盤。離散の音を弾く担当（マウス/タッチ + PCキー a s d f g h j k / w e t y u）。 */
-export function Keyboard({ onNoteOn, onNoteOff }: Props) {
+export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
   const [active, setActive] = useState<Set<number>>(new Set())
   const ww = 100 / WHITES.length
   const bw = ww * 0.6
@@ -111,7 +113,7 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
           }}
         >
           <span className="kk">{k.k}</span>
-          <span className="kn">{k.l}</span>
+          {showLabels && <span className="kn">{k.l}</span>}
         </div>
       ))}
       {BLACKS.map((k) => (
@@ -126,7 +128,7 @@ export function Keyboard({ onNoteOn, onNoteOff }: Props) {
           }}
         >
           <span className="kk">{k.k}</span>
-          <span className="kn">♯</span>
+          {showLabels && <span className="kn">♯</span>}
         </div>
       ))}
     </div>

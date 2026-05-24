@@ -42,7 +42,7 @@ export const LESSONS: Lesson[] = [
     realizes: ['pitch', 'fine'],
     stageTitle: '高さ：PITCH と微調整',
     popup: [
-      '「PITCH」は全体の高さ（チューニング）。上下にドラッグで半音ずつ変わります。ダブルタップで0に戻ります。',
+      '「PITCH」は全体の音の高さ（チューニング）。上下にドラッグで半音ずつ変わります。ダブルタップで0に戻ります。',
       '「微調整」をONにすると、ゆっくり動いて細かく合わせられます。',
       '鍵盤を弾きながらPITCHを動かすと、弾く音の全体がスーッとズレます。',
     ],
@@ -71,7 +71,7 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
   },
   pitch: {
     title: 'PITCH',
-    paragraphs: ['PITCH は全体の高さ（チューニング）。上下にドラッグで半音ずつ、ダブルタップで0に戻ります。'],
+    paragraphs: ['PITCH は全体の音の高さ（チューニング）。上下にドラッグで半音ずつ、ダブルタップで0に戻ります。'],
   },
   fine: {
     title: '微調整',

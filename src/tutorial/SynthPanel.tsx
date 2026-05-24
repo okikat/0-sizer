@@ -41,7 +41,7 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame 
         </div>
 
         <Slot {...slotProps('keys')}>
-          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
         </Slot>
       </div>
     </div>

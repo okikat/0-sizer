@@ -47,7 +47,7 @@ export function PitchFrame({
         max={12}
         defaultValue={0}
         label="PITCH"
-        format={(v) => ({ main: `${v >= 0 ? '+' : ''}${v.toFixed(1)} 半音`, sub: '全体の高さ' })}
+        format={(v) => ({ main: `${v >= 0 ? '+' : ''}${v.toFixed(1)} 半音`, sub: '全体の音の高さ' })}
         onChange={onTune}
       />
     </div>
@@ -66,10 +66,14 @@ export function FineFrame({ fine, onToggleFine }: Pick<SoundCtl, 'fine' | 'onTog
 }
 
 /** 鍵盤フレーム。 */
-export function KeyboardModule({ onNoteOn, onNoteOff }: Pick<SoundCtl, 'onNoteOn' | 'onNoteOff'>) {
+export function KeyboardModule({
+  onNoteOn,
+  onNoteOff,
+  showLabels = true,
+}: Pick<SoundCtl, 'onNoteOn' | 'onNoteOff'> & { showLabels?: boolean }) {
   return (
     <div className="mod mod-keys">
-      <Keyboard onNoteOn={onNoteOn} onNoteOff={onNoteOff} />
+      <Keyboard onNoteOn={onNoteOn} onNoteOff={onNoteOff} showLabels={showLabels} />
     </div>
   )
 }
