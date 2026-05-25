@@ -1,5 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
+import { type Preset } from './presets'
 import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, KeyboardModule, type SoundCtl } from './modules'
 
 const COLS = 8
@@ -36,9 +37,13 @@ interface Props {
   onHelpFrame: (frame: FrameId) => void
   /** いま着座した（取り付いた瞬間の）フレーム群。ごく薄い光で迎える。 */
   installing: Set<FrameId>
+  presets: Preset[]
+  onPreset: (p: Preset) => void
+  /** プリセット帯を出すか（チュートリアル完了後＝パネル時のみ）。 */
+  showPresets: boolean
 }
 
-export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, installing }: Props) {
+export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, installing, presets, onPreset, showPresets }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   useCellSize(gridRef)
 
@@ -56,6 +61,19 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
       <div className="panel-head">
         <span className="tag">0-sizer</span>
       </div>
+
+      {showPresets && (
+        <div className="preset-bar">
+          <span className="preset-label">PRESET</span>
+          <div className="preset-list">
+            {presets.map((p) => (
+              <button key={p.name} className="preset-btn" onClick={() => onPreset(p)}>
+                {p.name}
+              </button>
+            ))}
+          </div>
+        </div>
+      )}
 
       <div className="panel-scroll">
         <div className="panel-board">
@@ -76,10 +94,10 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
               <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('filter')}>
-              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
+              <FilterFrame compact showText={showHelp} cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('lfo')}>
-              <LfoFrame compact showText={showHelp} onLfoRate={sound.onLfoRate} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} />
+              <LfoFrame compact showText={showHelp} lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('mix')}>
               <MixFrame compact showText={showHelp} onVol={sound.onVol} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />

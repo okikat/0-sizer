@@ -1,7 +1,9 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, lfoDepthToCents } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
+import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
@@ -49,6 +51,12 @@ export default function App() {
   const [snap, setSnap] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
   const [env, setEnvState] = useState<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
+  // FILTER / LFO は controlled（プリセットで動かすため、つまみ量を保持）。
+  const [cutoffAmt, setCutoffAmt] = useState(1)
+  const [resAmt, setResAmt] = useState(0)
+  const [lfoRateAmt, setLfoRateAmt] = useState(3)
+  const [lfoDepthAmt, setLfoDepthAmt] = useState(0)
+  const tweenRef = useRef<number | null>(null)
 
   const stopAll = useCallback(() => {
     noteOff()
@@ -70,10 +78,14 @@ export default function App() {
       setEnvState(next)
       setEnv(next)
     },
-    onCutoff: (hz) => setCutoff(hz),
-    onRes: (q) => setResonance(q),
-    onLfoRate: (hz) => setLfoRate(hz),
-    onLfoDepth: (cents) => setLfoDepth(cents),
+    cutoff: cutoffAmt,
+    onCutoff: (amt) => { setCutoffAmt(amt); setCutoff(cutoffNormToHz(amt)) },
+    res: resAmt,
+    onRes: (amt) => { setResAmt(amt); setResonance(resAmtToQ(amt)) },
+    lfoRate: lfoRateAmt,
+    onLfoRate: (amt) => { setLfoRateAmt(amt); setLfoRate(lfoRateToHz(amt)) },
+    lfoDepth: lfoDepthAmt,
+    onLfoDepth: (amt) => { setLfoDepthAmt(amt); setLfoDepth(lfoDepthToCents(amt)) },
     onVol: (v) => setMasterVol(v),
     onPan: (p) => setPan(p),
     onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
@@ -232,6 +244,46 @@ export default function App() {
     setPhase('intro')
   }
 
+  // プリセット選択：波形を即変更し、ENV・FILTER・LFO を 0.6 秒かけてアニメで目標値へ。
+  const applyPreset = (p: Preset) => {
+    setType(p.type)
+    setWaveform(p.type)
+    const setAll = (cutoff: number, res: number, lr: number, ld: number, e: EnvParams) => {
+      setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
+      setResAmt(res); setResonance(resAmtToQ(res))
+      setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
+      setLfoDepthAmt(ld); setLfoDepth(lfoDepthToCents(ld))
+      setEnvState(e); setEnv(e)
+    }
+    if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.env)
+      return
+    }
+    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, ...env }
+    const DUR = 600
+    const t0 = performance.now()
+    const step = (now: number) => {
+      const k = Math.min(1, (now - t0) / DUR)
+      const e = 1 - Math.pow(1 - k, 3) // easeOutCubic
+      const lp = (a: number, b: number) => a + (b - a) * e
+      setAll(
+        lp(s.cutoff, p.cutoff),
+        lp(s.res, p.res),
+        lp(s.lr, p.lfoRate),
+        lp(s.ld, p.lfoDepth),
+        {
+          attack: lp(s.attack, p.env.attack),
+          decay: lp(s.decay, p.env.decay),
+          sustain: lp(s.sustain, p.env.sustain),
+          release: lp(s.release, p.env.release),
+        },
+      )
+      tweenRef.current = k < 1 ? requestAnimationFrame(step) : null
+    }
+    tweenRef.current = requestAnimationFrame(step)
+  }
+
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
@@ -246,6 +298,9 @@ export default function App() {
         showHelp={showHelp}
         onHelpFrame={(f) => setPanelPopup(f)}
         installing={installing}
+        presets={PRESETS}
+        onPreset={applyPreset}
+        showPresets={phase === 'panel'}
       />
 
       {phase === 'ghost' && (

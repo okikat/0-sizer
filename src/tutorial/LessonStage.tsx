@@ -64,13 +64,13 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'filter')
       return (
         <div data-stage-frame="filter" {...frameProps('filter')}>
-          <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} morphing={exiting} />
+          <FilterFrame cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     if (lesson.id === 'lfo')
       return (
         <div data-stage-frame="lfo" {...frameProps('lfo')}>
-          <LfoFrame onLfoRate={sound.onLfoRate} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} morphing={exiting} />
+          <LfoFrame lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     if (lesson.id === 'mix')

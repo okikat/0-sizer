@@ -1,4 +1,4 @@
-import { useId, useRef, useState } from 'react'
+import { useEffect, useId, useRef, useState } from 'react'
 import type { PointerEvent as ReactPointerEvent, WheelEvent as ReactWheelEvent } from 'react'
 
 export type KnobFormat = { main: string; sub?: string }
@@ -7,6 +7,8 @@ interface Props {
   min: number
   max: number
   defaultValue: number
+  /** 制御値。渡すと controlled（外＝プリセット等から動かせる）。未指定なら内部状態。 */
+  value?: number
   label?: string
   /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
   fine?: boolean
@@ -48,12 +50,24 @@ function mix(a: [number, number, number], b: [number, number, number], t: number
 
 /** 黒の削り出し風ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。
  *  値は下の赤LED窓に表示。表示サイズは親（グリッドのセル等）が決め、本体は枠いっぱいにスケールする。 */
-export function Knob({ min, max, defaultValue, label, fine = false, snap = false, snapStep, tickCount = 10, showText = true, showHint = true, morphing = false, format, onChange }: Props) {
-  const [value, setValue] = useState(defaultValue)
-  const valueRef = useRef(defaultValue)
+export function Knob({ min, max, defaultValue, value: valueProp, label, fine = false, snap = false, snapStep, tickCount = 10, showText = true, showHint = true, morphing = false, format, onChange }: Props) {
+  const controlled = valueProp !== undefined
+  const [internal, setInternal] = useState(defaultValue)
+  const value = controlled ? (valueProp as number) : internal
+  const valueRef = useRef(value)
+  const lastEmitRef = useRef(value)
   const uid = useId().replace(/:/g, '')
   const drag = useRef<{ lastY: number } | null>(null)
   const lastTap = useRef(0)
+
+  // 外部から値が変わった（プリセット等）ときだけ、連続値アキュムレータを同期する。
+  // 自分のドラッグ発火（lastEmit と一致）では同期しない＝スナップで引っかからない。
+  useEffect(() => {
+    if (value !== lastEmitRef.current) {
+      valueRef.current = value
+      lastEmitRef.current = value
+    }
+  }, [value])
 
   const r = VB / 2
   // 半径に対する比率で各寸法を決める（どのサイズでも崩れないように）。
@@ -68,7 +82,8 @@ export function Knob({ min, max, defaultValue, label, fine = false, snap = false
     const c = Math.max(min, Math.min(max, v))
     valueRef.current = c
     const out = snap && snapStep ? Math.max(min, Math.min(max, Math.round(c / snapStep) * snapStep)) : c
-    setValue(out)
+    lastEmitRef.current = out
+    if (!controlled) setInternal(out)
     onChange?.(out)
   }
 

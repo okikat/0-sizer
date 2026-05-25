@@ -524,6 +524,51 @@ b {
 .panel-head { margin-bottom: 8px; flex: 0 0 auto; }
 .panel-head .tag { font-size: 22px; }
 
+/* プリセット帯：出発点の音を選ぶ横長ボタン列（完成後のパネルで表示）。 */
+.preset-bar {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+  min-width: 0;
+}
+.preset-label {
+  flex: 0 0 auto;
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--sub);
+}
+.preset-list {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 6px;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 2px;
+}
+.preset-list::-webkit-scrollbar { height: 0; display: none; }
+.preset-btn {
+  flex: 0 0 auto;
+  white-space: nowrap;
+  padding: 7px 12px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--txt);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.preset-btn:active {
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+  color: var(--accent);
+}
+
 /* ツマミ類は縦スクロール、鍵盤は下に固定 */
 .panel-scroll {
   flex: 1 1 auto;

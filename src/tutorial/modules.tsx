@@ -5,6 +5,7 @@ import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
 import type { EnvParams } from '../audio/useSynth'
+import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
 
@@ -19,34 +20,20 @@ export interface SoundCtl {
   onToggleSnap: () => void
   env: EnvParams
   onEnvChange: (key: EnvKey, value: number) => void
-  onCutoff: (hz: number) => void
-  onRes: (q: number) => void
-  onLfoRate: (hz: number) => void
-  onLfoDepth: (cents: number) => void
+  // FILTER / LFO は controlled（プリセットで動かすため、つまみ量を App が保持）。
+  cutoff: number
+  onCutoff: (amt: number) => void
+  res: number
+  onRes: (amt: number) => void
+  lfoRate: number
+  onLfoRate: (amt: number) => void
+  lfoDepth: number
+  onLfoDepth: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
 }
-
-const fmtTime = (v: number) => (v < 1 ? `${Math.round(v * 1000)} ms` : `${v.toFixed(2)} s`)
-const fmtPct = (v: number) => `${Math.round(v * 100)} %`
-
-// カットオフは「つまみ 0〜1」を低音域寄りの対数カーブで 80Hz〜16kHz に対応させる。
-// 人は周波数を対数で感じるので、つまみの動きと聴感が合うようにする。
-const F_MIN = 80
-const F_MAX = 16000
-const cutoffNormToHz = (n: number) => F_MIN * Math.pow(F_MAX / F_MIN, n)
-const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Math.round(hz)}`)
-// RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜16（強め）に対応させる。
-const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
-// LFO RATE は「つまみ 0〜10」を 0.3〜12Hz に。DEPTH は「0〜10」を 0〜200セント(=2半音)に。
-const lfoRateToHz = (amt: number) => 0.3 + (amt / 10) * (12 - 0.3)
-const lfoDepthToCents = (amt: number) => (amt / 10) * 200
-// MIX VOL は「つまみ 0〜10」をマスター音量 0〜1 に。PAN は「-5〜5」を 定位 -1〜1 に。
-const volAmtToGain = (amt: number) => amt / 10
-const panAmtToPos = (amt: number) => amt / 5
-const fmtPan = (amt: number) => (amt === 0 ? 'C' : amt < 0 ? `L${Math.abs(Math.round(amt))}` : `R${Math.round(amt)}`)
 
 /** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。
  *  morphing=true のときは、計器(スコープ)を畳みながらコンパクト形へ変形する途中表現。 */
@@ -148,18 +135,21 @@ export function EnvModule({
 
 /** フィルターフレーム：CUTOFF と RES の2ツマミ（ローパス）。 */
 export function FilterFrame({
+  cutoff,
   onCutoff,
+  res,
   onRes,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'cutoff' | 'onCutoff' | 'res' | 'onRes' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-filter">
       <div className="filter-knobs">
         <Knob
+          value={cutoff}
           fine={fine}
           snap={snap}
           snapStep={0.1}
@@ -171,9 +161,10 @@ export function FilterFrame({
           defaultValue={1}
           label="CUTOFF"
           format={(v) => ({ main: fmtHz(cutoffNormToHz(v)) })}
-          onChange={(v) => onCutoff(cutoffNormToHz(v))}
+          onChange={onCutoff}
         />
         <Knob
+          value={res}
           fine={fine}
           snap={snap}
           snapStep={1}
@@ -185,7 +176,7 @@ export function FilterFrame({
           defaultValue={0}
           label="RES"
           format={(v) => ({ main: String(Math.round(v)) })}
-          onChange={(v) => onRes(resAmtToQ(v))}
+          onChange={onRes}
         />
       </div>
     </div>
@@ -194,18 +185,21 @@ export function FilterFrame({
 
 /** LFOフレーム：RATE と DEPTH の2ツマミ（音の高さを揺らす＝ビブラート）。 */
 export function LfoFrame({
+  lfoRate,
   onLfoRate,
+  lfoDepth,
   onLfoDepth,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'onLfoRate' | 'onLfoDepth' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'lfoRate' | 'onLfoRate' | 'lfoDepth' | 'onLfoDepth' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-lfo">
       <div className="lfo-knobs">
         <Knob
+          value={lfoRate}
           fine={fine}
           snap={snap}
           snapStep={1}
@@ -217,9 +211,10 @@ export function LfoFrame({
           defaultValue={3}
           label="RATE"
           format={(v) => ({ main: fmtHz(lfoRateToHz(v)) })}
-          onChange={(v) => onLfoRate(lfoRateToHz(v))}
+          onChange={onLfoRate}
         />
         <Knob
+          value={lfoDepth}
           fine={fine}
           snap={snap}
           snapStep={1}
@@ -231,7 +226,7 @@ export function LfoFrame({
           defaultValue={0}
           label="DEPTH"
           format={(v) => ({ main: String(Math.round(v)) })}
-          onChange={(v) => onLfoDepth(lfoDepthToCents(v))}
+          onChange={onLfoDepth}
         />
       </div>
     </div>
