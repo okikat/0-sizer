@@ -1,11 +1,21 @@
+import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
 import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
-import type { Lesson } from './lessons'
+import type { Lesson, FrameId } from './lessons'
+
+export interface FrameFlight {
+  s: number
+  tx: number
+  ty: number
+}
+export type ExitPhase = 'morph' | 'hover' | 'glide' | 'seat'
 
 interface Props {
   lesson: Lesson
-  /** true = OK後の「その場でコンパクト形へ作り替える」モーフ段階。 */
-  morphing: boolean
+  /** null = 通常表示。OK後 morph→hover→glide→seat の順でその場で進む（要素は同じまま）。 */
+  exitPhase: ExitPhase | null
+  /** フレームごとの飛翔データ（縮小率と定位置への移動量）。 */
+  flights: Record<string, FrameFlight>
   popupOpen: boolean
   onClosePopup: () => void
   onHelp: () => void
@@ -13,74 +23,82 @@ interface Props {
   sound: SoundCtl
 }
 
-/** 各フレームを data-stage-frame 付きで包む（モーフ完了時に位置を実測して飛翔ピースへ引き継ぐ）。 */
-function StageContent({ lesson, sound, morph }: { lesson: Lesson; sound: SoundCtl; morph: boolean }) {
-  if (lesson.id === 'keys')
-    return (
-      <div className="stage-frame" data-stage-frame="keys">
-        <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
-      </div>
-    )
-  if (lesson.id === 'wave')
-    return (
-      <div className="stage-frame" data-stage-frame="wave">
-        <WaveFrame compact={morph} morphing={morph} type={sound.type} onType={sound.onType} playing={sound.playing} />
-      </div>
-    )
-  if (lesson.id === 'env')
-    return (
-      <div className="stage-frame" data-stage-frame="env">
-        <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
-      </div>
-    )
-  if (lesson.id === 'filter')
-    return (
-      <div className="stage-frame" data-stage-frame="filter">
-        <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
-      </div>
-    )
-  return (
-    <div className="pitch-cluster">
-      <div className="stage-frame" data-stage-frame="pitch">
-        <PitchFrame onTune={sound.onTune} fine={sound.fine} />
-      </div>
-      <div className="stage-frame" data-stage-frame="fine">
-        <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
-      </div>
-    </div>
-  )
-}
-
 /**
- * スポットライト面：対象フレームを中央に大きく出し、解説ポップアップ＋OK で学ぶ。
- * OK を押すと morphing=true になり、その場でコンパクト形へ作り替え（WAVEなら計器が畳まれる）＋
- * 暗幕フェードでパネルが見えてくる。以降の「ホバー→滑空→着座」は FlightLayer が担当する。
+ * スポットライト面。OK を押すと、その場で「パネル収まり後の形」へモーフ（WAVEは計器が畳まれる）。
+ * モーフ完了後、同じ要素のまま少し浮いて、ゆっくり定位置へ移動し、適正サイズで着座する。
+ * 飛ぶのはステージ上のフレーム自身なので、別レイヤーへの受け渡しによる段差が出ない。
  */
-export function LessonStage({ lesson, morphing, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
+export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
+  const exiting = exitPhase !== null
+
+  // フレームごとの transform（morph=その場で縮小／hover=少し浮く／glide・seat=定位置へ）。
+  const frameProps = (id: FrameId): { className: string; style?: CSSProperties } => {
+    const fl = flights[id]
+    if (!exiting || !fl) return { className: 'stage-frame' }
+    let transform: string
+    if (exitPhase === 'morph') transform = `scale(${fl.s})`
+    else if (exitPhase === 'hover') transform = `translate(0px, -10px) scale(${fl.s})`
+    else transform = `translate(${fl.tx}px, ${fl.ty}px) scale(${fl.s})`
+    return { className: 'stage-frame f-' + exitPhase, style: { transform, opacity: exitPhase === 'seat' ? 0 : 1 } }
+  }
+
+  const content = () => {
+    if (lesson.id === 'keys')
+      return (
+        <div data-stage-frame="keys" {...frameProps('keys')}>
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
+        </div>
+      )
+    if (lesson.id === 'wave')
+      return (
+        <div data-stage-frame="wave" {...frameProps('wave')}>
+          <WaveFrame morphing={exiting} type={sound.type} onType={sound.onType} playing={sound.playing} />
+        </div>
+      )
+    if (lesson.id === 'env')
+      return (
+        <div data-stage-frame="env" {...frameProps('env')}>
+          <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+        </div>
+      )
+    if (lesson.id === 'filter')
+      return (
+        <div data-stage-frame="filter" {...frameProps('filter')}>
+          <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+        </div>
+      )
+    return (
+      <div className="pitch-cluster">
+        <div data-stage-frame="pitch" {...frameProps('pitch')}>
+          <PitchFrame onTune={sound.onTune} fine={sound.fine} />
+        </div>
+        <div data-stage-frame="fine" {...frameProps('fine')}>
+          <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+        </div>
+      </div>
+    )
+  }
+
   return (
-    <div className={'stage-layer' + (morphing ? ' leaving' : ' fade-in')}>
-      <div className={'stage-module' + (morphing ? ' morphing' : ' enter')} data-stage-module>
-        {!morphing && (
-          <button className="help-btn" onClick={onHelp} aria-label="ヒントをもう一度見る">
-            ?
-          </button>
-        )}
-        <StageContent lesson={lesson} sound={sound} morph={morphing} />
+    <div className={'stage-layer' + (exiting ? ' leaving' : ' fade-in')}>
+      <div className={'stage-module' + (exiting ? ' exiting' : ' enter')} data-stage-module>
+        <button className="help-btn" onClick={onHelp} aria-label="ヒントをもう一度見る">
+          ?
+        </button>
+        {content()}
       </div>
 
-      {!morphing && lesson.id !== 'keys' && (
+      {lesson.id !== 'keys' && (
         <div className="stage-keys">
           <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
         </div>
       )}
 
-      {!morphing && (
-        <button className="ok-btn" onClick={onOK}>
-          OK
-        </button>
-      )}
+      <button className="ok-btn" onClick={onOK}>
+        OK
+      </button>
 
-      {popupOpen && !morphing && <Popup title={lesson.stageTitle} paragraphs={lesson.popup} onClose={onClosePopup} />}
+      {popupOpen && !exiting && <Popup title={lesson.stageTitle} paragraphs={lesson.popup} onClose={onClosePopup} />}
     </div>
   )
 }
