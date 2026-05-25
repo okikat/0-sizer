@@ -35,7 +35,7 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
   const uid = useId().replace(/:/g, '')
 
   const r = VB / 2
-  const tickR = r * 0.94
+  const tickR = r * 0.82
   const skirtR = r * 0.68
   const capR = r * 0.5
   const norm = (value - min) / (max - min)
@@ -75,7 +75,7 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
     const ta = A0 + (i / 10) * (A1 - A0)
     const major = i % 5 === 0
     const [ax, ay] = polar(r, r, tickR, ta)
-    const [bx, by] = polar(r, r, tickR - (major ? r * 0.11 : r * 0.06), ta)
+    const [bx, by] = polar(r, r, tickR - (major ? r * 0.1 : r * 0.055), ta)
     ticks.push(
       <line key={i} x1={ax} y1={ay} x2={bx} y2={by} stroke={major ? '#e7edf2' : '#79828d'} strokeWidth={major ? 1.5 : 0.9} strokeLinecap="round" />,
     )
