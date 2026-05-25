@@ -21,6 +21,8 @@ export interface SoundCtl {
   onEnvChange: (key: EnvKey, value: number) => void
   onCutoff: (hz: number) => void
   onRes: (q: number) => void
+  onLfoRate: (hz: number) => void
+  onLfoDepth: (cents: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
 }
@@ -36,6 +38,9 @@ const cutoffNormToHz = (n: number) => F_MIN * Math.pow(F_MAX / F_MIN, n)
 const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Math.round(hz)}`)
 // RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜16（強め）に対応させる。
 const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
+// LFO RATE は「つまみ 0〜10」を 0.3〜12Hz に。DEPTH は「0〜10」を 0〜200セント(=2半音)に。
+const lfoRateToHz = (amt: number) => 0.3 + (amt / 10) * (12 - 0.3)
+const lfoDepthToCents = (amt: number) => (amt / 10) * 200
 
 /** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。
  *  morphing=true のときは、計器(スコープ)を畳みながらコンパクト形へ変形する途中表現。 */
@@ -175,6 +180,52 @@ export function FilterFrame({
           label="RES"
           format={(v) => ({ main: String(Math.round(v)) })}
           onChange={(v) => onRes(resAmtToQ(v))}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** LFOフレーム：RATE と DEPTH の2ツマミ（音の高さを揺らす＝ビブラート）。 */
+export function LfoFrame({
+  onLfoRate,
+  onLfoDepth,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'onLfoRate' | 'onLfoDepth' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-lfo">
+      <div className="lfo-knobs">
+        <Knob
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={3}
+          label="RATE"
+          format={(v) => ({ main: fmtHz(lfoRateToHz(v)) })}
+          onChange={(v) => onLfoRate(lfoRateToHz(v))}
+        />
+        <Knob
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={0}
+          label="DEPTH"
+          format={(v) => ({ main: String(Math.round(v)) })}
+          onChange={(v) => onLfoDepth(lfoDepthToCents(v))}
         />
       </div>
     </div>

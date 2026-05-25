@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, KeyboardModule, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 const COLS = 8
@@ -76,6 +76,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
             </Slot>
             <Slot {...slotProps('filter')}>
               <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
+            </Slot>
+            <Slot {...slotProps('lfo')}>
+              <LfoFrame compact showText={showHelp} onLfoRate={sound.onLfoRate} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <MockSections />
           </div>

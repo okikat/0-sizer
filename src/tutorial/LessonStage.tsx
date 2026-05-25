@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -65,6 +65,12 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       return (
         <div data-stage-frame="filter" {...frameProps('filter')}>
           <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} morphing={exiting} />
+        </div>
+      )
+    if (lesson.id === 'lfo')
+      return (
+        <div data-stage-frame="lfo" {...frameProps('lfo')}>
+          <LfoFrame onLfoRate={sound.onLfoRate} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     return (

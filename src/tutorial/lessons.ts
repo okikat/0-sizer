@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -9,6 +9,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   snap: 'スナップ',
   env: 'エンベロープ',
   filter: 'フィルター',
+  lfo: 'LFO',
 }
 
 export interface Lesson {
@@ -78,6 +79,18 @@ export const LESSONS: Lesson[] = [
       'RES ＝ Resonance（レゾナンス／共鳴）。削る境目の音をどれだけ強調するか。',
     ],
   },
+  {
+    id: 'lfo',
+    realizes: ['lfo'],
+    stageTitle: 'ゆらす：LFO',
+    popup: [
+      'LFO は「ツマミを自動でゆ〜っくり動かす」担当。今回は “音の高さ” を上下に揺らして、声を震わせるような「ビブラート」を作ります。',
+      '「DEPTH」は揺れの大きさ。0だと揺れません。鍵盤を押しっぱなしにして DEPTH を上げると、音がゆらゆら震え出します。',
+      '「RATE」は揺れる速さ。上げると速く、下げるとゆっくり。DEPTH を上げた状態で RATE を動かすと、震え方の速さが変わります。',
+      'コツ：DEPTH は上げすぎると不安定なサイレンのようになります。少しだけ上げると、自然なビブラートになります。',
+      'LFO ＝ Low Frequency Oscillator（ロー・フリケンシー・オシレーター／低い周波数の波）。耳に聞こえないほど遅い波で、他のツマミをこっそり動かす縁の下の力持ち。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -123,6 +136,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '音の明るさを調整します。CUTOFF を下げると “その高さから上” が削られてこもり、上げると明るくクリアに。',
       'RES は、CUTOFF で決めた削る境目の音を強調するツマミ。RES を上げて CUTOFF を動かすと、シンセらしい「ニュイ〜ン」というクセが出ます（ノコギリ波・矩形波だと効果がはっきり）。',
+    ],
+  },
+  lfo: {
+    title: 'LFO',
+    paragraphs: [
+      '音の高さを自動で揺らして「ビブラート」を作ります。DEPTH＝揺れの大きさ（0で停止）、RATE＝揺れる速さ。',
+      '鍵盤を押しっぱなしで DEPTH を少し上げると、自然な揺れに。上げすぎるとサイレンのようになります。',
     ],
   },
 }

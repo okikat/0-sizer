@@ -27,10 +27,14 @@ export function useSynth() {
   const oscRef = useRef<OscillatorNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const filterRef = useRef<BiquadFilterNode | null>(null)
+  const lfoRef = useRef<OscillatorNode | null>(null)
+  const lfoGainRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
   const resRef = useRef(0.7) // クセ無し（フラット）
+  const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
+  const lfoDepthRef = useRef(0) // セント（0=かからない）
   const midiRef = useRef<number | null>(null)
   const envRef = useRef<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
@@ -65,10 +69,22 @@ export function useSynth() {
       noise.connect(noiseLevel)
       noiseLevel.connect(gain)
       noise.start()
+      // LFO：低速オシレーターで主オシレーターの音程(detune/セント)を揺らす＝ビブラート。
+      // depth=0 なら掛からない（触るまで素の音）。
+      const lfo = ctx.createOscillator()
+      lfo.type = 'sine'
+      lfo.frequency.value = lfoRateRef.current
+      const lfoGain = ctx.createGain()
+      lfoGain.gain.value = lfoDepthRef.current
+      lfo.connect(lfoGain)
+      lfoGain.connect(osc.detune)
+      lfo.start()
       ctxRef.current = ctx
       gainRef.current = gain
       oscRef.current = osc
       filterRef.current = filter
+      lfoRef.current = lfo
+      lfoGainRef.current = lfoGain
     }
     // 'suspended' に加え Safari の 'interrupted'（通話・スリープ後）も再開する。
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
@@ -154,6 +170,20 @@ export function useSynth() {
     if (ctx && f) f.Q.setTargetAtTime(q, ctx.currentTime, 0.01)
   }, [])
 
+  const setLfoRate = useCallback((hz: number) => {
+    lfoRateRef.current = hz
+    const ctx = ctxRef.current
+    const lfo = lfoRef.current
+    if (ctx && lfo) lfo.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02)
+  }, [])
+
+  const setLfoDepth = useCallback((cents: number) => {
+    lfoDepthRef.current = cents
+    const ctx = ctxRef.current
+    const g = lfoGainRef.current
+    if (ctx && g) g.gain.setTargetAtTime(cents, ctx.currentTime, 0.02)
+  }, [])
+
   // スリープ復帰・タブ復帰・通話後などで AudioContext が止まる。戻ってきたら先回りで再開し、
   // 「数秒鳴らない」を防ぐ。pointerdown(capture)でも再開し、iOS のジェスチャー要件にも対応。
   useEffect(() => {
@@ -184,5 +214,5 @@ export function useSynth() {
 
   const getAudioContext = useCallback(() => ctxRef.current, [])
 
-  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, getAudioContext }
+  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setLfoRate, setLfoDepth, getAudioContext }
 }
