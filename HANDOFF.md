@@ -170,18 +170,24 @@ onboarding (start, intro, ghost preview, per-module spotlight with popup/?,
 FLIP settle). 8-col square-cell responsive grid.
 
 ## Likely next steps / open items
-1. **Visual redesign** (Erica Synths-inspired, see above) — start with one
-   physical-style knob to nail the look, then roll out to the full panel.
-2. **Assembly animation** (GACHAN) — after visual pass is solid.
-3. Real-time oscilloscope: replace preset-wave scope with an `AnalyserNode`
+1. Real-time oscilloscope: replace preset-wave scope with an `AnalyserNode`
    showing the actual audio output. User said "あってもいい" — future.
+2. **Panel edit mode** (post-tutorial): let the user choose options per module,
+   e.g. ENV graph shown/hidden (the toggle was removed; default is shown).
+   Possibly drag/resize/rearrange later.
+3. **Own BGM / SE** (user's concept): the user composes music and wants the
+   app's BGM and sound effects to be their own work, and to *say so in-app*
+   ("これ作ったの自分です") to give players a "I could do this too" feeling.
+   Future: a small credit/CTA. Keep the synthesised gachan SFX for now.
 4. i18n: extract strings to a dictionary for future English support.
    Do this the next time you touch any copy.
 5. Next lesson candidates (only if user asks): LFO (OscillatorNode modulating
    pitch/cutoff), MIX (master VOL/PAN). The mock sections show these.
-6. **Verify on device**: wave buttons centred in 1-cell strip, iOS magnifier
-   gone, FILTER 4×2 with CUTOFF/RES side-by-side.
-- Minor: `mock.tsx` still has an unused `slider` widget kind.
+- Visual sample lives at `?sample` (`src/sample/StyleSample.tsx`) — remove once
+  the real panel fully matches and it's no longer a useful reference.
+- Screw styling kept in CSS (`.screw*`, unused) for possible future use.
+- Minor: `mock.tsx` still has an unused `slider` widget kind; `.frame-toggle`
+  and `KeyboardGhost` are now unused too.
 - Only test is `src/lib/notes.test.ts`.
 
 ## Working style the user likes

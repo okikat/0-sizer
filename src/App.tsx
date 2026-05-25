@@ -11,15 +11,16 @@ import { Popup } from './tutorial/Popup'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
-export type ExitPhase = 'acquire' | 'fly' | 'impact'
+export type ExitPhase = 'acquire' | 'fly' | 'seat' | 'impact'
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-// インストール演出 3 段階（ソシャゲ風：獲得 → 飛翔 → 着弾）
-const ACQUIRE_MS = 460   // モジュールが「獲得」されてポップ＋発光
-const FLY_MS = 420       // スロットへ吸い込まれるように飛ぶ
-const IMPACT_MS = 580    // 着弾：閃光・リング・火花・弾性スナップ
-const EXIT_MS = ACQUIRE_MS + FLY_MS + IMPACT_MS
+// インストール演出 4 段階：本物のモジュールを取り付けるように、丁寧に。
+const ACQUIRE_MS = 650   // 獲得：ポップ＋発光（少し見せる間を取る）
+const FLY_MS = 720       // 取付口へゆっくり寄せて、上で一旦そろえる（減速）
+const SEAT_MS = 420      // そのまま押し込んで嵌める
+const IMPACT_MS = 640    // 着弾：閃光・リング・火花・弾性スナップ
+const EXIT_MS = ACQUIRE_MS + FLY_MS + SEAT_MS + IMPACT_MS
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
@@ -97,13 +98,13 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase, stage])
 
-  // インストール演出の全制御：acquire → fly → impact → commitExit
+  // インストール演出の全制御：acquire → fly → seat → impact → commitExit
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
     const id = LESSONS[lessonIndex].id
     const timers: ReturnType<typeof setTimeout>[] = []
 
-    // 獲得ポップ完了 → スロットへ飛ぶ（FLIP 計算）
+    // 獲得ポップ完了 → 取付口の上へゆっくり寄せる（FLIP 計算）
     timers.push(setTimeout(() => {
       const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
       const s = stageRectRef.current
@@ -121,7 +122,10 @@ export default function App() {
       requestAnimationFrame(() => setFlight(f))
     }, ACQUIRE_MS))
 
-    // 着弾：このタイミングでスロットを実体化＋衝撃エフェクト
+    // 上でそろえたら、押し込んで嵌める（seat）
+    timers.push(setTimeout(() => setExitPhase('seat'), ACQUIRE_MS + FLY_MS))
+
+    // 着弾：押し込み切った瞬間に実体化＋衝撃エフェクト
     timers.push(setTimeout(() => {
       setExitPhase('impact')
       setRealized((prev) => {
@@ -138,7 +142,7 @@ export default function App() {
         if (ctx) playGachanSound(ctx)
         navigator.vibrate?.([14, 10, 20])
       }
-    }, ACQUIRE_MS + FLY_MS))
+    }, ACQUIRE_MS + FLY_MS + SEAT_MS))
 
     timers.push(setTimeout(commitExit, EXIT_MS))
 

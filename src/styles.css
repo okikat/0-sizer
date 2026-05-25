@@ -658,16 +658,20 @@ b {
   100% { transform: scale(1.05); box-shadow: 0 0 0 2px rgba(90, 209, 196, 0.35), 0 0 26px rgba(90, 209, 196, 0.3), 0 18px 50px rgba(0, 0, 0, 0.7); }
 }
 .stage-module.exit.acquire {
-  animation: acquire-pop 0.46s cubic-bezier(0.2, 1.3, 0.35, 1) both;
+  animation: acquire-pop 0.5s cubic-bezier(0.2, 1.3, 0.35, 1) both;
 }
-/* ② fly: スロットへ吸い込まれるように加速移動（縮小） */
+/* ② fly: 取付口の真上へゆっくり寄せる（減速して位置をそろえる） */
 .stage-module.exit.fly {
-  transition: transform 0.42s cubic-bezier(0.5, 0, 0.85, 0.35);
+  transition: transform 0.72s cubic-bezier(0.22, 0.85, 0.3, 1);
 }
-/* ③ impact: 到達点で素早く消える（着弾の閃光が継ぎ目を隠す） */
+/* ③ seat: 浮かせた位置からまっすぐ押し込んで嵌める */
+.stage-module.exit.seat {
+  transition: transform 0.42s cubic-bezier(0.45, 0, 0.2, 1);
+}
+/* ④ impact: 嵌まり切った瞬間に消える（着弾の閃光が継ぎ目を隠す） */
 .stage-module.exit.impact {
   opacity: 0;
-  transition: opacity 0.12s ease-out;
+  transition: opacity 0.16s ease-out;
 }
 
 .help-btn {
@@ -787,6 +791,14 @@ b {
 .slot-filter .knob-wrap { width: auto; flex: 1 1 0; min-width: 0; }
 /* スポットライト（レッスン）のノブは固定サイズで大きめに。 */
 .stage-module .knob-dial { width: 130px; max-width: 42vw; }
+/* レッスン大表示の計器は大きく太く（♯/♭ などの細い記号も見やすく）。 */
+.stage-module .knob-val {
+  font-size: 18px;
+  font-weight: 800;
+  padding: 4px 14px;
+  min-width: 64px;
+  letter-spacing: 1px;
+}
 
 /* 実機シンセのボタン風。左に点灯する LED。 */
 .fine-btn {
@@ -930,7 +942,7 @@ b {
 .slot.filled.gachan {
   z-index: 5;
   overflow: visible;
-  animation: slot-install 0.5s cubic-bezier(0.18, 1.5, 0.35, 1) both;
+  animation: slot-install 0.6s cubic-bezier(0.16, 1.5, 0.32, 1) both;
 }
 
 /* スクリーンシェイク：着弾の衝撃で画面が小刻みに揺れる */

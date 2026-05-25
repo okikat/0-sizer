@@ -1,3 +1,4 @@
+import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
 import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson } from './lessons'
@@ -11,8 +12,8 @@ export interface Flight {
 
 interface Props {
   lesson: Lesson
-  /** null = active（通常表示）。'acquire' → 'fly' → 'impact' の順でインストール演出が進行。 */
-  exitPhase: 'acquire' | 'fly' | 'impact' | null
+  /** null = active（通常表示）。'acquire' → 'fly' → 'seat' → 'impact' の順でインストール演出が進行。 */
+  exitPhase: 'acquire' | 'fly' | 'seat' | 'impact' | null
   flight: Flight | null
   popupOpen: boolean
   onClosePopup: () => void
@@ -39,19 +40,22 @@ function StageContent({ lesson, sound }: { lesson: Lesson; sound: SoundCtl }) {
 /**
  * スポットライト面：対象フレームを中央に大きく出し、解説ポップアップ＋OK で盤面へ収める。
  *
- * インストール演出 3 段階：
+ * インストール演出 4 段階：
  *   acquire  獲得：モジュールがポップして発光（暗幕はフェードしてパネルが見えてくる）
- *   fly      飛翔：スロットへ吸い込まれるように縮小移動（FLIP）
- *   impact   着弾：到達点で消え、スロット側で実体化＋衝撃エフェクト
+ *   fly      取付口の真上へゆっくり寄せ、少し浮かせて位置をそろえる（減速）
+ *   seat     そのまま押し込んで、ぴったり嵌める
+ *   impact   嵌まり切った瞬間に消え、スロット側で実体化＋衝撃エフェクト
  */
 export function LessonStage({ lesson, exitPhase, flight, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
   const exiting = exitPhase !== null
 
-  // fly / impact では FLIP の到達位置へ移動。impact では CSS 側で opacity:0。
-  const flightStyle =
-    (exitPhase === 'fly' || exitPhase === 'impact') && flight
-      ? { transform: `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.sx}, ${flight.sy})` }
-      : undefined
+  // fly = 取付口の少し上で一回り大きく浮かせる／seat・impact = ぴったり嵌める位置へ。
+  let flightStyle: CSSProperties | undefined
+  if (flight && exitPhase === 'fly') {
+    flightStyle = { transform: `translate(${flight.dx}px, ${flight.dy - 12}px) scale(${flight.sx * 1.08}, ${flight.sy * 1.08})` }
+  } else if (flight && (exitPhase === 'seat' || exitPhase === 'impact')) {
+    flightStyle = { transform: `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.sx}, ${flight.sy})` }
+  }
 
   const moduleClass = 'stage-module ' + (!exiting ? 'enter' : 'exit ' + exitPhase)
 

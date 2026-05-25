@@ -87,19 +87,26 @@ export function useSynth() {
     (midi: number) => {
       ensure()
       midiRef.current = midi
-      applyFreq()
       const ctx = ctxRef.current!
       const gain = gainRef.current!
-      const now = ctx.currentTime
-      const { attack, decay, sustain } = envRef.current
-      const a = Math.max(0.005, attack)
-      const d = Math.max(0.005, decay)
-      // 現在値から再スケジュール（連打・リリース途中の押し直しでもクリックしない）。
-      const cur = Math.max(gain.gain.value, 0.0001)
-      gain.gain.cancelScheduledValues(now)
-      gain.gain.setValueAtTime(cur, now)
-      gain.gain.linearRampToValueAtTime(PEAK, now + a)
-      gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
+      // 実際に音をスケジュールする本体。context が running になってから呼ぶ。
+      const trigger = () => {
+        applyFreq()
+        const now = ctx.currentTime
+        const { attack, decay, sustain } = envRef.current
+        const a = Math.max(0.005, attack)
+        const d = Math.max(0.005, decay)
+        // 現在値から再スケジュール（連打・リリース途中の押し直しでもクリックしない）。
+        const cur = Math.max(gain.gain.value, 0.0001)
+        gain.gain.cancelScheduledValues(now)
+        gain.gain.setValueAtTime(cur, now)
+        gain.gain.linearRampToValueAtTime(PEAK, now + a)
+        gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
+      }
+      // アプリ復帰直後などは context が 'suspended'/'interrupted'。resume が完了してから
+      // 鳴らさないと「タップしたのに無音」になる。running なら即時、そうでなければ resume 後に。
+      if (ctx.state === 'running') trigger()
+      else ctx.resume().then(trigger).catch(() => {})
     },
     [ensure, applyFreq],
   )
