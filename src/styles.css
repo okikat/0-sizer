@@ -1043,3 +1043,82 @@ b {
     transition-duration: 0.001ms !important;
   }
 }
+
+/* ===== 見本（?sample）：Erica Synths っぽさ検証。本体とは独立スコープ ===== */
+.sample {
+  min-height: 100dvh;
+  background: #0b0b0c;
+  color: #eef3f7;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 18px;
+  padding: 24px 16px;
+  font-family: ui-sans-serif, system-ui, sans-serif;
+}
+.sample-note,
+.sample-hint {
+  font-size: 11px;
+  letter-spacing: 1.5px;
+  text-transform: uppercase;
+  color: #6b7178;
+}
+/* 黒マットのパネル。角は直角、外周に細い白枠（シルクスクリーン）。 */
+.sample-panel {
+  background: #0c0c0d;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 0;
+  padding: 22px;
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.6);
+}
+/* モジュール枠：白い細線で囲む（直角）。左上にラベル。 */
+.sample-module {
+  position: relative;
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  border-radius: 0;
+  padding: 26px 18px 16px;
+}
+.sample-module-title {
+  position: absolute;
+  top: -8px;
+  left: 12px;
+  padding: 0 6px;
+  background: #0c0c0d;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: #eef3f7;
+}
+.sample-knobs {
+  display: flex;
+  gap: 22px;
+}
+.sk {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 7px;
+  width: 96px;
+}
+.sk-svg {
+  width: 100%;
+  height: auto;
+  aspect-ratio: 1;
+  display: block;
+  cursor: ns-resize;
+}
+/* 白シルクスクリーンのラベル。 */
+.sk-label {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: #eef3f7;
+}
+/* ティールのLCD値。 */
+.sk-val {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 13px;
+  font-weight: 700;
+  color: #5ad1c4;
+}
