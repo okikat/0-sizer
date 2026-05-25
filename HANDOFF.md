@@ -169,6 +169,26 @@ The current FLIP is the structural foundation; wrap it with this layer.
 onboarding (start, intro, ghost preview, per-module spotlight with popup/?,
 FLIP settle). 8-col square-cell responsive grid.
 
+## Idea notes (not yet scheduled — keep, don't lose)
+- **Two tutorial tracks**:
+  - 音作り (sound design) = the current 7 modules ("how to shape one sound"). Done.
+  - 曲作り (song-making) = arrange sounds over time into a song. NEW territory:
+    needs a **time axis** the app lacks today — a step sequencer / mini piano
+    roll, tempo (BPM), play/loop, and per-step use of the sound-design elements
+    (filter sweeps, ENV, LFO, PAN…).
+- **"Eternal" (永)** — the song-making track is built around one comprehensive
+  song titled *Eternal*. Metaphor: 永字八法 — the single kanji 永 contains all
+  eight fundamental brush strokes, so practising it teaches them all. Likewise
+  *Eternal* is one piece that exercises **every** song-making element, so
+  finishing it covers everything. Possible visual: the strokes of 永 mapped to
+  the melody's motion.
+- **Pacing**: don't add new modules endlessly — intersperse hands-on "practice"
+  (like the sound-design lessons) between additions so it doesn't get boring.
+- **Presets (doing first)**: a list of preset-sound buttons. Selecting one moves
+  the knobs/sliders to that sound's positions (animated), visually linking
+  presets ↔ sound design. Good scaffolding so beginners aren't told "now make a
+  sound" from a blank slate.
+
 ## Likely next steps / open items
 1. Real-time oscilloscope: replace preset-wave scope with an `AnalyserNode`
    showing the actual audio output. User said "あってもいい" — future.
