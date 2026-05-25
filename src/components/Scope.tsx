@@ -52,7 +52,7 @@ export function Scope({ type, playing }: Props) {
       g.lineTo(w, mid)
       g.stroke()
 
-      g.strokeStyle = playRef.current ? '#f2a65a' : '#5ad1c4'
+      g.strokeStyle = playRef.current ? '#7fe0d6' : '#3a6e68'
       g.lineWidth = 2.5
       g.beginPath()
       const cycles = 3

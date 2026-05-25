@@ -1,11 +1,10 @@
 :root {
-  --bg: #07090c;
-  --panel: #111820;
-  --line: #1c2a38;
-  --txt: #dce6ed;
-  --sub: #7a8fa0;
+  --bg: #060707;
+  --panel: #101216;
+  --line: #24272d;
+  --txt: #e7edf2;
+  --sub: #8b939d;
   --accent: #5ad1c4;
-  --accent2: #f2a65a;
 }
 
 * {
@@ -87,7 +86,7 @@ h1 {
   font-size: 12px;
 }
 b {
-  color: var(--accent2);
+  color: var(--accent);
 }
 
 .scope {
@@ -95,7 +94,7 @@ b {
   height: auto; /* canvas のアスペクト(528:110)を保ったまま枠幅に追従 */
   display: block;
   background: #060810;
-  border-radius: 5px;
+  border-radius: 0;
   border: 1px solid var(--line);
 }
 
@@ -107,28 +106,30 @@ b {
 }
 .wave {
   padding: 12px 6px;
-  border: 1px solid var(--line);
-  border-radius: 5px;
-  background: #0a0e15;
+  border: 1px solid #000;
+  border-radius: 0;
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
   color: var(--txt);
   text-align: center;
   cursor: pointer;
   font-size: 12px;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
 }
 .wave .sym {
   font-size: 22px;
   display: block;
   line-height: 1;
   margin-bottom: 6px;
-  color: var(--sub);
+  color: #cfd6dd;
 }
 .wave.sel {
   border-color: var(--accent);
-  background: #0d1e1a;
-  box-shadow: 0 0 0 1px var(--accent), 0 0 12px rgba(90, 209, 196, 0.18);
+  background: linear-gradient(180deg, #0e1f1c 0%, #08110f 100%);
+  box-shadow: inset 0 0 0 1px var(--accent), 0 0 12px rgba(90, 209, 196, 0.22);
 }
 .wave.sel .sym {
   color: var(--accent);
+  text-shadow: 0 0 7px rgba(90, 209, 196, 0.6);
 }
 
 /* ノブ：ダイヤル＋ラベル（下に内蔵）。表示サイズは文脈が決める。 */
@@ -234,8 +235,8 @@ b {
   position: absolute;
   top: 0;
   bottom: 0;
-  border: 1px solid #0c1116;
-  border-radius: 0 0 8px 8px;
+  border: 1px solid #000;
+  border-radius: 0;
   background: linear-gradient(#fafdff, #dde6ee);
   color: #33404d;
   display: flex;
@@ -267,8 +268,8 @@ b {
   height: 62%;
   z-index: 2;
   border: 1px solid #000;
-  border-radius: 0 0 6px 6px;
-  background: linear-gradient(#2a323c, #0f141a);
+  border-radius: 0;
+  background: linear-gradient(#23272e, #090b0e);
   color: #9aa7b5;
   display: flex;
   flex-direction: column;
@@ -289,12 +290,12 @@ b {
   font-size: 10px;
 }
 .bkey.active {
-  background: linear-gradient(#f2c79a, #e08a3c);
-  color: #2a1606;
+  background: linear-gradient(#7fe0d6, #3bbcae);
+  color: #06231f;
 }
 .bkey.active .kk {
-  color: #3a1d05;
-  border-color: #9c6526;
+  color: #06231f;
+  border-color: #2f9486;
 }
 
 /* ドの目印（白鍵の上端。下のドレミ表記と被らない） */
@@ -310,7 +311,7 @@ b {
   z-index: 3;
 }
 .ckey-mark.home {
-  color: #d9660f;
+  color: #1d8c7f;
   font-size: 15px;
   font-weight: 700;
 }
@@ -325,10 +326,10 @@ b {
   align-items: center;
   justify-content: center;
   font-size: 14px;
-  color: var(--accent2);
+  color: var(--accent);
   background: #10151c;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   cursor: pointer;
 }
 .kbd-bar {
@@ -337,7 +338,7 @@ b {
   height: 22px;
   background: #0b0e13;
   border: 1px solid var(--line);
-  border-radius: 6px;
+  border-radius: 0;
   touch-action: none;
   cursor: pointer;
   overflow: hidden;
@@ -360,7 +361,7 @@ b {
   color: #5b6776;
   pointer-events: none;
 }
-.kbd-bar-c.home { color: var(--accent2); }
+.kbd-bar-c.home { color: var(--accent); }
 
 .row {
   display: flex;
@@ -650,12 +651,12 @@ b {
   font-size: 16px;
   font-weight: 800;
   letter-spacing: 1px;
-  color: #2a1606;
-  background: var(--accent2);
+  color: #06231f;
+  background: var(--accent);
   border: none;
-  border-radius: 999px;
+  border-radius: 0;
   cursor: pointer;
-  box-shadow: 0 6px 20px rgba(242, 166, 90, 0.32);
+  box-shadow: 0 6px 20px rgba(90, 209, 196, 0.3);
 }
 .ok-btn:active { transform: translateY(1px); }
 
@@ -756,10 +757,10 @@ b {
   letter-spacing: 0.5px;
   white-space: nowrap;
   color: var(--sub);
-  background: linear-gradient(#2b333d, #171d25);
-  border: 1px solid #0b0f14;
-  border-radius: 8px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 3px rgba(0, 0, 0, 0.45);
+  background: linear-gradient(180deg, #16191e 0%, #0c0e12 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.07), 0 2px 3px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
 .fine-btn::before {
@@ -767,13 +768,13 @@ b {
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #3a444f;
+  background: #2a2f36;
   box-shadow: inset 0 0 2px rgba(0, 0, 0, 0.8);
 }
 .fine-btn.on {
   color: var(--txt);
-  background: linear-gradient(#222a33, #11161d);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.55);
+  background: linear-gradient(180deg, #10141a 0%, #090b0f 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.6);
 }
 .fine-btn.on::before {
   background: var(--accent);
@@ -789,7 +790,7 @@ b {
   display: block;
   background: #060810;
   border: 1px solid var(--line);
-  border-radius: 5px;
+  border-radius: 0;
 }
 /* グリッド内ENVは枠いっぱいに伸縮。グラフは比率維持、スライダーは縦に伸びる。 */
 .mod-env.mod--compact .env-graph { height: auto; aspect-ratio: 200 / 70; flex: 0 0 auto; }
@@ -803,13 +804,16 @@ b {
 .slider-val span {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 9px;
-  color: var(--accent);
-  background: #0b0e13;
-  border: 1px solid var(--line);
-  border-radius: 3px;
-  padding: 0 3px;
-  line-height: 1.3;
+  color: #ff4a39;
+  text-shadow: 0 0 5px rgba(255, 60, 40, 0.8);
+  background: linear-gradient(#1d0707, #110303);
+  border-top: 1px solid #000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  border-radius: 0;
+  padding: 0 4px;
+  line-height: 1.4;
   white-space: nowrap;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.85), inset 0 0 5px rgba(255, 45, 30, 0.2);
 }
 /* 当たり判定は横に広く（指で外しにくく・誤スクロール防止）。見た目のバーは細いまま。 */
 .slider-hit {
@@ -825,30 +829,42 @@ b {
 .mod-env.mod--compact .env-sliders { gap: 6px; align-items: stretch; height: 100%; }
 .slider-track {
   position: relative;
-  width: 10px;
-  background: #1b222c;
-  border: 1px solid #0c1116;
-  border-radius: 5px;
+  width: 8px;
+  background: #0a0c0f;
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, 0.9);
 }
 .slider-fill {
   position: absolute;
   left: 0;
   right: 0;
   bottom: 0;
-  background: var(--accent);
-  border-radius: 5px;
-  opacity: 0.5;
+  background: #23272e;
+  border-radius: 0;
 }
+/* 物理フェーダーのキャップ（削り出し風・中央に白い指標線）。 */
 .slider-handle {
   position: absolute;
   left: 50%;
   width: 26px;
   height: 14px;
   transform: translateX(-50%);
-  background: linear-gradient(#39414d, #20262f);
-  border: 1px solid #0c1116;
-  border-radius: 3px;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08);
+  background: linear-gradient(#2c313a, #0e1014);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.12), 0 2px 4px rgba(0, 0, 0, 0.6);
+}
+.slider-handle::before {
+  content: '';
+  position: absolute;
+  left: 3px;
+  right: 3px;
+  top: 50%;
+  height: 2px;
+  transform: translateY(-50%);
+  background: #f4f7fa;
+  box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
 }
 .slider-label { font-size: 10px; font-weight: 700; letter-spacing: 1.5px; text-transform: uppercase; color: var(--txt); }
 
@@ -936,16 +952,17 @@ b {
 
 /* --- 盤面の飾り（モック）。グリッドのセルに合わせて伸縮。 --- */
 .mock-sec {
-  border: 1px dashed #2f3a48;
-  border-radius: 12px;
-  background: #11151b;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 0;
+  background: linear-gradient(180deg, #0f1115 0%, #0a0c0f 100%);
   padding: 8px;
-  opacity: 0.5;
+  opacity: 0.55;
   display: flex;
   flex-direction: column;
   min-width: 0;
   min-height: 0;
   overflow: hidden;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04);
 }
 .mock-sec-title { font-size: 10px; letter-spacing: 1.5px; color: var(--sub); margin-bottom: 6px; flex: 0 0 auto; }
 .mock-widgets {
@@ -962,8 +979,9 @@ b {
   width: 34px;
   height: 34px;
   border-radius: 50%;
-  background: radial-gradient(circle at 38% 32%, #39414d, #141a22);
-  border: 1px solid #0c1116;
+  background: radial-gradient(circle at 38% 30%, #262a31, #0a0b0d);
+  border: 1px solid #000;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.6);
 }
 .mw-knob-ind {
   position: absolute;
@@ -971,29 +989,29 @@ b {
   top: 4px;
   width: 2px;
   height: 9px;
-  background: #6b7886;
+  background: #e7edf2;
   border-radius: 1px;
   transform: translateX(-50%);
 }
-.mw-slider { position: relative; width: 8px; height: 42px; background: #1b222c; border-radius: 4px; }
-.mw-slider-fill { position: absolute; left: 0; right: 0; bottom: 0; background: #2f3a48; border-radius: 4px; }
+.mw-slider { position: relative; width: 8px; height: 42px; background: #0a0c0f; border: 1px solid #000; border-radius: 0; }
+.mw-slider-fill { position: absolute; left: 0; right: 0; bottom: 0; background: #23272e; border-radius: 0; }
 .mw-slider-knob {
   position: absolute;
   left: 50%;
   width: 16px;
   height: 10px;
-  background: #39414d;
-  border: 1px solid #0c1116;
-  border-radius: 3px;
+  background: linear-gradient(#2c313a, #0e1014);
+  border: 1px solid #000;
+  border-radius: 0;
   transform: translateX(-50%);
 }
 .mw-wide { flex: 1 1 100%; }
 .mw-ind {
   width: 100%;
   height: 26px;
-  background: #0b0e13;
-  border: 1px solid #1d2530;
-  border-radius: 6px;
+  background: #0a0c0f;
+  border: 1px solid #000;
+  border-radius: 0;
   padding: 2px 4px;
   color: #39424f;
 }

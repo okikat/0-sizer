@@ -7,10 +7,9 @@ const COLS = 8
 const GAP = 0
 
 // パネルに刻印するモジュール名（hardware シルクスクリーン風）。
-// WAVE/ENV/PITCH はボタンや自前ラベルと被るので刻印しない。
+// WAVE/ENV/PITCH/FINE はボタンや自前ラベルと被るので刻印しない。
 const PANEL_LABELS: Partial<Record<FrameId, string>> = {
   filter: 'FILTER',
-  fine: 'FINE',
 }
 
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
