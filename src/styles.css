@@ -1182,7 +1182,7 @@ b {
   position: absolute;
   top: 42px;
   right: 0;
-  min-width: 140px;
+  min-width: 172px;
   background: var(--panel);
   border: 1px solid var(--line);
   border-radius: 10px;
@@ -1196,6 +1196,7 @@ b {
   align-items: center;
   width: 100%;
   text-align: left;
+  white-space: nowrap;
   padding: 10px 12px;
   background: none;
   border: none;
@@ -1231,6 +1232,7 @@ b {
   display: block;
   width: 100%;
   text-align: left;
+  white-space: nowrap;
   padding: 10px 12px;
   background: none;
   border: none;
