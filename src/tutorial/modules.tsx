@@ -23,6 +23,8 @@ export interface SoundCtl {
   onRes: (q: number) => void
   onLfoRate: (hz: number) => void
   onLfoDepth: (cents: number) => void
+  onVol: (v: number) => void
+  onPan: (p: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: () => void
 }
@@ -41,6 +43,10 @@ const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
 // LFO RATE は「つまみ 0〜10」を 0.3〜12Hz に。DEPTH は「0〜10」を 0〜200セント(=2半音)に。
 const lfoRateToHz = (amt: number) => 0.3 + (amt / 10) * (12 - 0.3)
 const lfoDepthToCents = (amt: number) => (amt / 10) * 200
+// MIX VOL は「つまみ 0〜10」をマスター音量 0〜1 に。PAN は「-5〜5」を 定位 -1〜1 に。
+const volAmtToGain = (amt: number) => amt / 10
+const panAmtToPos = (amt: number) => amt / 5
+const fmtPan = (amt: number) => (amt === 0 ? 'C' : amt < 0 ? `L${Math.abs(Math.round(amt))}` : `R${Math.round(amt)}`)
 
 /** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。
  *  morphing=true のときは、計器(スコープ)を畳みながらコンパクト形へ変形する途中表現。 */
@@ -226,6 +232,52 @@ export function LfoFrame({
           label="DEPTH"
           format={(v) => ({ main: String(Math.round(v)) })}
           onChange={(v) => onLfoDepth(lfoDepthToCents(v))}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** MIXフレーム：VOL（マスター音量）と PAN（左右の定位）の2ツマミ。 */
+export function MixFrame({
+  onVol,
+  onPan,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'onVol' | 'onPan' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-mix">
+      <div className="mix-knobs">
+        <Knob
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={10}
+          label="VOL"
+          format={(v) => ({ main: String(Math.round(v)) })}
+          onChange={(v) => onVol(volAmtToGain(v))}
+        />
+        <Knob
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={-5}
+          max={5}
+          defaultValue={0}
+          label="PAN"
+          format={(v) => ({ main: fmtPan(v) })}
+          onChange={(v) => onPan(panAmtToPos(v))}
         />
       </div>
     </div>

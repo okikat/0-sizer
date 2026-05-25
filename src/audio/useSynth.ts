@@ -27,12 +27,16 @@ export function useSynth() {
   const oscRef = useRef<OscillatorNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const filterRef = useRef<BiquadFilterNode | null>(null)
+  const masterRef = useRef<GainNode | null>(null)
+  const pannerRef = useRef<StereoPannerNode | null>(null)
   const lfoRef = useRef<OscillatorNode | null>(null)
   const lfoGainRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
   const resRef = useRef(0.7) // クセ無し（フラット）
+  const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
+  const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
   const lfoDepthRef = useRef(0) // セント（0=かからない）
   const midiRef = useRef<number | null>(null)
@@ -44,7 +48,14 @@ export function useSynth() {
       const ctx = new Ctor()
       const gain = ctx.createGain()
       gain.gain.value = 0
-      gain.connect(ctx.destination)
+      // マスター音量 → 定位(パン) → 出力。MIX モジュールがここを操作する。
+      const master = ctx.createGain()
+      master.gain.value = masterVolRef.current
+      const panner = ctx.createStereoPanner()
+      panner.pan.value = panRef.current
+      gain.connect(master)
+      master.connect(panner)
+      panner.connect(ctx.destination)
       // ローパスフィルター：音の素(osc)とエンベロープ(gain)の間に挟む。
       // osc → filter → gain → 出力。既定は全開なので触らなければ素の音のまま。
       const filter = ctx.createBiquadFilter()
@@ -83,6 +94,8 @@ export function useSynth() {
       gainRef.current = gain
       oscRef.current = osc
       filterRef.current = filter
+      masterRef.current = master
+      pannerRef.current = panner
       lfoRef.current = lfo
       lfoGainRef.current = lfoGain
     }
@@ -184,6 +197,20 @@ export function useSynth() {
     if (ctx && g) g.gain.setTargetAtTime(cents, ctx.currentTime, 0.02)
   }, [])
 
+  const setMasterVol = useCallback((v: number) => {
+    masterVolRef.current = v
+    const ctx = ctxRef.current
+    const m = masterRef.current
+    if (ctx && m) m.gain.setTargetAtTime(v, ctx.currentTime, 0.01)
+  }, [])
+
+  const setPan = useCallback((p: number) => {
+    panRef.current = p
+    const ctx = ctxRef.current
+    const pn = pannerRef.current
+    if (ctx && pn) pn.pan.setTargetAtTime(p, ctx.currentTime, 0.01)
+  }, [])
+
   // スリープ復帰・タブ復帰・通話後などで AudioContext が止まる。戻ってきたら先回りで再開し、
   // 「数秒鳴らない」を防ぐ。pointerdown(capture)でも再開し、iOS のジェスチャー要件にも対応。
   useEffect(() => {
@@ -214,5 +241,5 @@ export function useSynth() {
 
   const getAudioContext = useCallback(() => ctxRef.current, [])
 
-  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setLfoRate, setLfoDepth, getAudioContext }
+  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext }
 }

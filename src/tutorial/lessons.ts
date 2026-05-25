@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -10,6 +10,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   env: 'エンベロープ',
   filter: 'フィルター',
   lfo: 'LFO',
+  mix: 'MIX',
 }
 
 export interface Lesson {
@@ -91,6 +92,17 @@ export const LESSONS: Lesson[] = [
       'LFO ＝ Low Frequency Oscillator（ロー・フリケンシー・オシレーター／低い周波数の波）。耳に聞こえないほど遅い波で、他のツマミをこっそり動かす縁の下の力持ち。',
     ],
   },
+  {
+    id: 'mix',
+    realizes: ['mix'],
+    stageTitle: '仕上げ：MIX',
+    popup: [
+      'MIX は音の「最終出口」。ここまで作った音を、最後にどれくらいの大きさで、左右どちらから出すかを決めます。',
+      '「VOL」は全体の音量。下げると小さく、上げると大きく。鳴らしながら動かすと、音そのものは変えずに大きさだけ変わります。',
+      '「PAN」は左右の位置（定位）。左に回すと左から、右に回すと右から聞こえます（イヤホン/ヘッドホンだと分かりやすい）。真ん中で中央。',
+      'MIX ＝ ミックス。複数の音や仕上げのバランスを取ること。ここでは「音量」と「左右の位置」を整えます。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -143,6 +155,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '音の高さを自動で揺らして「ビブラート」を作ります。DEPTH＝揺れの大きさ（0で停止）、RATE＝揺れる速さ。',
       '鍵盤を押しっぱなしで DEPTH を少し上げると、自然な揺れに。上げすぎるとサイレンのようになります。',
+    ],
+  },
+  mix: {
+    title: 'MIX',
+    paragraphs: [
+      '音の最終出口。VOL＝全体の音量、PAN＝左右の位置（定位）。',
+      'PAN は左に回すと左から、右で右から聞こえます（中央で真ん中）。イヤホンだと分かりやすいです。',
     ],
   },
 }

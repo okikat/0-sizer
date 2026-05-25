@@ -566,7 +566,7 @@ b {
 .slot-fine     { grid-column: 7 / span 2; grid-row: 4 / span 1; }
 .slot-snap     { grid-column: 7 / span 2; grid-row: 5 / span 1; }
 .slot-lfo      { grid-column: 1 / span 4; grid-row: 6 / span 2; }
-.mock-sec--mix { grid-column: 5 / span 4; grid-row: 6 / span 2; }
+.slot-mix      { grid-column: 5 / span 4; grid-row: 6 / span 2; }
 
 /* モジュールは板に彫り込まれた区画（直角・マット）。白枠は使わず段差で分ける。 */
 .slot {
@@ -805,8 +805,10 @@ b {
 .mod-pitch { display: flex; justify-content: center; align-items: center; }
 .mod-filter { display: flex; align-items: center; justify-content: center; }
 .filter-knobs,
-.lfo-knobs { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.mod-lfo { display: flex; }
+.lfo-knobs,
+.mix-knobs { display: flex; align-items: center; justify-content: center; gap: 10px; }
+.mod-lfo,
+.mod-mix { display: flex; }
 /* 微調整・スナップはそれぞれ単独モジュール（各1ボタン）。 */
 .mod-fine,
 .mod-snap { display: flex; align-items: center; justify-content: center; height: 100%; }
@@ -825,13 +827,16 @@ b {
 .slot .knob-svg { width: auto; height: 100%; }
 .slot .knob-label { font-size: 9px; letter-spacing: 1.5px; }
 .slot .knob-val { font-size: 10px; min-width: 0; padding: 1px 6px; }
-/* FILTER / LFO（4×2）：2ツマミを横並びで枠いっぱいに。 */
+/* FILTER / LFO / MIX（4×2）：2ツマミを横並びで枠いっぱいに。 */
 .slot-filter .mod-filter,
-.slot-lfo .mod-lfo { flex-direction: column; align-items: stretch; justify-content: center; gap: 2px; }
+.slot-lfo .mod-lfo,
+.slot-mix .mod-mix { flex-direction: column; align-items: stretch; justify-content: center; gap: 2px; }
 .slot-filter .filter-knobs,
-.slot-lfo .lfo-knobs { flex: 1 1 auto; min-height: 0; gap: 8px; }
+.slot-lfo .lfo-knobs,
+.slot-mix .mix-knobs { flex: 1 1 auto; min-height: 0; gap: 8px; }
 .slot-filter .knob-wrap,
-.slot-lfo .knob-wrap { width: auto; flex: 1 1 0; min-width: 0; }
+.slot-lfo .knob-wrap,
+.slot-mix .knob-wrap { width: auto; flex: 1 1 0; min-width: 0; }
 /* スポットライト（レッスン）のノブは固定サイズで大きめに。 */
 .stage-module .knob-dial { width: 130px; max-width: 42vw; }
 /* レッスン大表示の計器は大きく太く（♯/♭ などの細い記号も見やすく）。 */

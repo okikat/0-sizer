@@ -1,7 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, KeyboardModule, type SoundCtl } from './modules'
-import { MockSections } from './mock'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, KeyboardModule, type SoundCtl } from './modules'
 
 const COLS = 8
 const GAP = 0
@@ -10,6 +9,8 @@ const GAP = 0
 // WAVE/ENV/PITCH/FINE はボタンや自前ラベルと被るので刻印しない。
 const PANEL_LABELS: Partial<Record<FrameId, string>> = {
   filter: 'FILTER',
+  lfo: 'LFO',
+  mix: 'MIX',
 }
 
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
@@ -80,7 +81,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
             <Slot {...slotProps('lfo')}>
               <LfoFrame compact showText={showHelp} onLfoRate={sound.onLfoRate} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} />
             </Slot>
-            <MockSections />
+            <Slot {...slotProps('mix')}>
+              <MixFrame compact showText={showHelp} onVol={sound.onVol} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />
+            </Slot>
           </div>
         </div>
       </div>
