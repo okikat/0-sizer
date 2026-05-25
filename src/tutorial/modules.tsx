@@ -122,7 +122,6 @@ export function FilterFrame({
 }: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine'> & { compact?: boolean; showText?: boolean }) {
   return (
     <div className="mod mod-filter">
-      {compact && <div className="mod-title">FILTER</div>}
       <div className="filter-knobs">
         <Knob
           fine={fine}

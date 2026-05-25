@@ -501,7 +501,7 @@ b {
   display: grid;
   grid-template-columns: repeat(8, var(--cell));
   grid-auto-rows: var(--cell);
-  gap: 8px;
+  gap: 0;
   justify-content: center;
 }
 /* モジュールの配置（横マス×縦マス）。穴なしで敷き詰める。

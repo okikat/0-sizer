@@ -4,14 +4,12 @@ import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModul
 import { MockSections } from './mock'
 
 const COLS = 8
-const GAP = 8
+const GAP = 0
 
-// パネルに刻印するモジュール名（hardware シルクスクリーン風）
+// パネルに刻印するモジュール名（hardware シルクスクリーン風）。
+// WAVE/ENV/PITCH はボタンや自前ラベルと被るので刻印しない。
 const PANEL_LABELS: Partial<Record<FrameId, string>> = {
-  wave: 'WAVE',
-  env: 'ENV',
   filter: 'FILTER',
-  pitch: 'PITCH',
   fine: 'FINE',
 }
 
