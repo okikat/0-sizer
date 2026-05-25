@@ -152,8 +152,40 @@ b {
   letter-spacing: 2px;
   text-transform: uppercase;
   font-weight: 700;
-  color: var(--txt);
+  color: #e7edf2;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
   text-align: center;
+}
+/* 計器ウィンドウ：赤LED表示風。空白部も「消えていてもうっすら赤い」ガラス。 */
+.knob-val {
+  position: relative;
+  overflow: hidden;
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 12px;
+  font-weight: 700;
+  color: #ff4a39;
+  text-shadow: 0 0 7px rgba(255, 60, 40, 0.85);
+  background: linear-gradient(#1d0707, #110303);
+  padding: 2px 8px;
+  min-width: 48px;
+  text-align: center;
+  border-top: 1px solid #000;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
+  box-shadow:
+    inset 0 3px 5px rgba(0, 0, 0, 0.9),
+    inset 0 -2px 3px rgba(0, 0, 0, 0.5),
+    inset 0 0 9px rgba(255, 45, 30, 0.22),
+    0 1px 0 rgba(255, 255, 255, 0.1);
+}
+.knob-val::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: 0;
+  height: 45%;
+  background: linear-gradient(rgba(255, 255, 255, 0.06), rgba(255, 255, 255, 0));
+  pointer-events: none;
 }
 .knob-svg {
   touch-action: none;
@@ -452,6 +484,17 @@ b {
 }
 .panel-scroll::-webkit-scrollbar { width: 6px; }
 .panel-scroll::-webkit-scrollbar-thumb { background: #2a3340; border-radius: 3px; }
+/* 黒アルミの盤面プレート。角は直角・上からの光・微かなヘアライン。
+   ※ セル実測は内側の .grid の clientWidth で行うので、余白はこの板側に持たせる。 */
+.panel-board {
+  padding: 10px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(130% 80% at 50% -8%, #15181d 0%, #0b0c0e 55%, #070809 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.85);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 10px 26px rgba(0, 0, 0, 0.55);
+}
 /* 8列・正方形セルのグリッド。1辺 --cell は JS が実測してセット（画面幅÷8 を高さにも使う）。 */
 .grid {
   --cell: 44px; /* JS が上書きするまでの仮値 */
@@ -471,24 +514,25 @@ b {
 .mock-sec--lfo { grid-column: 1 / span 4; grid-row: 6 / span 2; }
 .mock-sec--mix { grid-column: 5 / span 4; grid-row: 6 / span 2; }
 
+/* モジュールは板に彫り込まれた区画（直角・マット）。白枠は使わず段差で分ける。 */
 .slot {
   position: relative;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 8px;
+  background: linear-gradient(180deg, #121419 0%, #0c0e12 100%);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  border-radius: 0;
   padding: 6px;
   overflow: hidden;
   min-width: 0;
   min-height: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
 }
 /* スロット内のモジュールは枠いっぱいに広がる。 */
 .slot > .mod { width: 100%; height: 100%; min-width: 0; min-height: 0; }
 /* 未習得フレーム＝実体を薄く（ゴースト）表示。操作は不可。 */
 .slot.ghost {
   border-style: dashed;
-  border-color: #1a2838;
-  background: #090c11;
+  border-color: #20262e;
+  background: #070809;
   opacity: 0.4;
   filter: grayscale(0.5);
   pointer-events: none;
@@ -504,7 +548,7 @@ b {
   width: 26px;
   height: 26px;
   border: 1px solid var(--line);
-  border-radius: 7px;
+  border-radius: 0;
   background: #10151c;
   color: var(--sub);
   font-size: 14px;
@@ -558,11 +602,14 @@ b {
   position: relative;
   width: 100%;
   max-width: 528px;
-  background: var(--panel);
-  border: 1px solid var(--line);
-  border-radius: 10px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.012) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(130% 90% at 50% -10%, #15181d 0%, #0b0c0e 55%, #070809 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.85);
+  border-radius: 0;
   padding: 18px 16px 16px;
-  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+  box-shadow: 0 18px 50px rgba(0, 0, 0, 0.7), inset 0 1px 0 rgba(255, 255, 255, 0.06);
   transform-origin: center center;
 }
 .stage-module.enter { animation: stageEnter 0.45s cubic-bezier(0.2, 0.9, 0.3, 1) both; }
@@ -685,10 +732,12 @@ b {
 /* モジュール見出し（FILTER 等、枠の中の小見出し）。 */
 .mod-title { font-size: 9px; letter-spacing: 2px; color: var(--txt); font-weight: 700; flex: 0 0 auto; text-align: center; text-transform: uppercase; }
 
-/* グリッド内ノブ：セルいっぱい。ダイヤルが余白を埋め、ラベルは内側下。 */
+/* グリッド内ノブ：セルいっぱい。ダイヤルが余白を埋め、ラベル・LED は内側下。 */
 .slot .knob-wrap { width: 100%; height: 100%; justify-content: center; gap: 2px; }
 .slot .knob-dial { flex: 1 1 auto; min-height: 0; }
 .slot .knob-svg { width: auto; height: 100%; }
+.slot .knob-label { font-size: 9px; letter-spacing: 1.5px; }
+.slot .knob-val { font-size: 10px; min-width: 0; padding: 1px 6px; }
 /* FILTER(4×2)：上に見出し、その下に CUTOFF・RES を横並び。 */
 .slot-filter .mod-filter { flex-direction: column; align-items: stretch; justify-content: center; gap: 2px; }
 .slot-filter .filter-knobs { flex: 1 1 auto; min-height: 0; gap: 8px; }
@@ -878,7 +927,8 @@ b {
   font-weight: 700;
   letter-spacing: 2px;
   text-transform: uppercase;
-  color: #3a5060;
+  color: #9aa3ad;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
   pointer-events: none;
   z-index: 1;
   line-height: 1;

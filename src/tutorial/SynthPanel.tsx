@@ -60,23 +60,25 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
       </div>
 
       <div className="panel-scroll">
-        <div className="grid" ref={gridRef}>
-          <Slot {...slotProps('wave')}>
-            <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
-          </Slot>
-          <Slot {...slotProps('pitch')}>
-            <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
-          </Slot>
-          <Slot {...slotProps('fine')}>
-            <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
-          </Slot>
-          <Slot {...slotProps('env')}>
-            <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
-          </Slot>
-          <Slot {...slotProps('filter')}>
-            <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
-          </Slot>
-          <MockSections />
+        <div className="panel-board">
+          <div className="grid" ref={gridRef}>
+            <Slot {...slotProps('wave')}>
+              <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
+            </Slot>
+            <Slot {...slotProps('pitch')}>
+              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+            </Slot>
+            <Slot {...slotProps('fine')}>
+              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+            </Slot>
+            <Slot {...slotProps('env')}>
+              <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+            </Slot>
+            <Slot {...slotProps('filter')}>
+              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+            </Slot>
+            <MockSections />
+          </div>
         </div>
       </div>
 
