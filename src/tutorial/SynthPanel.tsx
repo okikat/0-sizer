@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, KeyboardGhost, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 const COLS = 8
@@ -82,10 +82,22 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
       <Slot {...slotProps('keys')}>
         {realized.has('keys') ? (
           <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
-        ) : (
-          <KeyboardGhost />
-        )}
+        ) : null}
       </Slot>
+    </div>
+  )
+}
+
+/** 着弾エフェクト：閃光＋同心リング＋放射状の火花。スロット内に重ねて描画。 */
+function SlotBurst() {
+  return (
+    <div className="slot-burst">
+      <span className="burst-flash" />
+      <span className="burst-ring" />
+      <span className="burst-ring r2" />
+      {Array.from({ length: 8 }).map((_, i) => (
+        <span key={i} className="burst-spark" style={{ '--a': `${i * 45}deg` } as React.CSSProperties} />
+      ))}
     </div>
   )
 }
@@ -107,25 +119,19 @@ function Slot({
   gachan: boolean
   children: React.ReactNode
 }) {
-  const cls =
-    'slot slot-' +
-    id +
-    (realized
-      ? ' pop-in' + (gachan ? ' gachan' : '')
-      : ' ghost' + (blink ? ' blink' : ''))
+  // ゴーストは出さない。未習得は「空きベイ」、習得すると実体が嵌まる。
+  const cls = 'slot slot-' + id + (realized ? ' filled' + (gachan ? ' gachan' : '') : ' empty' + (blink ? ' blink' : ''))
 
   return (
     <div className={cls} data-slot={id}>
-      {/* パネル刻印ラベル（hardware シルクスクリーン風） */}
-      {PANEL_LABELS[id] && (
-        <span className="slot-label">{PANEL_LABELS[id]}</span>
-      )}
+      {realized && PANEL_LABELS[id] && <span className="slot-label">{PANEL_LABELS[id]}</span>}
       {realized && showHelp && (
         <button className="slot-help" onClick={() => onHelp(id)} aria-label="この解説をもう一度見る">
           ?
         </button>
       )}
-      {children}
+      {realized && children}
+      {gachan && <SlotBurst />}
     </div>
   )
 }

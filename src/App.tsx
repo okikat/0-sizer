@@ -11,15 +11,15 @@ import { Popup } from './tutorial/Popup'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
-export type ExitPhase = 'crossfade' | 'hover' | 'slam'
+export type ExitPhase = 'acquire' | 'fly' | 'impact'
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-// exit アニメーション 3 段階
-const CROSSFADE_MS = 420   // 暗幕フェード（パネルが浮かび上がる）
-const HOVER_MS     = 320   // モジュールが浮遊し助走体制へ
-const SLAM_MS      = 460   // ease-in でスロットへ突入
-const EXIT_MS = CROSSFADE_MS + HOVER_MS + SLAM_MS + 100  // = 1300ms
+// インストール演出 3 段階（ソシャゲ風：獲得 → 飛翔 → 着弾）
+const ACQUIRE_MS = 460   // モジュールが「獲得」されてポップ＋発光
+const FLY_MS = 420       // スロットへ吸い込まれるように飛ぶ
+const IMPACT_MS = 580    // 着弾：閃光・リング・火花・弾性スナップ
+const EXIT_MS = ACQUIRE_MS + FLY_MS + IMPACT_MS
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
@@ -75,7 +75,7 @@ export default function App() {
     stopAll()
     setFlight(null)
     setExitPhase(null)
-    const completedId = LESSONS[lessonIndex].id
+    setGachanSlot(null)
     const next = lessonIndex + 1
     if (next < LESSONS.length) {
       setLessonIndex(next)
@@ -85,18 +85,7 @@ export default function App() {
       localStorage.setItem(DONE_KEY, '1')
       setPhase('panel')
     }
-    // GACHAN: ステージが消えてスロットが現れる瞬間に衝撃エフェクト
-    setGachanSlot(completedId)
-    setTimeout(() => setGachanSlot(null), 600)
-    const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
-    if (!prefersReduced) {
-      setShaking(true)
-      setTimeout(() => setShaking(false), 220)
-      const ctx = getAudioContext()
-      if (ctx) playGachanSound(ctx)
-      navigator.vibrate?.([12, 8, 6])
-    }
-  }, [lessonIndex, stopAll, getAudioContext])
+  }, [lessonIndex, stopAll])
 
   // blink → active の制御
   useEffect(() => {
@@ -108,20 +97,17 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase, stage])
 
-  // exit フェーズの全制御：crossfade → hover → slam → commitExit
+  // インストール演出の全制御：acquire → fly → impact → commitExit
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
+    const id = LESSONS[lessonIndex].id
     const timers: ReturnType<typeof setTimeout>[] = []
 
-    // crossfade 完了 → hover へ
-    timers.push(setTimeout(() => setExitPhase('hover'), CROSSFADE_MS))
-
-    // hover 完了 → slam（FLIP 開始）
+    // 獲得ポップ完了 → スロットへ飛ぶ（FLIP 計算）
     timers.push(setTimeout(() => {
-      const id = LESSONS[lessonIndex].id
       const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
       const s = stageRectRef.current
-      let f: Flight = { dx: 0, dy: 140, sx: 0.5, sy: 0.5 }
+      let f: Flight = { dx: 0, dy: 160, sx: 0.45, sy: 0.45 }
       if (dEl && s) {
         const d = dEl.getBoundingClientRect()
         f = {
@@ -131,14 +117,33 @@ export default function App() {
           sy: clamp(d.height / s.height, 0.2, 1),
         }
       }
-      setExitPhase('slam')
+      setExitPhase('fly')
       requestAnimationFrame(() => setFlight(f))
-    }, CROSSFADE_MS + HOVER_MS))
+    }, ACQUIRE_MS))
+
+    // 着弾：このタイミングでスロットを実体化＋衝撃エフェクト
+    timers.push(setTimeout(() => {
+      setExitPhase('impact')
+      setRealized((prev) => {
+        const n = new Set(prev)
+        LESSONS[lessonIndex].realizes.forEach((fr) => n.add(fr))
+        return n
+      })
+      setGachanSlot(id)
+      const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
+      if (!prefersReduced) {
+        setShaking(true)
+        setTimeout(() => setShaking(false), 240)
+        const ctx = getAudioContext()
+        if (ctx) playGachanSound(ctx)
+        navigator.vibrate?.([14, 10, 20])
+      }
+    }, ACQUIRE_MS + FLY_MS))
 
     timers.push(setTimeout(commitExit, EXIT_MS))
 
     return () => timers.forEach(clearTimeout)
-  }, [phase, stage, lessonIndex, commitExit])
+  }, [phase, stage, lessonIndex, commitExit, getAudioContext])
 
   const beginLesson = (i: number) => {
     setFlight(null)
@@ -152,14 +157,10 @@ export default function App() {
   const onOK = () => {
     const sEl = document.querySelector('[data-stage-module]') as HTMLElement | null
     stageRectRef.current = sEl ? sEl.getBoundingClientRect() : null
-    setRealized((prev) => {
-      const n = new Set(prev)
-      LESSONS[lessonIndex].realizes.forEach((f) => n.add(f))
-      return n
-    })
+    // 実体化は「着弾」の瞬間まで遅らせる（飛んできて嵌まる瞬間に枠が埋まる）
     setPopupOpen(false)
     setStage('exit')
-    setExitPhase('crossfade')
+    setExitPhase('acquire')
   }
 
   const skip = () => {
@@ -198,7 +199,7 @@ export default function App() {
 
       {phase === 'ghost' && (
         <div className="ghost-cta fade-in">
-          <p className="ghost-cta-text">これがキミのシンセ。ひとつずつ組み立てよう。</p>
+          <p className="ghost-cta-text">空っぽのパネル。ここにキミだけのシンセを組み上げよう。</p>
           <button className="cta" onClick={() => beginLesson(0)}>
             組み立てる
           </button>

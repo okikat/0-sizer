@@ -11,8 +11,8 @@ export interface Flight {
 
 interface Props {
   lesson: Lesson
-  /** null = active（通常表示）。'crossfade' → 'hover' → 'slam' の順で exit アニメーション進行。 */
-  exitPhase: 'crossfade' | 'hover' | 'slam' | null
+  /** null = active（通常表示）。'acquire' → 'fly' → 'impact' の順でインストール演出が進行。 */
+  exitPhase: 'acquire' | 'fly' | 'impact' | null
   flight: Flight | null
   popupOpen: boolean
   onClosePopup: () => void
@@ -39,29 +39,21 @@ function StageContent({ lesson, sound }: { lesson: Lesson; sound: SoundCtl }) {
 /**
  * スポットライト面：対象フレームを中央に大きく出し、解説ポップアップ＋OK で盤面へ収める。
  *
- * exit アニメーション 3 段階：
- *   crossfade  モジュールはその場に残り、暗幕がフェードアウト（パネルが浮かび上がる）
- *   hover      モジュールがゆっくり浮き上がり、スロットへの助走体制
- *   slam       ease-in FLIP でスロットへ突入
+ * インストール演出 3 段階：
+ *   acquire  獲得：モジュールがポップして発光（暗幕はフェードしてパネルが見えてくる）
+ *   fly      飛翔：スロットへ吸い込まれるように縮小移動（FLIP）
+ *   impact   着弾：到達点で消え、スロット側で実体化＋衝撃エフェクト
  */
 export function LessonStage({ lesson, exitPhase, flight, popupOpen, onClosePopup, onHelp, onOK, sound }: Props) {
   const exiting = exitPhase !== null
 
-  // slam フェーズかつ flight が計算済みのときのみ FLIP トランスフォームを適用
+  // fly / impact では FLIP の到達位置へ移動。impact では CSS 側で opacity:0。
   const flightStyle =
-    exitPhase === 'slam' && flight
-      ? { transform: `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.sx}, ${flight.sy})`, opacity: 0 }
+    (exitPhase === 'fly' || exitPhase === 'impact') && flight
+      ? { transform: `translate(${flight.dx}px, ${flight.dy}px) scale(${flight.sx}, ${flight.sy})` }
       : undefined
 
-  const moduleClass =
-    'stage-module ' +
-    (!exiting
-      ? 'enter'
-      : exitPhase === 'slam'
-        ? 'exit slam'
-        : exitPhase === 'hover'
-          ? 'exit hover'
-          : 'exit crossfade')
+  const moduleClass = 'stage-module ' + (!exiting ? 'enter' : 'exit ' + exitPhase)
 
   return (
     <div className={'stage-layer' + (exiting ? ' leaving' : ' fade-in')}>
