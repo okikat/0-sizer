@@ -1,28 +1,32 @@
-import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useState } from 'react'
 import { useSynth, type EnvParams } from './audio/useSynth'
-import { playGachanSound } from './audio/gachan'
+import { playSeatClick } from './audio/gachan'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
 import { SynthPanel } from './tutorial/SynthPanel'
-import { LessonStage, type Flight } from './tutorial/LessonStage'
+import { LessonStage } from './tutorial/LessonStage'
+import { FlightLayer, type Flyer, type FlightPhase } from './tutorial/FlightLayer'
 import { Popup } from './tutorial/Popup'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
-export type ExitPhase = 'acquire' | 'fly' | 'seat' | 'impact'
+// インストール演出：その場でコンパクト形へ作り替え → 少し浮く → 定位置へ滑空 → 着座。
+export type ExitPhase = 'morph' | FlightPhase
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-// インストール演出 4 段階：本物のモジュールを取り付けるように、丁寧に。
-const ACQUIRE_MS = 650   // 獲得：ポップ＋発光（少し見せる間を取る）
-const FLY_MS = 720       // 取付口へゆっくり寄せて、上で一旦そろえる（減速）
-const SEAT_MS = 420      // そのまま押し込んで嵌める
-const IMPACT_MS = 640    // 着弾：閃光・リング・火花・弾性スナップ
-const EXIT_MS = ACQUIRE_MS + FLY_MS + SEAT_MS + IMPACT_MS
+const MORPH_MS = 480 // OK後：コンパクト形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
+const HOVER_MS = 360 // 取付口の少し上で浮く
+const GLIDE_MS = 760 // ゆっくり定位置へ
+const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
+const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
-const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
+const toRect = (el: Element) => {
+  const r = el.getBoundingClientRect()
+  return { left: r.left, top: r.top, width: r.width, height: r.height }
+}
 
 export default function App() {
   const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, getAudioContext } = useSynth()
@@ -36,11 +40,9 @@ export default function App() {
   const [showHelp, setShowHelp] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
-  const [flight, setFlight] = useState<Flight | null>(null)
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
-  const [gachanSlot, setGachanSlot] = useState<FrameId | null>(null)
-  const [shaking, setShaking] = useState(false)
-  const stageRectRef = useRef<DOMRect | null>(null)
+  const [flyers, setFlyers] = useState<Flyer[]>([])
+  const [installing, setInstalling] = useState<Set<FrameId>>(new Set())
 
   // --- 音まわりの状態 ---
   const [type, setType] = useState<OscillatorType>('sine')
@@ -74,9 +76,9 @@ export default function App() {
 
   const commitExit = useCallback(() => {
     stopAll()
-    setFlight(null)
+    setFlyers([])
+    setInstalling(new Set())
     setExitPhase(null)
-    setGachanSlot(null)
     const next = lessonIndex + 1
     if (next < LESSONS.length) {
       setLessonIndex(next)
@@ -98,51 +100,43 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase, stage])
 
-  // インストール演出の全制御：acquire → fly → seat → impact → commitExit
+  // インストール演出の全制御：morph →（実測してピース化）→ hover → glide → seat → commit
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
-    const id = LESSONS[lessonIndex].id
+    const frames = LESSONS[lessonIndex].realizes
     const timers: ReturnType<typeof setTimeout>[] = []
 
-    // 獲得ポップ完了 → 取付口の上へゆっくり寄せる（FLIP 計算）
+    // モーフ完了：各フレームの現在位置（コンパクト形）と取付先スロットを実測して飛翔ピースに。
     timers.push(setTimeout(() => {
-      const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
-      const s = stageRectRef.current
-      let f: Flight = { dx: 0, dy: 160, sx: 0.45, sy: 0.45 }
-      if (dEl && s) {
-        const d = dEl.getBoundingClientRect()
-        f = {
-          dx: d.left + d.width / 2 - (s.left + s.width / 2),
-          dy: d.top + d.height / 2 - (s.top + s.height / 2),
-          sx: clamp(d.width / s.width, 0.2, 1),
-          sy: clamp(d.height / s.height, 0.2, 1),
-        }
-      }
-      setExitPhase('fly')
-      requestAnimationFrame(() => setFlight(f))
-    }, ACQUIRE_MS))
+      const fls: Flyer[] = []
+      frames.forEach((fid) => {
+        const sEl = document.querySelector(`[data-stage-frame="${fid}"]`)
+        const dEl = document.querySelector(`[data-slot="${fid}"]`)
+        if (sEl && dEl) fls.push({ id: fid, start: toRect(sEl), dest: toRect(dEl) })
+      })
+      setFlyers(fls)
+      setExitPhase('hover')
+    }, MORPH_MS))
 
-    // 上でそろえたら、押し込んで嵌める（seat）
-    timers.push(setTimeout(() => setExitPhase('seat'), ACQUIRE_MS + FLY_MS))
+    // ホバー → 滑空
+    timers.push(setTimeout(() => setExitPhase('glide'), MORPH_MS + HOVER_MS))
 
-    // 着弾：押し込み切った瞬間に実体化＋衝撃エフェクト
+    // 着座：このタイミングで実体化＋「カチャ」＋ごく薄い光
     timers.push(setTimeout(() => {
-      setExitPhase('impact')
+      setExitPhase('seat')
       setRealized((prev) => {
         const n = new Set(prev)
-        LESSONS[lessonIndex].realizes.forEach((fr) => n.add(fr))
+        frames.forEach((fr) => n.add(fr))
         return n
       })
-      setGachanSlot(id)
+      setInstalling(new Set(frames))
       const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
       if (!prefersReduced) {
-        setShaking(true)
-        setTimeout(() => setShaking(false), 240)
         const ctx = getAudioContext()
-        if (ctx) playGachanSound(ctx)
-        navigator.vibrate?.([14, 10, 20])
+        if (ctx) playSeatClick(ctx)
+        navigator.vibrate?.(10)
       }
-    }, ACQUIRE_MS + FLY_MS + SEAT_MS))
+    }, MORPH_MS + HOVER_MS + GLIDE_MS))
 
     timers.push(setTimeout(commitExit, EXIT_MS))
 
@@ -150,7 +144,8 @@ export default function App() {
   }, [phase, stage, lessonIndex, commitExit, getAudioContext])
 
   const beginLesson = (i: number) => {
-    setFlight(null)
+    setFlyers([])
+    setInstalling(new Set())
     setExitPhase(null)
     setLessonIndex(i)
     setPopupOpen(false)
@@ -159,12 +154,10 @@ export default function App() {
   }
 
   const onOK = () => {
-    const sEl = document.querySelector('[data-stage-module]') as HTMLElement | null
-    stageRectRef.current = sEl ? sEl.getBoundingClientRect() : null
-    // 実体化は「着弾」の瞬間まで遅らせる（飛んできて嵌まる瞬間に枠が埋まる）
+    // OK で「その場でコンパクト形へ作り替え（morph）」開始。実体化は着座の瞬間まで遅らせる。
     setPopupOpen(false)
     setStage('exit')
-    setExitPhase('acquire')
+    setExitPhase('morph')
   }
 
   const skip = () => {
@@ -180,7 +173,8 @@ export default function App() {
     setLessonIndex(0)
     setPopupOpen(false)
     setExitPhase(null)
-    setFlight(null)
+    setFlyers([])
+    setInstalling(new Set())
     setPhase('intro')
   }
 
@@ -188,6 +182,8 @@ export default function App() {
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
   const popupHelp = panelPopup ? FRAME_HELP[panelPopup] : null
+  const flightPhase: FlightPhase | null =
+    exitPhase === 'hover' || exitPhase === 'glide' || exitPhase === 'seat' ? exitPhase : null
 
   return (
     <div className="app-root">
@@ -197,8 +193,7 @@ export default function App() {
         sound={sound}
         showHelp={showHelp}
         onHelpFrame={(f) => setPanelPopup(f)}
-        shaking={shaking}
-        gachanSlot={gachanSlot}
+        installing={installing}
       />
 
       {phase === 'ghost' && (
@@ -210,11 +205,10 @@ export default function App() {
         </div>
       )}
 
-      {phase === 'lesson' && (stage === 'active' || stage === 'exit') && (
+      {phase === 'lesson' && (stage === 'active' || exitPhase === 'morph') && (
         <LessonStage
           lesson={LESSONS[lessonIndex]}
-          exitPhase={stage === 'exit' ? exitPhase : null}
-          flight={flight}
+          morphing={exitPhase === 'morph'}
           popupOpen={popupOpen}
           onClosePopup={() => setPopupOpen(false)}
           onHelp={() => setPopupOpen(true)}
@@ -222,6 +216,8 @@ export default function App() {
           sound={sound}
         />
       )}
+
+      {flightPhase && flyers.length > 0 && <FlightLayer flyers={flyers} phase={flightPhase} sound={sound} />}
 
       {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
 

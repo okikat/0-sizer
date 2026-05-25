@@ -35,16 +35,23 @@ const fmtHz = (hz: number) => (hz >= 1000 ? `${(hz / 1000).toFixed(1)}k` : `${Ma
 // RES は「つまみ 0〜10」を Q 0.7（クセ無し）〜16（強め）に対応させる。
 const resAmtToQ = (amt: number) => 0.7 + (amt / 10) * (16 - 0.7)
 
-/** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。 */
+/** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。
+ *  morphing=true のときは、計器(スコープ)を畳みながらコンパクト形へ変形する途中表現。 */
 export function WaveFrame({
   type,
   onType,
   playing,
   compact = false,
-}: Pick<SoundCtl, 'type' | 'onType' | 'playing'> & { compact?: boolean }) {
+  morphing = false,
+}: Pick<SoundCtl, 'type' | 'onType' | 'playing'> & { compact?: boolean; morphing?: boolean }) {
+  const showScope = !compact || morphing
   return (
     <div className={'mod mod-wave' + (compact ? ' mod--compact' : '')}>
-      {!compact && <Scope type={type} playing={playing} />}
+      {showScope && (
+        <div className={'scope-collapse' + (morphing ? ' collapsing' : '')}>
+          <Scope type={type} playing={playing} />
+        </div>
+      )}
       <WaveformPicker value={type} onChange={onType} compact={compact} />
     </div>
   )

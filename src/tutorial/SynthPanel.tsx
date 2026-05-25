@@ -33,11 +33,11 @@ interface Props {
   sound: SoundCtl
   showHelp: boolean
   onHelpFrame: (frame: FrameId) => void
-  shaking: boolean
-  gachanSlot: FrameId | null
+  /** いま着座した（取り付いた瞬間の）フレーム群。ごく薄い光で迎える。 */
+  installing: Set<FrameId>
 }
 
-export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, shaking, gachanSlot }: Props) {
+export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, installing }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   useCellSize(gridRef)
 
@@ -47,11 +47,11 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
     blink: blinkingId === id,
     showHelp,
     onHelp: onHelpFrame,
-    gachan: gachanSlot === id,
+    seating: installing.has(id),
   })
 
   return (
-    <div className={'panel-wrap' + (shaking ? ' shake' : '')}>
+    <div className="panel-wrap">
       <div className="panel-head">
         <span className="tag">0-sizer</span>
       </div>
@@ -88,27 +88,13 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
   )
 }
 
-/** 着弾エフェクト：閃光＋同心リング＋放射状の火花。スロット内に重ねて描画。 */
-function SlotBurst() {
-  return (
-    <div className="slot-burst">
-      <span className="burst-flash" />
-      <span className="burst-ring" />
-      <span className="burst-ring r2" />
-      {Array.from({ length: 8 }).map((_, i) => (
-        <span key={i} className="burst-spark" style={{ '--a': `${i * 45}deg` } as React.CSSProperties} />
-      ))}
-    </div>
-  )
-}
-
 function Slot({
   id,
   realized,
   blink,
   showHelp,
   onHelp,
-  gachan,
+  seating,
   children,
 }: {
   id: FrameId
@@ -116,11 +102,11 @@ function Slot({
   blink: boolean
   showHelp: boolean
   onHelp: (frame: FrameId) => void
-  gachan: boolean
+  seating: boolean
   children: React.ReactNode
 }) {
   // ゴーストは出さない。未習得は「空きベイ」、習得すると実体が嵌まる。
-  const cls = 'slot slot-' + id + (realized ? ' filled' + (gachan ? ' gachan' : '') : ' empty' + (blink ? ' blink' : ''))
+  const cls = 'slot slot-' + id + (realized ? ' filled' + (seating ? ' seating' : '') : ' empty' + (blink ? ' blink' : ''))
 
   return (
     <div className={cls} data-slot={id}>
@@ -131,7 +117,6 @@ function Slot({
         </button>
       )}
       {realized && children}
-      {gachan && <SlotBurst />}
     </div>
   )
 }
