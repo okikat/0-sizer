@@ -6,8 +6,15 @@ import { MockSections } from './mock'
 const COLS = 8
 const GAP = 8
 
-/** グリッドの実幅を測り、1セル(正方形)の一辺を CSS 変数 --cell に流し込む。
- *  画面幅 ÷ 8 を高さにも使う＝どの端末でも横スクロールや余白の持て余しが出ない。 */
+// パネルに刻印するモジュール名（hardware シルクスクリーン風）
+const PANEL_LABELS: Partial<Record<FrameId, string>> = {
+  wave: 'WAVE',
+  env: 'ENV',
+  filter: 'FILTER',
+  pitch: 'PITCH',
+  fine: 'FINE',
+}
+
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
   useLayoutEffect(() => {
     const el = ref.current
@@ -29,13 +36,10 @@ interface Props {
   sound: SoundCtl
   showHelp: boolean
   onHelpFrame: (frame: FrameId) => void
-  /** GACHAN スクリーンシェイク中は true */
   shaking: boolean
-  /** 衝撃波リングを表示するスロット ID（着弾直後に一時的にセット） */
   gachanSlot: FrameId | null
 }
 
-/** 完成形の盤面。未習得のフレームも実体を薄く（ゴースト）表示し、習うと色がつく。周りは飾り（モック）。 */
 export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame, shaking, gachanSlot }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   useCellSize(gridRef)
@@ -55,7 +59,6 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
         <span className="tag">0-sizer</span>
       </div>
 
-      {/* モジュールは8列・正方形セルのグリッドに配置。鍵盤は下に固定。 */}
       <div className="panel-scroll">
         <div className="grid" ref={gridRef}>
           <Slot {...slotProps('wave')}>
@@ -111,8 +114,13 @@ function Slot({
     (realized
       ? ' pop-in' + (gachan ? ' gachan' : '')
       : ' ghost' + (blink ? ' blink' : ''))
+
   return (
     <div className={cls} data-slot={id}>
+      {/* パネル刻印ラベル（hardware シルクスクリーン風） */}
+      {PANEL_LABELS[id] && (
+        <span className="slot-label">{PANEL_LABELS[id]}</span>
+      )}
       {realized && showHelp && (
         <button className="slot-help" onClick={() => onHelp(id)} aria-label="この解説をもう一度見る">
           ?

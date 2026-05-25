@@ -11,12 +11,15 @@ import { Popup } from './tutorial/Popup'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
+export type ExitPhase = 'crossfade' | 'hover' | 'slam'
 
 const DONE_KEY = '0sizer.tutorialDone'
 const BLINK_MS = 1150
-const ANTICIPATE_MS = 150  // 予備動作（pull-back）の長さ
-const SLAM_MS = 460         // スラム（FLIP飛行）の長さ
-const EXIT_MS = ANTICIPATE_MS + SLAM_MS + 120  // = 730ms
+// exit アニメーション 3 段階
+const CROSSFADE_MS = 420   // 暗幕フェード（パネルが浮かび上がる）
+const HOVER_MS     = 320   // モジュールが浮遊し助走体制へ
+const SLAM_MS      = 460   // ease-in でスロットへ突入
+const EXIT_MS = CROSSFADE_MS + HOVER_MS + SLAM_MS + 100  // = 1300ms
 
 const clamp = (v: number, lo: number, hi: number) => Math.max(lo, Math.min(hi, v))
 
@@ -33,11 +36,12 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [flight, setFlight] = useState<Flight | null>(null)
+  const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [gachanSlot, setGachanSlot] = useState<FrameId | null>(null)
   const [shaking, setShaking] = useState(false)
   const stageRectRef = useRef<DOMRect | null>(null)
 
-  // --- 音まわりの状態（音源は鍵盤。ドローン/鳴らすボタンは廃止） ---
+  // --- 音まわりの状態 ---
   const [type, setType] = useState<OscillatorType>('sine')
   const [fine, setFine] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
@@ -50,10 +54,7 @@ export default function App() {
 
   const sound: SoundCtl = {
     type,
-    onType: (t) => {
-      setType(t)
-      setWaveform(t)
-    },
+    onType: (t) => { setType(t); setWaveform(t) },
     playing: keyHeld,
     onTune: (v) => setTune(v),
     fine,
@@ -66,20 +67,14 @@ export default function App() {
     },
     onCutoff: (hz) => setCutoff(hz),
     onRes: (q) => setResonance(q),
-    onNoteOn: (m) => {
-      setKeyHeld(true)
-      noteOn(m)
-    },
-    onNoteOff: () => {
-      setKeyHeld(false)
-      noteOff()
-    },
+    onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
+    onNoteOff: () => { setKeyHeld(false); noteOff() },
   }
 
   const commitExit = useCallback(() => {
     stopAll()
     setFlight(null)
-    // lessonIndex を進める前に完了したスロットの ID を保存
+    setExitPhase(null)
     const completedId = LESSONS[lessonIndex].id
     const next = lessonIndex + 1
     if (next < LESSONS.length) {
@@ -90,9 +85,9 @@ export default function App() {
       localStorage.setItem(DONE_KEY, '1')
       setPhase('panel')
     }
-    // GACHAN: スロット着弾エフェクト（ステージが消えてスロットが現れる瞬間に発火）
+    // GACHAN: ステージが消えてスロットが現れる瞬間に衝撃エフェクト
     setGachanSlot(completedId)
-    setTimeout(() => setGachanSlot(null), 550)
+    setTimeout(() => setGachanSlot(null), 600)
     const prefersReduced = window.matchMedia('(prefers-reduced-motion: reduce)').matches
     if (!prefersReduced) {
       setShaking(true)
@@ -103,27 +98,26 @@ export default function App() {
     }
   }, [lessonIndex, stopAll, getAudioContext])
 
-  // 点滅→スポットライト→（OK後）盤面へ収まる、のタイミング制御。
+  // blink → active の制御
   useEffect(() => {
-    if (phase !== 'lesson') return
-    if (stage === 'blink') {
-      const t = setTimeout(() => {
-        setStage('active')
-        setPopupOpen(true)
-      }, BLINK_MS)
-      return () => clearTimeout(t)
-    }
-    if (stage === 'exit') {
-      const t = setTimeout(commitExit, EXIT_MS)
-      return () => clearTimeout(t)
-    }
-  }, [phase, stage, commitExit])
+    if (phase !== 'lesson' || stage !== 'blink') return
+    const t = setTimeout(() => {
+      setStage('active')
+      setPopupOpen(true)
+    }, BLINK_MS)
+    return () => clearTimeout(t)
+  }, [phase, stage])
 
-  // OK 後、予備動作（ANTICIPATE_MS）を待ってから FLIP 開始。
-  // ステージのモジュールを「実体化した盤面スロット」の位置・大きさへ飛ばす。
+  // exit フェーズの全制御：crossfade → hover → slam → commitExit
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
-    const t = setTimeout(() => {
+    const timers: ReturnType<typeof setTimeout>[] = []
+
+    // crossfade 完了 → hover へ
+    timers.push(setTimeout(() => setExitPhase('hover'), CROSSFADE_MS))
+
+    // hover 完了 → slam（FLIP 開始）
+    timers.push(setTimeout(() => {
       const id = LESSONS[lessonIndex].id
       const dEl = document.querySelector(`[data-slot="${id}"]`) as HTMLElement | null
       const s = stageRectRef.current
@@ -137,13 +131,18 @@ export default function App() {
           sy: clamp(d.height / s.height, 0.2, 1),
         }
       }
+      setExitPhase('slam')
       requestAnimationFrame(() => setFlight(f))
-    }, ANTICIPATE_MS)
-    return () => clearTimeout(t)
-  }, [phase, stage, lessonIndex])
+    }, CROSSFADE_MS + HOVER_MS))
+
+    timers.push(setTimeout(commitExit, EXIT_MS))
+
+    return () => timers.forEach(clearTimeout)
+  }, [phase, stage, lessonIndex, commitExit])
 
   const beginLesson = (i: number) => {
     setFlight(null)
+    setExitPhase(null)
     setLessonIndex(i)
     setPopupOpen(false)
     setStage('blink')
@@ -160,6 +159,7 @@ export default function App() {
     })
     setPopupOpen(false)
     setStage('exit')
+    setExitPhase('crossfade')
   }
 
   const skip = () => {
@@ -174,6 +174,8 @@ export default function App() {
     setRealized(new Set())
     setLessonIndex(0)
     setPopupOpen(false)
+    setExitPhase(null)
+    setFlight(null)
     setPhase('intro')
   }
 
@@ -206,7 +208,7 @@ export default function App() {
       {phase === 'lesson' && (stage === 'active' || stage === 'exit') && (
         <LessonStage
           lesson={LESSONS[lessonIndex]}
-          exiting={stage === 'exit'}
+          exitPhase={stage === 'exit' ? exitPhase : null}
           flight={flight}
           popupOpen={popupOpen}
           onClosePopup={() => setPopupOpen(false)}
@@ -218,7 +220,7 @@ export default function App() {
 
       {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
 
-      {/* 右上：解説表示トグル ＋ メニュー（三） */}
+      {/* 右上：解説表示トグル ＋ メニュー */}
       <div className="topbar">
         {phase === 'panel' && (
           <label className="help-toggle">
@@ -235,21 +237,11 @@ export default function App() {
           {menuOpen && (
             <div className="menu">
               {phase === 'panel' ? (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false)
-                    replay()
-                  }}
-                >
+                <button onClick={() => { setMenuOpen(false); replay() }}>
                   もう一度見る
                 </button>
               ) : (
-                <button
-                  onClick={() => {
-                    setMenuOpen(false)
-                    skip()
-                  }}
-                >
+                <button onClick={() => { setMenuOpen(false); skip() }}>
                   スキップ
                 </button>
               )}
