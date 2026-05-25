@@ -1,6 +1,6 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
 import { MockSections } from './mock'
 
 const COLS = 8
@@ -66,7 +66,10 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
               <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('fine')}>
-              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
+              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+            </Slot>
+            <Slot {...slotProps('snap')}>
+              <SnapFrame snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
             </Slot>
             <Slot {...slotProps('env')}>
               <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />

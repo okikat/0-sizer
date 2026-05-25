@@ -214,7 +214,6 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
               }}
             >
               {KLABEL[b.m] && <span className="kk">{KLABEL[b.m]}</span>}
-              {showLabels && <span className="kn">♯</span>}
             </div>
           ))}
         </div>

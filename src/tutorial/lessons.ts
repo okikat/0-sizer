@@ -1,11 +1,12 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'env' | 'filter'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
   wave: '波形',
   pitch: 'PITCH',
   fine: '微調整',
+  snap: 'スナップ',
   env: 'エンベロープ',
   filter: 'フィルター',
 }
@@ -41,7 +42,7 @@ export const LESSONS: Lesson[] = [
   },
   {
     id: 'pitch',
-    realizes: ['pitch', 'fine'],
+    realizes: ['pitch', 'fine', 'snap'],
     stageTitle: '高さ：PITCH と微調整',
     popup: [
       '「PITCH」は全体の音の高さ（チューニング）。上下にドラッグで半音ずつ変わります。ダブルタップで0に戻ります。',
@@ -104,11 +105,12 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: ['PITCH は全体の音の高さ（チューニング）。上下にドラッグで半音ずつ、ダブルタップで0に戻ります。'],
   },
   fine: {
-    title: '微調整 / スナップ',
-    paragraphs: [
-      '「微調整」ON：ツマミ・スライダーがゆっくり動いて、細かく合わせられます。',
-      '「スナップ」ON：キリのいい値に「カクッ」と止まりながら動きます（PITCHは半音、RESは1きざみ等）。どちらも全コントロールに効き、もう一度押すと OFF。',
-    ],
+    title: '微調整',
+    paragraphs: ['ON にすると、ツマミ・スライダーがゆっくり動いて、細かく合わせられます（全コントロールに効きます）。もう一度押すと OFF。'],
+  },
+  snap: {
+    title: 'スナップ',
+    paragraphs: ['ON にすると、キリのいい値に「カクッ」と止まりながら動きます（PITCHは半音、RESは1きざみ等）。全コントロールに効きます。もう一度押すと OFF。'],
   },
   env: {
     title: 'エンベロープ',

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -72,8 +72,13 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
         <div data-stage-frame="pitch" {...frameProps('pitch')}>
           <PitchFrame onTune={sound.onTune} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
-        <div data-stage-frame="fine" {...frameProps('fine')}>
-          <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
+        <div className="fine-snap-col">
+          <div data-stage-frame="fine" {...frameProps('fine')}>
+            <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+          </div>
+          <div data-stage-frame="snap" {...frameProps('snap')}>
+            <SnapFrame snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
+          </div>
         </div>
       </div>
     )

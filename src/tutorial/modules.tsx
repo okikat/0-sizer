@@ -89,13 +89,21 @@ export function PitchFrame({
   )
 }
 
-/** 微調整＋スナップフレーム：微調整(上)とスナップ(下)のトグルボタン2つで 2×2。 */
-export function FineFrame({ fine, onToggleFine, snap, onToggleSnap }: Pick<SoundCtl, 'fine' | 'onToggleFine' | 'snap' | 'onToggleSnap'>) {
+/** 微調整フレーム：トグルボタン1つ。 */
+export function FineFrame({ fine, onToggleFine }: Pick<SoundCtl, 'fine' | 'onToggleFine'>) {
   return (
     <div className="mod mod-fine">
       <button className={'fine-btn' + (fine ? ' on' : '')} onClick={onToggleFine} aria-pressed={fine}>
         微調整
       </button>
+    </div>
+  )
+}
+
+/** スナップフレーム：トグルボタン1つ。 */
+export function SnapFrame({ snap, onToggleSnap }: Pick<SoundCtl, 'snap' | 'onToggleSnap'>) {
+  return (
+    <div className="mod mod-snap">
       <button className={'fine-btn' + (snap ? ' on' : '')} onClick={onToggleSnap} aria-pressed={snap}>
         SNAP
       </button>
