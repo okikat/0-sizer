@@ -57,7 +57,7 @@ export function Slider({ min, max, value, label, fine = false, snap = false, sna
       >
         <div className="slider-track">
           <div className="slider-fill" style={{ height: `${pct}%` }} />
-          <div className="slider-handle" style={{ bottom: `calc(${pct}% - 7px)` }} />
+          <div className="slider-handle" style={{ bottom: `${pct}%` }} />
         </div>
       </div>
       <div className="slider-label">{label}</div>

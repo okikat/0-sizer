@@ -116,6 +116,7 @@ b {
   cursor: pointer;
   font-size: 12px;
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  transition: padding 0.36s ease;
 }
 /* 状態LED（消灯時は沈んだ穴） */
 .wave::after {
@@ -135,7 +136,11 @@ b {
   line-height: 1;
   margin-bottom: 6px;
   color: #cfd6dd;
+  transition: font-size 0.36s ease, margin 0.36s ease;
 }
+/* モーフ中：ラベルが畳まれるのに合わせ、ボタンもパネル寸法（アイコンのみ）へ縮む。 */
+.waves--morphing .wave { padding: 4px 0; }
+.waves--morphing .wave .sym { font-size: 18px; margin-bottom: 0; }
 /* 選択中：押し込まれた表現（暗く・凹む）。枠全面の発光はしない。 */
 .wave.sel {
   border-color: #000;
@@ -914,9 +919,11 @@ b {
 }
 .mod-env.mod--compact .slider-hit { width: 100%; height: auto; flex: 1 1 auto; }
 .mod-env.mod--compact .env-sliders { gap: 6px; align-items: stretch; height: 100%; }
+/* トラック・キャップは相対サイズ（%）。こうすると枠を縮小(scale)しても、
+   パネルの実寸表示と見た目が一致する（固定pxだとスケール時にズレる）。 */
 .slider-track {
   position: relative;
-  width: 8px;
+  width: 22%;
   background: #0a0c0f;
   border: 1px solid #000;
   border-radius: 0;
@@ -930,13 +937,13 @@ b {
   background: #23272e;
   border-radius: 0;
 }
-/* 物理フェーダーのキャップ（削り出し風・中央に白い指標線）。 */
+/* 物理フェーダーのキャップ（削り出し風・中央に白い指標線）。値位置に中心を合わせる。 */
 .slider-handle {
   position: absolute;
   left: 50%;
-  width: 26px;
-  height: 14px;
-  transform: translateX(-50%);
+  width: 290%;
+  aspect-ratio: 1.85;
+  transform: translate(-50%, 50%);
   background: linear-gradient(#2c313a, #0e1014);
   border: 1px solid #000;
   border-radius: 0;
@@ -945,10 +952,10 @@ b {
 .slider-handle::before {
   content: '';
   position: absolute;
-  left: 3px;
-  right: 3px;
+  left: 14%;
+  right: 14%;
   top: 50%;
-  height: 2px;
+  height: 13%;
   transform: translateY(-50%);
   background: #f4f7fa;
   box-shadow: 0 0 3px rgba(0, 0, 0, 0.6);
@@ -988,7 +995,15 @@ b {
 .stage-frame {
   transform-origin: center center;
   will-change: transform, opacity;
-  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1);
+  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1), background 0.2s ease, box-shadow 0.2s ease;
+}
+/* OK後：各フレームは「中身だけ」ではなく、パネルと同じモジュールの箱として動く
+   （枠が透けてスライダー等が浮いて見えるのを防ぐ＝塊で動いている感じにする）。 */
+.stage-module.exiting .stage-frame {
+  background: linear-gradient(180deg, #121419 0%, #0c0e12 100%);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.05), inset 0 -1px 2px rgba(0, 0, 0, 0.5), 0 6px 16px rgba(0, 0, 0, 0.5);
+  padding: 6px;
 }
 /* ENV はレッスンでもパネル形（コンパクト）で見せる＝着座時に作り替えが起きない。
    取付先(env スロット)は 4×4 の正方形なので、ステージでも正方形にして

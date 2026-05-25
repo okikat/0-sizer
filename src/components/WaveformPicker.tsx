@@ -17,7 +17,7 @@ const ITEMS: { t: OscillatorType; sym: string; label: string }[] = [
 /** 4波形のセレクタ。選ぶと音色（音のキャラ）が変わる。compact ではアイコンのみ。 */
 export function WaveformPicker({ value, onChange, compact = false, morphing = false }: Props) {
   return (
-    <div className={'waves' + (compact ? ' waves--compact' : '')}>
+    <div className={'waves' + (compact ? ' waves--compact' : '') + (morphing ? ' waves--morphing' : '')}>
       {ITEMS.map((it) => (
         <div
           key={it.t}
