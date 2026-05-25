@@ -3,6 +3,8 @@ interface Props {
   onChange: (t: OscillatorType) => void
   /** 盤面に収まる時はアイコンのみの縮小表示にする。 */
   compact?: boolean
+  /** OK後の「パネル装着形へのモーフ」中。文字ラベルを畳んで消す（→アイコンのみへ）。 */
+  morphing?: boolean
 }
 
 const ITEMS: { t: OscillatorType; sym: string; label: string }[] = [
@@ -13,7 +15,7 @@ const ITEMS: { t: OscillatorType; sym: string; label: string }[] = [
 ]
 
 /** 4波形のセレクタ。選ぶと音色（音のキャラ）が変わる。compact ではアイコンのみ。 */
-export function WaveformPicker({ value, onChange, compact = false }: Props) {
+export function WaveformPicker({ value, onChange, compact = false, morphing = false }: Props) {
   return (
     <div className={'waves' + (compact ? ' waves--compact' : '')}>
       {ITEMS.map((it) => (
@@ -24,7 +26,7 @@ export function WaveformPicker({ value, onChange, compact = false }: Props) {
           aria-label={it.label}
         >
           <span className="sym">{it.sym}</span>
-          {!compact && <span className="wlabel">{it.label}</span>}
+          {!compact && <span className={'wlabel' + (morphing ? ' collapsing' : '')}>{it.label}</span>}
         </div>
       ))}
     </div>

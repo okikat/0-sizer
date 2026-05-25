@@ -15,6 +15,8 @@ export interface SoundCtl {
   onTune: (v: number) => void
   fine: boolean
   onToggleFine: () => void
+  snap: boolean
+  onToggleSnap: () => void
   env: EnvParams
   onEnvChange: (key: EnvKey, value: number) => void
   onCutoff: (hz: number) => void
@@ -52,7 +54,7 @@ export function WaveFrame({
           <Scope type={type} playing={playing} />
         </div>
       )}
-      <WaveformPicker value={type} onChange={onType} compact={compact} />
+      <WaveformPicker value={type} onChange={onType} compact={compact} morphing={morphing} />
     </div>
   )
 }
@@ -61,13 +63,18 @@ export function WaveFrame({
 export function PitchFrame({
   onTune,
   fine,
+  snap,
   compact = false,
   showText = true,
-}: Pick<SoundCtl, 'onTune' | 'fine'> & { compact?: boolean; showText?: boolean }) {
+  morphing = false,
+}: Pick<SoundCtl, 'onTune' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-pitch">
       <Knob
         fine={fine}
+        snap={snap}
+        snapStep={1}
+        morphing={morphing}
         showText={showText}
         showHint={!compact}
         min={-12}
@@ -81,12 +88,15 @@ export function PitchFrame({
   )
 }
 
-/** 微調整フレーム：トグルボタンだけ。 */
-export function FineFrame({ fine, onToggleFine }: Pick<SoundCtl, 'fine' | 'onToggleFine'>) {
+/** 微調整＋スナップフレーム：微調整(上)とスナップ(下)のトグルボタン2つで 2×2。 */
+export function FineFrame({ fine, onToggleFine, snap, onToggleSnap }: Pick<SoundCtl, 'fine' | 'onToggleFine' | 'snap' | 'onToggleSnap'>) {
   return (
     <div className="mod mod-fine">
       <button className={'fine-btn' + (fine ? ' on' : '')} onClick={onToggleFine} aria-pressed={fine}>
         微調整
+      </button>
+      <button className={'fine-btn' + (snap ? ' on' : '')} onClick={onToggleSnap} aria-pressed={snap}>
+        スナップ
       </button>
     </div>
   )
@@ -98,17 +108,18 @@ export function EnvModule({
   env,
   onEnvChange,
   fine,
+  snap,
   compact = false,
-}: Pick<SoundCtl, 'env' | 'onEnvChange' | 'fine'> & { compact?: boolean }) {
+}: Pick<SoundCtl, 'env' | 'onEnvChange' | 'fine' | 'snap'> & { compact?: boolean }) {
   return (
     <div className={'mod mod-env' + (compact ? ' mod--compact' : '')}>
       <EnvGraph attack={env.attack} decay={env.decay} sustain={env.sustain} release={env.release} />
       <div className="env-row">
         <div className="env-sliders">
-          <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
-          <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
-          <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} showValue={false} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
-          <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
+          <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} snap={snap} snapStep={0.1} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
+          <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} snap={snap} snapStep={0.1} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
+          <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} snap={snap} snapStep={0.1} showValue={false} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
+          <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} snap={snap} snapStep={0.1} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
         </div>
       </div>
     </div>
@@ -120,14 +131,19 @@ export function FilterFrame({
   onCutoff,
   onRes,
   fine,
+  snap,
   compact = false,
   showText = true,
-}: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine'> & { compact?: boolean; showText?: boolean }) {
+  morphing = false,
+}: Pick<SoundCtl, 'onCutoff' | 'onRes' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-filter">
       <div className="filter-knobs">
         <Knob
           fine={fine}
+          snap={snap}
+          snapStep={0.1}
+          morphing={morphing}
           showText={showText}
           showHint={!compact}
           min={0}
@@ -139,6 +155,9 @@ export function FilterFrame({
         />
         <Knob
           fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
           showText={showText}
           showHint={!compact}
           min={0}

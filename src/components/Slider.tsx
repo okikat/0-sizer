@@ -7,6 +7,10 @@ interface Props {
   value: number
   label: string
   fine?: boolean
+  /** スナップ（カクカク）モード。 */
+  snap?: boolean
+  /** スナップ時の刻み。 */
+  snapStep?: number
   showValue?: boolean
   format?: (v: number) => string
   onChange: (v: number) => void
@@ -17,7 +21,7 @@ const FINE = 0.25
 const SPAN = 64
 
 /** 縦スライダー（A/D/S/R 用）。controlled。上ドラッグで増加。 */
-export function Slider({ min, max, value, label, fine = false, showValue = true, format, onChange }: Props) {
+export function Slider({ min, max, value, label, fine = false, snap = false, snapStep, showValue = true, format, onChange }: Props) {
   const drag = useRef<{ lastY: number; val: number } | null>(null)
 
   const onDown = (e: ReactPointerEvent<HTMLDivElement>) => {
@@ -32,7 +36,8 @@ export function Slider({ min, max, value, label, fine = false, showValue = true,
     const sens = ((max - min) / SPAN) * (e.shiftKey || fine ? FINE : 1)
     const nv = Math.max(min, Math.min(max, drag.current.val + dy * sens))
     drag.current.val = nv
-    onChange(nv)
+    const out = snap && snapStep ? Math.max(min, Math.min(max, Math.round(nv / snapStep) * snapStep)) : nv
+    onChange(out)
   }
   const onUp = () => {
     drag.current = null

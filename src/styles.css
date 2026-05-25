@@ -227,6 +227,34 @@ b {
 }
 .knob-hint .hint-touch { display: none; }
 
+/* OK後のモーフ：計器(値LED)・ヒント・波形ラベルを畳んで消す（パネル装着形へ）。 */
+.knob-val,
+.knob-hint {
+  transition: max-height 0.36s ease, opacity 0.3s ease, margin 0.36s ease, padding 0.36s ease;
+  max-height: 52px;
+}
+.knob-val.collapsing,
+.knob-hint.collapsing {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+  padding-top: 0;
+  padding-bottom: 0;
+  border-top-width: 0;
+  border-bottom-width: 0;
+}
+.wlabel {
+  display: block;
+  overflow: hidden;
+  max-height: 24px;
+  transition: max-height 0.34s ease, opacity 0.28s ease, margin 0.3s ease;
+}
+.wlabel.collapsing {
+  max-height: 0;
+  opacity: 0;
+  margin: 0;
+}
+
 /* 鍵盤（多オクターブ・横スクロール。キー=弾く／下バー=移動） */
 .kbd { display: flex; flex-direction: column; gap: 6px; }
 .kbd-scroll { overflow-x: auto; overflow-y: hidden; -webkit-overflow-scrolling: touch; }
@@ -571,7 +599,7 @@ b {
 }
 /* 鍵盤だけはグリッド外（下に固定）。 */
 .slot-keys { flex: 0 0 auto; margin-top: 10px; padding: 10px; }
-.slot.slot-keys.empty { min-height: 92px; }
+.slot.slot-keys.empty { min-height: 134px; }
 .slot-help {
   position: absolute;
   top: 8px;
@@ -771,9 +799,12 @@ b {
 .mod-pitch { display: flex; justify-content: center; align-items: center; }
 .mod-filter { display: flex; align-items: center; justify-content: center; }
 .filter-knobs { display: flex; align-items: center; justify-content: center; gap: 10px; }
-.mod-fine { display: flex; align-items: center; justify-content: center; height: 100%; }
-/* グリッド内の微調整トグルは1マスにフィットさせる。 */
-.slot-fine .fine-btn { width: 100%; height: 100%; justify-content: center; padding: 0 8px; }
+/* 微調整(上)＋スナップ(下)の2ボタンを縦に並べて 2×2。 */
+.mod-fine { display: flex; flex-direction: column; align-items: stretch; justify-content: center; gap: 6px; height: 100%; }
+/* グリッド内は2ボタンが枠の上下を埋める。 */
+.slot-fine .fine-btn { width: 100%; flex: 1 1 0; min-height: 0; justify-content: center; padding: 0 8px; }
+/* レッスン（pitch-cluster）内では2ボタンが縦に積まれた塊として出る。 */
+.pitch-cluster .mod-fine { height: auto; }
 .pitch-cluster { display: flex; align-items: center; justify-content: center; gap: 24px; flex-wrap: wrap; }
 
 /* モジュール見出し（FILTER 等、枠の中の小見出し）。 */

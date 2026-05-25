@@ -43,6 +43,7 @@ export default function App() {
   // --- 音まわりの状態 ---
   const [type, setType] = useState<OscillatorType>('sine')
   const [fine, setFine] = useState(false)
+  const [snap, setSnap] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
   const [env, setEnvState] = useState<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
@@ -58,6 +59,8 @@ export default function App() {
     onTune: (v) => setTune(v),
     fine,
     onToggleFine: () => setFine((v) => !v),
+    snap,
+    onToggleSnap: () => setSnap((v) => !v),
     env,
     onEnvChange: (key, value) => {
       const next = { ...env, [key]: value }

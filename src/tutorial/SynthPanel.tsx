@@ -63,16 +63,16 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
               <WaveFrame compact type={sound.type} onType={sound.onType} playing={sound.playing} />
             </Slot>
             <Slot {...slotProps('pitch')}>
-              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} />
+              <PitchFrame compact showText={showHelp} onTune={sound.onTune} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('fine')}>
-              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+              <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
             </Slot>
             <Slot {...slotProps('env')}>
-              <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+              <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('filter')}>
-              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+              <FilterFrame compact showText={showHelp} onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <MockSections />
           </div>

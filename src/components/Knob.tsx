@@ -10,10 +10,16 @@ interface Props {
   label?: string
   /** 微調整モード。Shift キー（PC）の代わりにスマホではボタンで ON にする。 */
   fine?: boolean
+  /** スナップ（カクカク）モード。ON で snapStep 刻みに値が量子化される。 */
+  snap?: boolean
+  /** スナップ時の刻み（値の単位）。未指定ならスナップしない。 */
+  snapStep?: number
   /** 値（赤LED表示）を出すか（盤面では「解説表示」トグルで制御）。 */
   showText?: boolean
   /** ツマミ下のドラッグ操作ヒントを出すか（盤面では枠が広がるので出さない）。 */
   showHint?: boolean
+  /** OK後の「パネル装着形へのモーフ」中。値LED・ヒントを畳んで消す。 */
+  morphing?: boolean
   format?: (v: number) => KnobFormat
   onChange?: (v: number) => void
 }
@@ -40,7 +46,7 @@ function mix(a: [number, number, number], b: [number, number, number], t: number
 
 /** 黒の削り出し風ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。
  *  値は下の赤LED窓に表示。表示サイズは親（グリッドのセル等）が決め、本体は枠いっぱいにスケールする。 */
-export function Knob({ min, max, defaultValue, label, fine = false, showText = true, showHint = true, format, onChange }: Props) {
+export function Knob({ min, max, defaultValue, label, fine = false, snap = false, snapStep, showText = true, showHint = true, morphing = false, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const uid = useId().replace(/:/g, '')
@@ -55,11 +61,13 @@ export function Knob({ min, max, defaultValue, label, fine = false, showText = t
   const norm = (value - min) / (max - min)
   const ang = A0 + norm * (A1 - A0)
 
+  // valueRef は連続値（ドラッグの蓄積）。表示・通知はスナップ時のみ刻みに丸める。
   const set = (v: number) => {
     const c = Math.max(min, Math.min(max, v))
     valueRef.current = c
-    setValue(c)
-    onChange?.(c)
+    const out = snap && snapStep ? Math.max(min, Math.min(max, Math.round(c / snapStep) * snapStep)) : c
+    setValue(out)
+    onChange?.(out)
   }
 
   const onDown = (e: ReactPointerEvent<SVGSVGElement>) => {
@@ -163,9 +171,9 @@ export function Knob({ min, max, defaultValue, label, fine = false, showText = t
         </svg>
       </div>
       {label && <div className="knob-label">{label}</div>}
-      {showText && <div className="knob-val">{f.main}</div>}
+      {showText && <div className={'knob-val' + (morphing ? ' collapsing' : '')}>{f.main}</div>}
       {showHint && (
-        <div className="knob-hint">
+        <div className={'knob-hint' + (morphing ? ' collapsing' : '')}>
           <span className="hint-mouse">上下にドラッグ ・ ダブルクリックで初期値</span>
           <span className="hint-touch">上下にドラッグ ・ ダブルタップで初期値</span>
         </div>

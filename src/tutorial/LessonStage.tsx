@@ -58,22 +58,22 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'env')
       return (
         <div data-stage-frame="env" {...frameProps('env')}>
-          <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} />
+          <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     if (lesson.id === 'filter')
       return (
         <div data-stage-frame="filter" {...frameProps('filter')}>
-          <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} />
+          <FilterFrame onCutoff={sound.onCutoff} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     return (
       <div className="pitch-cluster">
         <div data-stage-frame="pitch" {...frameProps('pitch')}>
-          <PitchFrame onTune={sound.onTune} fine={sound.fine} />
+          <PitchFrame onTune={sound.onTune} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
         <div data-stage-frame="fine" {...frameProps('fine')}>
-          <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} />
+          <FineFrame fine={sound.fine} onToggleFine={sound.onToggleFine} snap={sound.snap} onToggleSnap={sound.onToggleSnap} />
         </div>
       </div>
     )
