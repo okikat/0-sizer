@@ -46,7 +46,7 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'keys')
       return (
         <div data-stage-frame="keys" {...frameProps('keys')}>
-          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} />
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={!exiting} />
         </div>
       )
     if (lesson.id === 'wave')
@@ -58,7 +58,7 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'env')
       return (
         <div data-stage-frame="env" {...frameProps('env')}>
-          <EnvModule env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
+          <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     if (lesson.id === 'filter')

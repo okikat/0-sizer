@@ -14,6 +14,8 @@ interface Props {
   snap?: boolean
   /** スナップ時の刻み（値の単位）。未指定ならスナップしない。 */
   snapStep?: number
+  /** 目盛りの分割数（既定10）。スナップ刻みや値域に合わせて変える。 */
+  tickCount?: number
   /** 値（赤LED表示）を出すか（盤面では「解説表示」トグルで制御）。 */
   showText?: boolean
   /** ツマミ下のドラッグ操作ヒントを出すか（盤面では枠が広がるので出さない）。 */
@@ -46,7 +48,7 @@ function mix(a: [number, number, number], b: [number, number, number], t: number
 
 /** 黒の削り出し風ロータリーノブ。上下ドラッグで増減・fine(Shift/ボタン)で微調整・ダブルクリックで初期値。
  *  値は下の赤LED窓に表示。表示サイズは親（グリッドのセル等）が決め、本体は枠いっぱいにスケールする。 */
-export function Knob({ min, max, defaultValue, label, fine = false, snap = false, snapStep, showText = true, showHint = true, morphing = false, format, onChange }: Props) {
+export function Knob({ min, max, defaultValue, label, fine = false, snap = false, snapStep, tickCount = 10, showText = true, showHint = true, morphing = false, format, onChange }: Props) {
   const [value, setValue] = useState(defaultValue)
   const valueRef = useRef(defaultValue)
   const uid = useId().replace(/:/g, '')
@@ -100,11 +102,11 @@ export function Knob({ min, max, defaultValue, label, fine = false, snap = false
     set(valueRef.current - Math.sign(e.deltaY) * step)
   }
 
-  // パネル印刷の目盛り（白シルクスクリーン）。両端と中央を長めに。
+  // パネル印刷の目盛り（白シルクスクリーン）。両端と中央を長めに。tickCount=分割数。
   const ticks = []
-  for (let i = 0; i <= 10; i++) {
-    const ta = A0 + (i / 10) * (A1 - A0)
-    const major = i % 5 === 0
+  for (let i = 0; i <= tickCount; i++) {
+    const ta = A0 + (i / tickCount) * (A1 - A0)
+    const major = i === 0 || i === tickCount || i * 2 === tickCount
     const [ax, ay] = polar(r, r, tickR, ta)
     const [bx, by] = polar(r, r, tickR - (major ? r * 0.1 : r * 0.055), ta)
     ticks.push(

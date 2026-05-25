@@ -74,6 +74,7 @@ export function PitchFrame({
         fine={fine}
         snap={snap}
         snapStep={1}
+        tickCount={6}
         morphing={morphing}
         showText={showText}
         showHint={!compact}
@@ -96,7 +97,7 @@ export function FineFrame({ fine, onToggleFine, snap, onToggleSnap }: Pick<Sound
         微調整
       </button>
       <button className={'fine-btn' + (snap ? ' on' : '')} onClick={onToggleSnap} aria-pressed={snap}>
-        スナップ
+        SNAP
       </button>
     </div>
   )
