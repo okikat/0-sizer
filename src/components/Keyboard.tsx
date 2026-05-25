@@ -65,6 +65,7 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
   const pointers = useRef<Map<number, number>>(new Map())
   const held = useRef<number[]>([])
   const scrollRef = useRef<HTMLDivElement>(null)
+  const pianoRef = useRef<HTMLDivElement>(null)
   const barRef = useRef<HTMLDivElement>(null)
   const barDrag = useRef(false)
 
@@ -128,6 +129,20 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
     }
   }, [press, release])
 
+  // iOS の長押し拡大鏡(ルーペ)対策：user-select:none だけでは出てしまうので、
+  // 鍵盤の touch 既定動作を止める。pointerdown は別系統なので発音には影響しない。
+  useEffect(() => {
+    const el = pianoRef.current
+    if (!el) return
+    const prevent = (e: TouchEvent) => e.preventDefault()
+    el.addEventListener('touchstart', prevent, { passive: false })
+    el.addEventListener('touchmove', prevent, { passive: false })
+    return () => {
+      el.removeEventListener('touchstart', prevent)
+      el.removeEventListener('touchmove', prevent)
+    }
+  }, [])
+
   const syncWin = useCallback(() => {
     const el = scrollRef.current
     if (!el) return
@@ -170,7 +185,7 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
   return (
     <div className="kbd">
       <div className="kbd-scroll" ref={scrollRef} onScroll={syncWin}>
-        <div className="piano" style={{ width: TOTAL_W }}>
+        <div className="piano" ref={pianoRef} style={{ width: TOTAL_W }} onContextMenu={(e) => e.preventDefault()}>
           {WHITES.map((w) => (
             <div
               key={w.m}
