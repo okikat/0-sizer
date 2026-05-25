@@ -1064,41 +1064,82 @@ b {
   text-transform: uppercase;
   color: #6b7178;
 }
-/* 黒マットのパネル。角は直角、外周に細い白枠（シルクスクリーン）。 */
+/* 黒アルミ板。角は直角。上からの光＋微かなヘアライン＋削り出しの段差で立体に。 */
 .sample-panel {
-  background: #0c0c0d;
-  border: 1px solid rgba(255, 255, 255, 0.16);
+  position: relative;
   border-radius: 0;
-  padding: 22px;
-  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.04) inset, 0 8px 24px rgba(0, 0, 0, 0.6);
+  padding: 30px 26px;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
+    radial-gradient(130% 90% at 50% -12%, #1b1e23 0%, #0c0d0f 55%, #070809 100%);
+  border-top: 1px solid rgba(255, 255, 255, 0.12);
+  border-left: 1px solid rgba(255, 255, 255, 0.05);
+  border-right: 1px solid rgba(0, 0, 0, 0.6);
+  border-bottom: 1px solid rgba(0, 0, 0, 0.8);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.08),
+    inset 0 -10px 24px rgba(0, 0, 0, 0.5),
+    0 14px 30px rgba(0, 0, 0, 0.65);
 }
-/* モジュール枠：白い細線で囲む（直角）。左上にラベル。 */
+/* 四隅のネジ（金属の頭＋十字スリット＋落ち影）。 */
+.screw {
+  position: absolute;
+  width: 14px;
+  height: 14px;
+  border-radius: 50%;
+  background: radial-gradient(60% 60% at 38% 32%, #4a505a 0%, #20242b 55%, #0a0b0d 100%);
+  box-shadow: inset 0 1px 1px rgba(255, 255, 255, 0.25), inset 0 -1px 2px rgba(0, 0, 0, 0.8), 0 1px 2px rgba(0, 0, 0, 0.7);
+}
+.screw::before,
+.screw::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  margin: auto;
+  background: rgba(0, 0, 0, 0.55);
+  box-shadow: 0 1px 0 rgba(255, 255, 255, 0.08);
+}
+.screw::before {
+  width: 8px;
+  height: 1.5px;
+}
+.screw::after {
+  width: 1.5px;
+  height: 8px;
+}
+.screw--tl { top: 8px; left: 8px; }
+.screw--tr { top: 8px; right: 8px; }
+.screw--bl { bottom: 8px; left: 8px; }
+.screw--br { bottom: 8px; right: 8px; }
+/* モジュール枠：金属に彫った溝（凹）。白印刷の枠線＋内側の落ち影で沈める。 */
 .sample-module {
   position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.5);
+  border: 1px solid rgba(255, 255, 255, 0.4);
   border-radius: 0;
-  padding: 26px 18px 16px;
+  padding: 28px 22px 20px;
+  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 .sample-module-title {
   position: absolute;
   top: -8px;
   left: 12px;
   padding: 0 6px;
-  background: #0c0c0d;
+  background: #0c0d0f;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 3px;
   color: #eef3f7;
+  text-shadow: 0 1px 0 #000;
 }
 .sample-knobs {
   display: flex;
-  gap: 22px;
+  gap: 26px;
 }
 .sk {
   display: flex;
   flex-direction: column;
   align-items: center;
-  gap: 7px;
+  gap: 9px;
   width: 96px;
 }
 .sk-svg {
@@ -1108,17 +1149,26 @@ b {
   display: block;
   cursor: ns-resize;
 }
-/* 白シルクスクリーンのラベル。 */
+/* 白シルクスクリーンのラベル（彫り込み風に薄い影）。 */
 .sk-label {
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 2px;
-  color: #eef3f7;
+  color: #e7edf2;
+  text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
 }
-/* ティールのLCD値。 */
+/* 沈んだLCD窓＋ティールの発光数値。 */
 .sk-val {
   font-family: ui-monospace, Menlo, monospace;
   font-size: 13px;
   font-weight: 700;
   color: #5ad1c4;
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.55);
+  background: #05100f;
+  border: 1px solid #000;
+  border-radius: 0;
+  padding: 2px 8px;
+  min-width: 52px;
+  text-align: center;
+  box-shadow: inset 0 2px 4px rgba(0, 0, 0, 0.8), inset 0 0 6px rgba(90, 209, 196, 0.1);
 }
