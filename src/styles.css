@@ -1157,26 +1157,26 @@ b {
   color: #e7edf2;
   text-shadow: 0 -1px 0 rgba(0, 0, 0, 0.8);
 }
-/* 計器ウィンドウ：金属ベゼルに沈んだガラス＋上端のガラス反射＋ティール発光。 */
+/* 計器ウィンドウ：赤LED表示風。空白部も「消えていてもうっすら赤い」ガラス。 */
 .sk-val {
   position: relative;
   overflow: hidden;
   font-family: ui-monospace, Menlo, monospace;
   font-size: 13px;
   font-weight: 700;
-  color: #5ad1c4;
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
-  background: linear-gradient(#06140f, #03100b);
+  color: #ff4a39;
+  text-shadow: 0 0 7px rgba(255, 60, 40, 0.85);
+  background: linear-gradient(#1d0707, #110303);
   border-radius: 0;
   padding: 3px 10px;
   min-width: 56px;
   text-align: center;
   border-top: 1px solid #000;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid rgba(255, 255, 255, 0.07);
   box-shadow:
     inset 0 3px 5px rgba(0, 0, 0, 0.9),
     inset 0 -2px 3px rgba(0, 0, 0, 0.5),
-    inset 0 0 7px rgba(90, 209, 196, 0.12),
+    inset 0 0 9px rgba(255, 45, 30, 0.22),
     0 1px 0 rgba(255, 255, 255, 0.1);
 }
 /* 上端のガラス反射 */
