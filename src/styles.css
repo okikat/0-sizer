@@ -1068,7 +1068,7 @@ b {
 .sample-panel {
   position: relative;
   border-radius: 0;
-  padding: 30px 26px;
+  padding: 18px 16px;
   background:
     repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.014) 0 1px, rgba(0, 0, 0, 0) 1px 3px),
     radial-gradient(130% 90% at 50% -12%, #1b1e23 0%, #0c0d0f 55%, #070809 100%);
@@ -1081,7 +1081,8 @@ b {
     inset 0 -10px 24px rgba(0, 0, 0, 0.5),
     0 14px 30px rgba(0, 0, 0, 0.65);
 }
-/* 四隅のネジ（金属の頭＋十字スリット＋落ち影）。 */
+/* 四隅のネジ（金属の頭＋十字スリット＋落ち影）。
+   今は未使用（描画なし）だが、将来どこかで使うかもなので意匠を保存しておく。 */
 .screw {
   position: absolute;
   width: 14px;
@@ -1111,25 +1112,18 @@ b {
 .screw--tr { top: 8px; right: 8px; }
 .screw--bl { bottom: 8px; left: 8px; }
 .screw--br { bottom: 8px; right: 8px; }
-/* モジュール枠：金属に彫った溝（凹）。白印刷の枠線＋内側の落ち影で沈める。 */
+/* 枠は無し（小画面でツマミの密度・大きさを優先）。ラベルは盤面に直接印刷。 */
 .sample-module {
-  position: relative;
-  border: 1px solid rgba(255, 255, 255, 0.4);
-  border-radius: 0;
-  padding: 28px 22px 20px;
-  box-shadow: inset 0 2px 6px rgba(0, 0, 0, 0.5), inset 0 -1px 0 rgba(255, 255, 255, 0.05), 0 1px 0 rgba(255, 255, 255, 0.05);
+  padding: 0;
 }
 .sample-module-title {
-  position: absolute;
-  top: -8px;
-  left: 12px;
-  padding: 0 6px;
-  background: #0c0d0f;
   font-size: 11px;
   font-weight: 700;
   letter-spacing: 3px;
   color: #eef3f7;
   text-shadow: 0 1px 0 #000;
+  text-align: center;
+  margin-bottom: 12px;
 }
 .sample-knobs {
   display: flex;

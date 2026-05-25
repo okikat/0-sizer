@@ -161,10 +161,6 @@ export function StyleSample() {
     <div className="sample">
       <div className="sample-note">見本 / 立体感・所有感の検証</div>
       <div className="sample-panel">
-        <span className="screw screw--tl" />
-        <span className="screw screw--tr" />
-        <span className="screw screw--bl" />
-        <span className="screw screw--br" />
         <div className="sample-module">
           <div className="sample-module-title">FILTER</div>
           <div className="sample-knobs">
