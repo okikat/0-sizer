@@ -14,12 +14,6 @@ function polar(cx: number, cy: number, r: number, angleDeg: number): [number, nu
   const a = (angleDeg * Math.PI) / 180
   return [cx + r * Math.sin(a), cy - r * Math.cos(a)]
 }
-function arcPath(cx: number, cy: number, r: number, a0: number, a1: number): string {
-  const [x0, y0] = polar(cx, cy, r, a0)
-  const [x1, y1] = polar(cx, cy, r, a1)
-  const large = Math.abs(a1 - a0) > 180 ? 1 : 0
-  return `M${x0} ${y0} A${r} ${r} 0 ${large} 1 ${x1} ${y1}`
-}
 function mix(a: [number, number, number], b: [number, number, number], t: number) {
   const c = (i: number) => Math.round(a[i] + (b[i] - a[i]) * t)
   return `rgb(${c(0)},${c(1)},${c(2)})`
@@ -42,7 +36,6 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
 
   const r = VB / 2
   const tickR = r * 0.94
-  const arcR = r * 0.81
   const skirtR = r * 0.68
   const capR = r * 0.5
   const norm = (value - min) / (max - min)
@@ -137,17 +130,6 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
 
         {/* パネル印刷の目盛り */}
         <g>{ticks}</g>
-
-        {/* 値の弧：暗いトラック＋ティールの現在値（うっすら発光） */}
-        <path d={arcPath(r, r, arcR, A0, A1)} fill="none" stroke="#1b1e23" strokeWidth={r * 0.06} strokeLinecap="round" />
-        <path
-          d={arcPath(r, r, arcR, A0, ang)}
-          fill="none"
-          stroke="#5ad1c4"
-          strokeWidth={r * 0.06}
-          strokeLinecap="round"
-          style={{ filter: 'drop-shadow(0 0 1.5px rgba(90,209,196,0.7))' }}
-        />
 
         {/* ツマミ本体（影付きで浮かせる） */}
         <g filter={`url(#ds${uid})`}>
