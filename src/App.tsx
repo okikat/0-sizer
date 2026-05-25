@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { LESSONS, ALL_FRAMES, FRAME_HELP, type FrameId } from './tutorial/lessons'
+import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
@@ -32,6 +32,7 @@ export default function App() {
   const [popupOpen, setPopupOpen] = useState(false)
   const [showHelp, setShowHelp] = useState(false)
   const [menuOpen, setMenuOpen] = useState(false)
+  const [tutorialMenuOpen, setTutorialMenuOpen] = useState(false)
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [flights, setFlights] = useState<Record<string, FrameFlight>>({})
@@ -39,6 +40,8 @@ export default function App() {
   // 飛翔データ（最新値を timer 内で参照・更新するための実体）と取付先スロットの中心。
   const flightDataRef = useRef<Record<string, FrameFlight>>({})
   const destCenterRef = useRef<Record<string, { cx: number; cy: number }>>({})
+  // 「◀チュートリアル」から1レッスンだけ再生するプレビュー中か。
+  const previewRef = useRef(false)
 
   // --- 音まわりの状態 ---
   const [type, setType] = useState<OscillatorType>('sine')
@@ -79,6 +82,14 @@ export default function App() {
     flightDataRef.current = {}
     setInstalling(new Set())
     setExitPhase(null)
+    // プレビュー（1レッスンだけ）の時は、続けず全モジュールを戻してパネルへ。
+    if (previewRef.current) {
+      previewRef.current = false
+      setRealized(new Set(ALL_FRAMES))
+      setPopupOpen(false)
+      setPhase('panel')
+      return
+    }
     const next = lessonIndex + 1
     if (next < LESSONS.length) {
       setLessonIndex(next)
@@ -180,8 +191,26 @@ export default function App() {
     setExitPhase('morph')
   }
 
+  // 「◀チュートリアル」から1レッスンだけ再生。前のレッスンのモジュールは付いた状態で開始。
+  const previewLesson = (i: number) => {
+    stopAll()
+    setMenuOpen(false)
+    setTutorialMenuOpen(false)
+    previewRef.current = true
+    setRealized(new Set(LESSONS.slice(0, i).flatMap((l) => l.realizes)))
+    setFlights({})
+    flightDataRef.current = {}
+    setInstalling(new Set())
+    setExitPhase(null)
+    setLessonIndex(i)
+    setPopupOpen(false)
+    setStage('blink')
+    setPhase('lesson')
+  }
+
   const skip = () => {
     stopAll()
+    previewRef.current = false
     setRealized(new Set(ALL_FRAMES))
     localStorage.setItem(DONE_KEY, '1')
     setPhase('panel')
@@ -237,7 +266,7 @@ export default function App() {
         />
       )}
 
-      {menuOpen && <div className="menu-backdrop" onClick={() => setMenuOpen(false)} />}
+      {menuOpen && <div className="menu-backdrop" onClick={() => { setMenuOpen(false); setTutorialMenuOpen(false) }} />}
 
       {/* 右上：解説表示トグル ＋ メニュー */}
       <div className="topbar">
@@ -256,12 +285,28 @@ export default function App() {
           {menuOpen && (
             <div className="menu">
               {phase === 'panel' ? (
-                <button onClick={() => { setMenuOpen(false); replay() }}>
-                  もう一度見る
-                </button>
+                <>
+                  <div className="menu-row">
+                    <button className="menu-item" onClick={() => setTutorialMenuOpen((o) => !o)}>
+                      <span className="menu-arrow">◀</span>チュートリアル
+                    </button>
+                    {tutorialMenuOpen && (
+                      <div className="menu-sub">
+                        {LESSONS.map((l, i) => (
+                          <button key={l.id} onClick={() => previewLesson(i)}>
+                            {FRAME_TITLE[l.id]}
+                          </button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                  <button className="menu-item" onClick={() => { setMenuOpen(false); replay() }}>
+                    <span className="menu-arrow" />もう一度見る
+                  </button>
+                </>
               ) : (
-                <button onClick={() => { setMenuOpen(false); skip() }}>
-                  スキップ
+                <button className="menu-item" onClick={() => { setMenuOpen(false); skip() }}>
+                  <span className="menu-arrow" />スキップ
                 </button>
               )}
             </div>
