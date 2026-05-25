@@ -86,7 +86,7 @@ export function FineFrame({ fine, onToggleFine }: Pick<SoundCtl, 'fine' | 'onTog
   )
 }
 
-/** エンベロープ（A/D/S/R）フレーム：形のグラフ＋4スライダー。値は常時表示。 */
+/** エンベロープ（A/D/S/R）フレーム：形のグラフ＋4スライダー。数値は出さない（桁可変でレイアウトが崩れるため）。 */
 export function EnvModule({
   env,
   onEnvChange,
@@ -99,10 +99,10 @@ export function EnvModule({
       {showGraph && <EnvGraph attack={env.attack} decay={env.decay} sustain={env.sustain} release={env.release} />}
       <div className="env-row">
         <div className="env-sliders">
-          <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
-          <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
-          <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
-          <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
+          <Slider label="A" min={0.001} max={2} value={env.attack} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('attack', v)} />
+          <Slider label="D" min={0.001} max={2} value={env.decay} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('decay', v)} />
+          <Slider label="S" min={0} max={1} value={env.sustain} fine={fine} showValue={false} format={fmtPct} onChange={(v) => onEnvChange('sustain', v)} />
+          <Slider label="R" min={0.001} max={3} value={env.release} fine={fine} showValue={false} format={fmtTime} onChange={(v) => onEnvChange('release', v)} />
         </div>
         <button className="frame-toggle" onClick={() => setShowGraph((s) => !s)} aria-label="エンベロープ図の表示切り替え">
           {showGraph ? '▾' : '▸'}
