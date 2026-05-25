@@ -88,14 +88,15 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
     )
   }
 
-  // フルート（削り出しの溝）：光源を左上に置き、角度で明暗をつけて金属感を出す。
+  // フルート（削り出しの溝）：溝はツマミと一緒に回り、光源(左上)は固定。
+  // → 回すと溝が動くが、明るい部分は常に左上に留まる＝本物の金属の見え方。
   const LIGHT = -52
   const flutes = []
   const N = 44
   const fi = capR + r * 0.03
   const fo = skirtR - r * 0.01
   for (let i = 0; i < N; i++) {
-    const t = (i / N) * 360
+    const t = (i / N) * 360 + ang
     const [ax, ay] = polar(r, r, fi, t)
     const [bx, by] = polar(r, r, fo, t)
     const shade = (Math.cos(((t - LIGHT) * Math.PI) / 180) + 1) / 2
@@ -129,10 +130,6 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
             <stop offset="72%" stopColor="#0f1115" />
             <stop offset="100%" stopColor="#040506" />
           </radialGradient>
-          <linearGradient id={'spec' + uid} x1="0" y1="0" x2="0" y2="1">
-            <stop offset="0%" stopColor="#ffffff" stopOpacity="0.42" />
-            <stop offset="100%" stopColor="#ffffff" stopOpacity="0" />
-          </linearGradient>
           <filter id={'ds' + uid} x="-40%" y="-40%" width="180%" height="180%">
             <feDropShadow dx="0" dy="2.4" stdDeviation="2.2" floodColor="#000" floodOpacity="0.7" />
           </filter>
@@ -161,8 +158,6 @@ function SampleKnob({ min, max, defaultValue, label, format }: KnobProps) {
           <circle cx={r} cy={r} r={skirtR - 0.6} fill="none" stroke="#3a3f47" strokeWidth={0.5} opacity={0.5} />
           {/* ドーム状のキャップ */}
           <circle cx={r} cy={r} r={capR} fill={`url(#cap${uid})`} stroke="#000" strokeWidth={0.8} />
-          {/* キャップ上部のスペキュラ */}
-          <ellipse cx={r} cy={r - capR * 0.4} rx={capR * 0.52} ry={capR * 0.3} fill={`url(#spec${uid})`} />
           {/* 白い指針（彫り込み風：黒の下地＋白線） */}
           <line x1={pix} y1={piy} x2={pox} y2={poy} stroke="#000" strokeWidth={r * 0.085} strokeLinecap="round" />
           <line x1={pix} y1={piy} x2={pox} y2={poy} stroke="#f4f7fa" strokeWidth={r * 0.045} strokeLinecap="round" />
