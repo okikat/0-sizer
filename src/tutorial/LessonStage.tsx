@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -102,6 +102,14 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       return (
         <div data-stage-frame="delay" className={fp.className + ' slot slot-delay filled stage-delay'} style={fp.style}>
           <DelayFrame compact showText morphing={exiting} delayTime={sound.delayTime} onDelayTime={sound.onDelayTime} delayMix={sound.delayMix} onDelayMix={sound.onDelayMix} fine={sound.fine} snap={sound.snap} />
+        </div>
+      )
+    }
+    if (lesson.id === 'glide') {
+      const fp = frameProps('glide')
+      return (
+        <div data-stage-frame="glide" className={fp.className + ' slot slot-glide filled stage-glide'} style={fp.style}>
+          <GlideFrame compact showText morphing={exiting} glide={sound.glide} onGlide={sound.onGlide} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }

@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay' | 'glide'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -14,6 +14,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   osc2: 'OSC2',
   noise: 'NOISE',
   delay: 'DELAY',
+  glide: 'GLIDE',
 }
 
 export interface Lesson {
@@ -143,6 +144,18 @@ export const LESSONS: Lesson[] = [
       'DELAY ＝ 遅延（ちえん）。元の音を少し遅らせて繰り返す効果。エコー／山びこ。',
     ],
   },
+  {
+    id: 'glide',
+    realizes: ['glide'],
+    stageTitle: '滑る：GLIDE',
+    popup: [
+      'GLIDE は「音から音への滑り」担当。次の鍵盤を押した瞬間に、前の音から新しい音へ "スーッ" と滑らせます。',
+      '「TIME」は滑る速さ。0で即時（普通に切り替わる）、上げるほどゆっくり滑ります。',
+      '試し方：鍵盤を押しっぱなしのまま、別の鍵盤に指をずらしてみて。TIME を上げてあると、ピッチが新しい音へ滑らかに移ります。',
+      'コツ：薄くかける（1〜3）と滑らかさだけ。強くかける（5以上）と歌うような・テルミンのような表現に。シンセベースで指を「ズリ」と動かす感じ。',
+      'GLIDE ＝ ポルタメント（portamento）とも。音と音を切らず、ピッチで繋ぐ奏法。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -223,6 +236,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '鳴らした音を少し遅らせて繰り返す「山びこ」。TIME で遅れる時間、MIX で山びこの大きさ。',
       '短い TIME ＋ MIX で「広がり」、長い TIME ＋ MIX で「反復」。リードやパッドにかけると一気にプロっぽく。',
+    ],
+  },
+  glide: {
+    title: 'GLIDE',
+    paragraphs: [
+      '前の音から次の音へピッチを滑らせます。TIME＝滑る速さ（0で即時、上げるほどゆっくり）。',
+      '薄くかけると滑らかさ、強くかけると歌うような表現に。ベースやリードで効果的。',
     ],
   },
 }

@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
 import { type Preset } from './presets'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, KeyboardModule, type SoundCtl } from './modules'
 
 const COLS = 8
 const GAP = 0
@@ -15,6 +15,7 @@ const PANEL_LABELS: Partial<Record<FrameId, string>> = {
   osc2: 'OSC2',
   noise: 'NOISE',
   delay: 'DELAY',
+  glide: 'GLIDE',
 }
 
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
@@ -110,6 +111,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
             </Slot>
             <Slot {...slotProps('noise')}>
               <NoiseFrame compact showText={showHelp} noise={sound.noise} onNoise={sound.onNoise} fine={sound.fine} snap={sound.snap} />
+            </Slot>
+            <Slot {...slotProps('glide')}>
+              <GlideFrame compact showText={showHelp} glide={sound.glide} onGlide={sound.onGlide} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('delay')}>
               <DelayFrame compact showText={showHelp} delayTime={sound.delayTime} onDelayTime={sound.onDelayTime} delayMix={sound.delayMix} onDelayMix={sound.onDelayMix} fine={sound.fine} snap={sound.snap} />

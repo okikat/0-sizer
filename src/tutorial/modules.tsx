@@ -41,6 +41,8 @@ export interface SoundCtl {
   onDelayTime: (amt: number) => void
   delayMix: number
   onDelayMix: (amt: number) => void
+  glide: number
+  onGlide: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -427,6 +429,37 @@ export function DelayFrame({
           onChange={onDelayMix}
         />
       </div>
+    </div>
+  )
+}
+
+/** GLIDEフレーム：ピッチ移行の滑らかさ TIME 1ツマミ（2×2）。 */
+export function GlideFrame({
+  glide,
+  onGlide,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'glide' | 'onGlide' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-glide">
+      <Knob
+        value={glide}
+        fine={fine}
+        snap={snap}
+        snapStep={1}
+        morphing={morphing}
+        showText={showText}
+        showHint={!compact}
+        min={0}
+        max={10}
+        defaultValue={0}
+        label="TIME"
+        format={(v) => ({ main: String(Math.round(v)) })}
+        onChange={onGlide}
+      />
     </div>
   )
 }

@@ -47,6 +47,7 @@ export function useSynth() {
   const delayFbRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
+  const glideTauRef = useRef(0.005) // ピッチが新しい音へ滑る時定数（秒）。小さいほど即時。
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
   const resRef = useRef(0.7) // クセ無し（フラット）
   const detuneRef = useRef(0) // 2本目のオシレーターの定常デチューン量（セント）
@@ -205,8 +206,9 @@ export function useSynth() {
     const o2 = osc2Ref.current
     if (ctx && o1 && o2 && midiRef.current != null) {
       const f = midiToFreq(midiRef.current) * Math.pow(2, tuneRef.current / 12)
-      o1.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
-      o2.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
+      const tau = glideTauRef.current
+      o1.frequency.setTargetAtTime(f, ctx.currentTime, tau)
+      o2.frequency.setTargetAtTime(f, ctx.currentTime, tau)
     }
   }, [])
 
@@ -380,6 +382,10 @@ export function useSynth() {
     if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
   }, [])
 
+  const setGlideTime = useCallback((tauSec: number) => {
+    glideTauRef.current = Math.max(0.001, tauSec)
+  }, [])
+
   const setPan = useCallback((p: number) => {
     panRef.current = p
     const ctx = ctxRef.current
@@ -435,6 +441,7 @@ export function useSynth() {
     setPan,
     setDelayTime,
     setDelayMix,
+    setGlideTime,
     getAudioContext,
   }
 }
