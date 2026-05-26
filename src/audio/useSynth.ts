@@ -23,6 +23,9 @@ export interface EnvParams {
   release: number
 }
 
+/** LFO の行き先：音程(ビブラート) / 明るさ(オートワウ) / 音量(トレモロ) */
+export type LfoDest = 'pitch' | 'cutoff' | 'amp'
+
 export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
   const osc1Ref = useRef<OscillatorNode | null>(null)
@@ -35,7 +38,10 @@ export function useSynth() {
   const masterRef = useRef<GainNode | null>(null)
   const pannerRef = useRef<StereoPannerNode | null>(null)
   const lfoRef = useRef<OscillatorNode | null>(null)
-  const lfoGainRef = useRef<GainNode | null>(null)
+  const lfoPitchGainRef = useRef<GainNode | null>(null)
+  const lfoCutoffGainRef = useRef<GainNode | null>(null)
+  const lfoAmpGainRef = useRef<GainNode | null>(null)
+  const tremoloRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
@@ -48,7 +54,8 @@ export function useSynth() {
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
   const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
-  const lfoDepthRef = useRef(0) // セント（0=かからない）
+  const lfoDepthRef = useRef(0) // つまみ量 0〜10
+  const lfoDestRef = useRef<LfoDest>('pitch')
   const midiRef = useRef<number | null>(null)
   const envRef = useRef<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
@@ -58,12 +65,16 @@ export function useSynth() {
       const ctx = new Ctor()
       const gain = ctx.createGain()
       gain.gain.value = 0
+      // トレモロ用ゲイン：LFO が AMP に向くとここで音量を揺らす。既定 1.0。
+      const tremolo = ctx.createGain()
+      tremolo.gain.value = 1
       // マスター音量 → 定位(パン) → 出力。MIX モジュールがここを操作する。
       const master = ctx.createGain()
       master.gain.value = masterVolRef.current
       const panner = ctx.createStereoPanner()
       panner.pan.value = panRef.current
-      gain.connect(master)
+      gain.connect(tremolo)
+      tremolo.connect(master)
       master.connect(panner)
       panner.connect(ctx.destination)
       // 薄いリバーブ：パン後の出力を並列でコンボルバへ送り、wet で混ぜる（dry はそのまま出力）。
@@ -128,16 +139,24 @@ export function useSynth() {
       noiseUser.connect(noiseUserGain)
       noiseUserGain.connect(filter)
       noiseUser.start()
-      // LFO：低速オシレーターで両オシレーターの音程(detune/セント)を揺らす＝ビブラート。
-      // depth=0 なら掛からない（触るまで素の音）。osc2 の定常デチューンに加算で乗る。
+      // LFO：低速オシレーターで「ピッチ／カットオフ／音量」のいずれかを揺らす。
+      // 3 つの行き先用ゲインを並列に置き、現在の行き先以外は 0、選んだ先だけ depth に応じた値に。
       const lfo = ctx.createOscillator()
       lfo.type = 'sine'
       lfo.frequency.value = lfoRateRef.current
-      const lfoGain = ctx.createGain()
-      lfoGain.gain.value = lfoDepthRef.current
-      lfo.connect(lfoGain)
-      lfoGain.connect(osc1.detune)
-      lfoGain.connect(osc2.detune)
+      const lfoPitchGain = ctx.createGain()
+      lfoPitchGain.gain.value = 0
+      const lfoCutoffGain = ctx.createGain()
+      lfoCutoffGain.gain.value = 0
+      const lfoAmpGain = ctx.createGain()
+      lfoAmpGain.gain.value = 0
+      lfo.connect(lfoPitchGain)
+      lfoPitchGain.connect(osc1.detune)
+      lfoPitchGain.connect(osc2.detune)
+      lfo.connect(lfoCutoffGain)
+      lfoCutoffGain.connect(filter.detune)
+      lfo.connect(lfoAmpGain)
+      lfoAmpGain.connect(tremolo.gain)
       lfo.start()
       ctxRef.current = ctx
       gainRef.current = gain
@@ -150,7 +169,11 @@ export function useSynth() {
       masterRef.current = master
       pannerRef.current = panner
       lfoRef.current = lfo
-      lfoGainRef.current = lfoGain
+      lfoPitchGainRef.current = lfoPitchGain
+      lfoCutoffGainRef.current = lfoCutoffGain
+      lfoAmpGainRef.current = lfoAmpGain
+      tremoloRef.current = tremolo
+      // 既定の depth=0 なので 3 つとも 0 のまま。OK。
     }
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
   }, [])
@@ -283,12 +306,34 @@ export function useSynth() {
     if (ctx && lfo) lfo.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02)
   }, [])
 
-  const setLfoDepth = useCallback((cents: number) => {
-    lfoDepthRef.current = cents
+  // 現在の depth(amt 0〜10) と 行き先 から、3 つのゲインを設定する。
+  const applyLfo = useCallback(() => {
     const ctx = ctxRef.current
-    const g = lfoGainRef.current
-    if (ctx && g) g.gain.setTargetAtTime(cents, ctx.currentTime, 0.02)
+    const p = lfoPitchGainRef.current
+    const c = lfoCutoffGainRef.current
+    const a = lfoAmpGainRef.current
+    if (!ctx || !p || !c || !a) return
+    const amt = lfoDepthRef.current
+    const dest = lfoDestRef.current
+    // 行き先ごとの感度。聴感が揃うようにチューニング。
+    const pitchCents = dest === 'pitch' ? amt * 20 : 0   // 0〜200 cents（±2半音）
+    const cutoffCents = dest === 'cutoff' ? amt * 100 : 0 // 0〜1000 cents（≒±10半音/オクターブ弱）
+    const ampMod = dest === 'amp' ? amt * 0.07 : 0       // 0〜0.7（音量を 0.3〜1.7 で揺らす）
+    const t = ctx.currentTime
+    p.gain.setTargetAtTime(pitchCents, t, 0.02)
+    c.gain.setTargetAtTime(cutoffCents, t, 0.02)
+    a.gain.setTargetAtTime(ampMod, t, 0.02)
   }, [])
+
+  const setLfoDepth = useCallback((amt: number) => {
+    lfoDepthRef.current = amt
+    applyLfo()
+  }, [applyLfo])
+
+  const setLfoDest = useCallback((d: LfoDest) => {
+    lfoDestRef.current = d
+    applyLfo()
+  }, [applyLfo])
 
   const setMasterVol = useCallback((v: number) => {
     masterVolRef.current = v
@@ -347,6 +392,7 @@ export function useSynth() {
     setFilterEnv,
     setLfoRate,
     setLfoDepth,
+    setLfoDest,
     setMasterVol,
     setPan,
     getAudioContext,

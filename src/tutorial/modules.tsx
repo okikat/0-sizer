@@ -4,7 +4,7 @@ import { Scope } from '../components/Scope'
 import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
-import type { EnvParams } from '../audio/useSynth'
+import type { EnvParams, LfoDest } from '../audio/useSynth'
 import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
@@ -29,6 +29,8 @@ export interface SoundCtl {
   onLfoRate: (amt: number) => void
   lfoDepth: number
   onLfoDepth: (amt: number) => void
+  lfoDest: LfoDest
+  onLfoDest: (d: LfoDest) => void
   detune: number
   onDetune: (amt: number) => void
   mix: number
@@ -195,14 +197,23 @@ export function LfoFrame({
   onLfoRate,
   lfoDepth,
   onLfoDepth,
+  lfoDest,
+  onLfoDest,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'lfoRate' | 'onLfoRate' | 'lfoDepth' | 'onLfoDepth' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'lfoRate' | 'onLfoRate' | 'lfoDepth' | 'onLfoDepth' | 'lfoDest' | 'onLfoDest' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-lfo">
+      <div className="lfo-dest">
+        {(['pitch', 'cutoff', 'amp'] as const).map((d) => (
+          <button key={d} className={'lfo-dest-btn' + (lfoDest === d ? ' sel' : '')} onClick={() => onLfoDest(d)} aria-pressed={lfoDest === d}>
+            {d === 'pitch' ? 'PITCH' : d === 'cutoff' ? 'CUTOFF' : 'AMP'}
+          </button>
+        ))}
+      </div>
       <div className="lfo-knobs">
         <Knob
           value={lfoRate}

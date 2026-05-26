@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSynth, type EnvParams } from './audio/useSynth'
+import { useSynth, type EnvParams, type LfoDest } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, lfoDepthToCents, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel } from './audio/params'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -24,7 +24,7 @@ const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setNoise, setFilterEnv, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setNoise, setFilterEnv, setLfoRate, setLfoDepth, setLfoDest, setMasterVol, setPan, getAudioContext } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -56,6 +56,7 @@ export default function App() {
   const [resAmt, setResAmt] = useState(0)
   const [lfoRateAmt, setLfoRateAmt] = useState(3)
   const [lfoDepthAmt, setLfoDepthAmt] = useState(0)
+  const [lfoDestState, setLfoDestState] = useState<LfoDest>('pitch')
   const [detuneAmt, setDetuneAmt] = useState(0)
   const [mixAmt, setMixAmt] = useState(5)
   const [noiseAmt, setNoiseAmt] = useState(0)
@@ -88,7 +89,9 @@ export default function App() {
     lfoRate: lfoRateAmt,
     onLfoRate: (amt) => { setLfoRateAmt(amt); setLfoRate(lfoRateToHz(amt)) },
     lfoDepth: lfoDepthAmt,
-    onLfoDepth: (amt) => { setLfoDepthAmt(amt); setLfoDepth(lfoDepthToCents(amt)) },
+    onLfoDepth: (amt) => { setLfoDepthAmt(amt); setLfoDepth(amt) },
+    lfoDest: lfoDestState,
+    onLfoDest: (d) => { setLfoDestState(d); setLfoDest(d) },
     detune: detuneAmt,
     onDetune: (amt) => { setDetuneAmt(amt); setDetune(detuneAmtToCents(amt)) },
     mix: mixAmt,
@@ -269,11 +272,13 @@ export default function App() {
     setType(p.type)
     setWaveform(p.type)
     setFilterEnv(p.filterEnvAmt, p.filterEnvDecay)
+    setLfoDestState(p.lfoDest)
+    setLfoDest(p.lfoDest)
     const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, e: EnvParams) => {
       setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
       setResAmt(res); setResonance(resAmtToQ(res))
       setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
-      setLfoDepthAmt(ld); setLfoDepth(lfoDepthToCents(ld))
+      setLfoDepthAmt(ld); setLfoDepth(ld)
       setMixAmt(mix); setMix(mixAmtToBalance(mix))
       setDetuneAmt(det); setDetune(detuneAmtToCents(det))
       setNoiseAmt(noise); setNoise(noiseAmtToLevel(noise))

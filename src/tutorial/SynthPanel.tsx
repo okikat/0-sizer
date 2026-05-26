@@ -99,7 +99,7 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
               <FilterFrame compact showText={showHelp} cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('lfo')}>
-              <LfoFrame compact showText={showHelp} lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} fine={sound.fine} snap={sound.snap} />
+              <LfoFrame compact showText={showHelp} lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} lfoDest={sound.lfoDest} onLfoDest={sound.onLfoDest} fine={sound.fine} snap={sound.snap} />
             </Slot>
             <Slot {...slotProps('mix')}>
               <MixFrame compact showText={showHelp} onVol={sound.onVol} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />
