@@ -5,7 +5,7 @@ import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
 import type { EnvParams, LfoDest } from '../audio/useSynth'
-import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix } from '../audio/params'
+import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
 
@@ -37,6 +37,10 @@ export interface SoundCtl {
   onMix: (amt: number) => void
   noise: number
   onNoise: (amt: number) => void
+  delayTime: number
+  onDelayTime: (amt: number) => void
+  delayMix: number
+  onDelayMix: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -373,6 +377,56 @@ export function NoiseFrame({
         format={(v) => ({ main: String(Math.round(v)) })}
         onChange={onNoise}
       />
+    </div>
+  )
+}
+
+/** DELAYフレーム：TIME（遅れる時間）と MIX（山びこの大きさ）の2ツマミ。 */
+export function DelayFrame({
+  delayTime,
+  onDelayTime,
+  delayMix,
+  onDelayMix,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'delayTime' | 'onDelayTime' | 'delayMix' | 'onDelayMix' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-delay">
+      <div className="delay-knobs">
+        <Knob
+          value={delayTime}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={3}
+          label="TIME"
+          format={(v) => ({ main: fmtDelayMs(delayTimeAmtToSec(v)) })}
+          onChange={onDelayTime}
+        />
+        <Knob
+          value={delayMix}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={0}
+          label="MIX"
+          format={(v) => ({ main: String(Math.round(v)) })}
+          onChange={onDelayMix}
+        />
+      </div>
     </div>
   )
 }

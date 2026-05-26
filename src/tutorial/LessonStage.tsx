@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -94,6 +94,14 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       return (
         <div data-stage-frame="noise" className={fp.className + ' slot slot-noise filled stage-noise'} style={fp.style}>
           <NoiseFrame compact showText morphing={exiting} noise={sound.noise} onNoise={sound.onNoise} fine={sound.fine} snap={sound.snap} />
+        </div>
+      )
+    }
+    if (lesson.id === 'delay') {
+      const fp = frameProps('delay')
+      return (
+        <div data-stage-frame="delay" className={fp.className + ' slot slot-delay filled stage-delay'} style={fp.style}>
+          <DelayFrame compact showText morphing={exiting} delayTime={sound.delayTime} onDelayTime={sound.onDelayTime} delayMix={sound.delayMix} onDelayMix={sound.onDelayMix} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }

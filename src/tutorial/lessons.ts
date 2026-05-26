@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -13,6 +13,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   mix: 'MIX',
   osc2: 'OSC2',
   noise: 'NOISE',
+  delay: 'DELAY',
 }
 
 export interface Lesson {
@@ -130,6 +131,18 @@ export const LESSONS: Lesson[] = [
       'NOISE ＝ 雑音（あらゆる音程を含む音）。シンセではこれを「素」として、フィルターやエンベロープで形を与えていきます。',
     ],
   },
+  {
+    id: 'delay',
+    realizes: ['delay'],
+    stageTitle: '山びこ：DELAY',
+    popup: [
+      'DELAY は「山びこ」担当。鳴らした音が、少し遅れてもう一度（何度か）繰り返されます。',
+      '「TIME」は遅れる時間。短く（数十ms）すると元の音にくっついて厚みになり、長く（数百ms〜1秒）すると遠くの山びこのように離れて聞こえます。',
+      '「MIX」は山びこの大きさ。0で消滅、上げるほどはっきり山びこが鳴ります。鍵盤から指を離した後も、山びこは少し続けて鳴ります。',
+      'コツ：短い TIME（〜100ms）＋ MIX 強めで「広がり」「厚み」、長い TIME ＋ MIX 強めで「リズミカルな反復」。シンセリードやパッドにかけると一気にプロっぽくなります。',
+      'DELAY ＝ 遅延（ちえん）。元の音を少し遅らせて繰り返す効果。エコー／山びこ。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -203,6 +216,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       'ホワイトノイズの音源。LEVEL で混ぜる量を決めます。フィルター(CUTOFF)を下げるとノイズもこもり、風や息のようになります。',
       '波形に少し混ぜると、息づかいや質感を足せます。最大にすればホワイトノイズ単体に。',
+    ],
+  },
+  delay: {
+    title: 'DELAY',
+    paragraphs: [
+      '鳴らした音を少し遅らせて繰り返す「山びこ」。TIME で遅れる時間、MIX で山びこの大きさ。',
+      '短い TIME ＋ MIX で「広がり」、長い TIME ＋ MIX で「反復」。リードやパッドにかけると一気にプロっぽく。',
     ],
   },
 }

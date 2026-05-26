@@ -24,6 +24,12 @@ export const fmtPan = (amt: number) => (amt === 0 ? 'C' : amt < 0 ? `L${Math.abs
 // NOISE LEVEL は「つまみ 0〜10」を 0〜0.5 のゲインに（オシ2本と釣り合う上限）。
 export const noiseAmtToLevel = (amt: number) => (amt / 10) * 0.5
 
+// DELAY TIME は「つまみ 0〜10」を 50〜1000ms（線形）。
+export const delayTimeAmtToSec = (amt: number) => 0.05 + (amt / 10) * 0.95
+export const fmtDelayMs = (sec: number) => `${Math.round(sec * 1000)}`
+// DELAY MIX は「つまみ 0〜10」を 0〜0.5 の送り量に。
+export const delayMixAmtToLevel = (amt: number) => (amt / 10) * 0.5
+
 // OSC2 DETUNE は「つまみ 0〜10」を 0〜50 セントに（広めの厚み）。
 export const detuneAmtToCents = (amt: number) => amt * 5
 // OSC2 MIX は「つまみ 0〜10」を 0〜1 のバランス（0=OSC1のみ, 10=OSC2のみ, 5=半々）。

@@ -42,6 +42,9 @@ export function useSynth() {
   const lfoCutoffGainRef = useRef<GainNode | null>(null)
   const lfoAmpGainRef = useRef<GainNode | null>(null)
   const tremoloRef = useRef<GainNode | null>(null)
+  const delayRef = useRef<DelayNode | null>(null)
+  const delaySendRef = useRef<GainNode | null>(null)
+  const delayFbRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
@@ -53,6 +56,8 @@ export function useSynth() {
   const filterEnvDecayRef = useRef(0.3) // フィルターが基準値へ戻る時間（秒）
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
   const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
+  const delayTimeRef = useRef(0.32) // 秒（既定 320ms ≒ 4分音符@80bpm 相当）
+  const delayMixRef = useRef(0) // 0..0.5（送り量）
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
   const lfoDepthRef = useRef(0) // つまみ量 0〜10
   const lfoDestRef = useRef<LfoDest>('pitch')
@@ -93,6 +98,19 @@ export function useSynth() {
       panner.connect(wet)
       wet.connect(reverb)
       reverb.connect(ctx.destination)
+      // ディレイ：panner からの送り → DelayNode → 出力。フィードバックループで山びこに。
+      // 送り量(=MIX) は 0 既定でオフ。フィードバックは固定（暴れすぎず聴感のよい値）。
+      const delay = ctx.createDelay(2.0)
+      delay.delayTime.value = delayTimeRef.current
+      const delaySend = ctx.createGain()
+      delaySend.gain.value = delayMixRef.current
+      const delayFb = ctx.createGain()
+      delayFb.gain.value = 0.45
+      panner.connect(delaySend)
+      delaySend.connect(delay)
+      delay.connect(ctx.destination)
+      delay.connect(delayFb)
+      delayFb.connect(delay)
       // ローパスフィルター：音の素(osc)とエンベロープ(gain)の間に挟む。
       const filter = ctx.createBiquadFilter()
       filter.type = 'lowpass'
@@ -173,6 +191,9 @@ export function useSynth() {
       lfoCutoffGainRef.current = lfoCutoffGain
       lfoAmpGainRef.current = lfoAmpGain
       tremoloRef.current = tremolo
+      delayRef.current = delay
+      delaySendRef.current = delaySend
+      delayFbRef.current = delayFb
       // 既定の depth=0 なので 3 つとも 0 のまま。OK。
     }
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
@@ -342,6 +363,23 @@ export function useSynth() {
     if (ctx && m) m.gain.setTargetAtTime(v, ctx.currentTime, 0.01)
   }, [])
 
+  const setDelayTime = useCallback((sec: number) => {
+    const s = Math.max(0.005, Math.min(2, sec))
+    delayTimeRef.current = s
+    const ctx = ctxRef.current
+    const d = delayRef.current
+    // 急に変えると「ピロロ」とピッチが変わるので、ゆっくりランプ。
+    if (ctx && d) d.delayTime.setTargetAtTime(s, ctx.currentTime, 0.05)
+  }, [])
+
+  const setDelayMix = useCallback((level: number) => {
+    const l = Math.max(0, level)
+    delayMixRef.current = l
+    const ctx = ctxRef.current
+    const g = delaySendRef.current
+    if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
+  }, [])
+
   const setPan = useCallback((p: number) => {
     panRef.current = p
     const ctx = ctxRef.current
@@ -395,6 +433,8 @@ export function useSynth() {
     setLfoDest,
     setMasterVol,
     setPan,
+    setDelayTime,
+    setDelayMix,
     getAudioContext,
   }
 }
