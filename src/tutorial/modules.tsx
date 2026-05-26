@@ -47,6 +47,8 @@ export interface SoundCtl {
   onFenvAmt: (amt: number) => void
   fenvDecay: number
   onFenvDecay: (amt: number) => void
+  reverb: number
+  onReverb: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -514,6 +516,37 @@ export function FilterEnvFrame({
           onChange={onFenvDecay}
         />
       </div>
+    </div>
+  )
+}
+
+/** REVERB フレーム：空間の響きの混ぜ量 MIX 1ツマミ（全幅）。 */
+export function ReverbFrame({
+  reverb,
+  onReverb,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'reverb' | 'onReverb' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-reverb">
+      <Knob
+        value={reverb}
+        fine={fine}
+        snap={snap}
+        snapStep={1}
+        morphing={morphing}
+        showText={showText}
+        showHint={!compact}
+        min={0}
+        max={10}
+        defaultValue={3}
+        label="MIX"
+        format={(v) => ({ main: String(Math.round(v)) })}
+        onChange={onReverb}
+      />
     </div>
   )
 }

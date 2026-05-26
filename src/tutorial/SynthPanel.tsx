@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
 import { type Preset } from './presets'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, FilterEnvFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, FilterEnvFrame, ReverbFrame, KeyboardModule, type SoundCtl } from './modules'
 
 const COLS = 8
 const GAP = 0
@@ -17,6 +17,7 @@ const PANEL_LABELS: Partial<Record<FrameId, string>> = {
   delay: 'DELAY',
   glide: 'GLIDE',
   fenv: 'FILTER ENV',
+  reverb: 'REVERB',
 }
 
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
@@ -121,6 +122,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
             </Slot>
             <Slot {...slotProps('fenv')}>
               <FilterEnvFrame compact showText={showHelp} fenvAmt={sound.fenvAmt} onFenvAmt={sound.onFenvAmt} fenvDecay={sound.fenvDecay} onFenvDecay={sound.onFenvDecay} fine={sound.fine} snap={sound.snap} />
+            </Slot>
+            <Slot {...slotProps('reverb')}>
+              <ReverbFrame compact showText={showHelp} reverb={sound.reverb} onReverb={sound.onReverb} fine={sound.fine} snap={sound.snap} />
             </Slot>
           </div>
         </div>

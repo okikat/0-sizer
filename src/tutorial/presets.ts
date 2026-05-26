@@ -21,6 +21,7 @@ export interface Preset {
   glideAmt: number     // 0〜10（GLIDE 滑る速さ）
   filterEnvAmt: number     // 0〜10（フィルターEnv 持ち上げ量）
   filterEnvDecay: number   // 0〜10（フィルターEnv 戻り時間）
+  reverbMixAmt: number     // 0〜10（REVERB 響きの混ぜ量）
 }
 
 export const PRESETS: Preset[] = [
@@ -31,7 +32,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.003, decay: 0.9, sustain: 0.15, release: 0.3 },
     cutoff: 0.55, res: 0, lfoRate: 3, lfoDepth: 0,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 1, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 0, glideAmt: 0,
-    filterEnvAmt: 8, filterEnvDecay: 3,
+    filterEnvAmt: 8, filterEnvDecay: 3, reverbMixAmt: 3,
   },
   {
     name: 'オルガン',
@@ -39,7 +40,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.002, decay: 0.05, sustain: 1.0, release: 0.05 },
     cutoff: 0.8, res: 1, lfoRate: 6, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 0, lfoDest: 'amp', delayTimeAmt: 3, delayMixAmt: 1, glideAmt: 0,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 4,
   },
   {
     name: 'フルート',
@@ -47,7 +48,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.12, decay: 0.2, sustain: 0.85, release: 0.2 },
     cutoff: 1.0, res: 0, lfoRate: 5, lfoDepth: 1.5,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 2, lfoDest: 'pitch', delayTimeAmt: 4, delayMixAmt: 1, glideAmt: 1,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 5,
   },
   {
     name: 'ストリングス',
@@ -55,7 +56,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.5, decay: 0.4, sustain: 0.9, release: 0.8 },
     cutoff: 0.5, res: 1, lfoRate: 4, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 5, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 6, delayMixAmt: 2, glideAmt: 0,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 7,
   },
   {
     name: 'ベース',
@@ -63,7 +64,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.002, decay: 0.6, sustain: 0.0, release: 0.15 },
     cutoff: 0.3, res: 2, lfoRate: 3, lfoDepth: 0,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 1, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 0, glideAmt: 1,
-    filterEnvAmt: 8, filterEnvDecay: 2,
+    filterEnvAmt: 8, filterEnvDecay: 2, reverbMixAmt: 2,
   },
   {
     name: 'テルミン',
@@ -71,7 +72,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.25, decay: 0.2, sustain: 1.0, release: 0.4 },
     cutoff: 1.0, res: 0, lfoRate: 5, lfoDepth: 5,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 5, delayMixAmt: 2, glideAmt: 5,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 6,
   },
   // シンセ寄り
   {
@@ -80,7 +81,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.005, decay: 0.25, sustain: 0.85, release: 0.3 },
     cutoff: 0.78, res: 4, lfoRate: 5, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 4, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 4, delayMixAmt: 3, glideAmt: 2,
-    filterEnvAmt: 4, filterEnvDecay: 2,
+    filterEnvAmt: 4, filterEnvDecay: 2, reverbMixAmt: 4,
   },
   {
     name: 'シンセパッド',
@@ -88,7 +89,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.9, decay: 0.6, sustain: 0.9, release: 1.4 },
     cutoff: 0.55, res: 1, lfoRate: 2, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 6, noiseAmt: 0, lfoDest: 'cutoff', delayTimeAmt: 6, delayMixAmt: 4, glideAmt: 0,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 8,
   },
   {
     name: 'チップチューン',
@@ -96,7 +97,7 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.001, decay: 0.08, sustain: 0.6, release: 0.05 },
     cutoff: 1.0, res: 0, lfoRate: 3, lfoDepth: 0,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 2, delayMixAmt: 1, glideAmt: 0,
-    filterEnvAmt: 0, filterEnvDecay: 1,
+    filterEnvAmt: 0, filterEnvDecay: 1, reverbMixAmt: 1,
   },
   {
     name: 'アシッドベース',
@@ -104,6 +105,6 @@ export const PRESETS: Preset[] = [
     env: { attack: 0.002, decay: 0.3, sustain: 0.0, release: 0.15 },
     cutoff: 0.3, res: 8, lfoRate: 3, lfoDepth: 0,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 3, glideAmt: 2,
-    filterEnvAmt: 10, filterEnvDecay: 2,
+    filterEnvAmt: 10, filterEnvDecay: 2, reverbMixAmt: 2,
   },
 ]

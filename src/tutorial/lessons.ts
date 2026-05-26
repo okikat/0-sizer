@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay' | 'glide' | 'fenv'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay' | 'glide' | 'fenv' | 'reverb'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -16,6 +16,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   delay: 'DELAY',
   glide: 'GLIDE',
   fenv: 'FILTER ENV',
+  reverb: 'REVERB',
 }
 
 export interface Lesson {
@@ -170,6 +171,18 @@ export const LESSONS: Lesson[] = [
       'ENV ＝ Envelope（エンベロープ／時間変化の輪郭）。音量だけでなくフィルターにもエンベロープがかけられます。',
     ],
   },
+  {
+    id: 'reverb',
+    realizes: ['reverb'],
+    stageTitle: '空間：REVERB',
+    popup: [
+      'REVERB（リバーブ）は「響き」担当。広い部屋やホールで音を鳴らしたときの、周りの壁から返ってくる残響を足します。',
+      '「MIX」は響きの混ぜ量。0で全くなしのカラカラ、上げるほど広い空間の中で鳴っているような豊かさになります。',
+      'DELAY が「山びこ」（はっきり返る反復）なのに対し、REVERB は「ぼやけて溶けあう余韻」。歌でいうとお風呂で歌った時の「ふくよかさ」がこれです。',
+      'コツ：パッドやストリングス、フルートなど「ふんわり」させたい音に深め（5〜8）。ベースやチップチューンなど「タイト」に決めたい音には浅め（0〜2）。',
+      'REVERB ＝ reverberation（リバーバレーション／残響）。空間の響き、すべてを包む空気感。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -264,6 +277,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '弾いた瞬間に CUTOFF を持ち上げて、時間をかけて戻す「フィルターのエンベロープ」。打鍵感や 303 風の「ニャーォ」を作ります。',
       'AMOUNT＝持ち上げる量、DECAY＝戻るまでの時間。FILTER の CUTOFF を下げた状態でかけると効果がはっきり出ます。',
+    ],
+  },
+  reverb: {
+    title: 'REVERB',
+    paragraphs: [
+      '空間の響き（残響）。MIX＝混ぜる量。0でカラカラ、上げるほど広い部屋で鳴らしているようなふくよかさに。',
+      'DELAY（はっきり返る山びこ）に対して、REVERB は「ぼやけて溶けあう余韻」。パッドや弦に深め、ベースや 8bit には浅めが定石。',
     ],
   },
 }

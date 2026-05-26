@@ -30,6 +30,9 @@ export const fmtDelayMs = (sec: number) => `${Math.round(sec * 1000)}`
 // DELAY MIX は「つまみ 0〜10」を 0〜0.5 の送り量に。
 export const delayMixAmtToLevel = (amt: number) => (amt / 10) * 0.5
 
+// REVERB MIX は「つまみ 0〜10」を 0〜0.5 の wet 送り量に。
+export const reverbMixAmtToLevel = (amt: number) => (amt / 10) * 0.5
+
 // GLIDE TIME は「つまみ 0〜10」を 5〜505ms（時定数 tau）。0で即時、大きいほどゆっくり滑る。
 export const glideAmtToTau = (amt: number) => 0.005 + (amt / 10) * 0.5
 

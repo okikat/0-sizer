@@ -45,6 +45,7 @@ export function useSynth() {
   const delayRef = useRef<DelayNode | null>(null)
   const delaySendRef = useRef<GainNode | null>(null)
   const delayFbRef = useRef<GainNode | null>(null)
+  const reverbWetRef = useRef<GainNode | null>(null)
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const glideTauRef = useRef(0.005) // ピッチが新しい音へ滑る時定数（秒）。小さいほど即時。
@@ -59,6 +60,7 @@ export function useSynth() {
   const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
   const delayTimeRef = useRef(0.32) // 秒（既定 320ms ≒ 4分音符@80bpm 相当）
   const delayMixRef = useRef(0) // 0..0.5（送り量）
+  const reverbMixRef = useRef(0.15) // 0..0.5（wet 送り量。既定はかすかな部屋鳴り）
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
   const lfoDepthRef = useRef(0) // つまみ量 0〜10
   const lfoDestRef = useRef<LfoDest>('pitch')
@@ -101,7 +103,7 @@ export function useSynth() {
       }
       reverb.buffer = ir
       const wet = ctx.createGain()
-      wet.gain.value = 0.13
+      wet.gain.value = reverbMixRef.current
       panner.connect(wet)
       wet.connect(reverb)
       reverb.connect(ctx.destination)
@@ -201,6 +203,7 @@ export function useSynth() {
       delayRef.current = delay
       delaySendRef.current = delaySend
       delayFbRef.current = delayFb
+      reverbWetRef.current = wet
       // 既定の depth=0 なので 3 つとも 0 のまま。OK。
     }
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
@@ -403,6 +406,14 @@ export function useSynth() {
     if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
   }, [])
 
+  const setReverbMix = useCallback((level: number) => {
+    const l = Math.max(0, level)
+    reverbMixRef.current = l
+    const ctx = ctxRef.current
+    const g = reverbWetRef.current
+    if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
+  }, [])
+
   const setGlideTime = useCallback((tauSec: number) => {
     glideTauRef.current = Math.max(0.001, tauSec)
   }, [])
@@ -462,6 +473,7 @@ export function useSynth() {
     setPan,
     setDelayTime,
     setDelayMix,
+    setReverbMix,
     setGlideTime,
     getAudioContext,
   }

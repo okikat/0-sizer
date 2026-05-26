@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams, type LfoDest } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec } from './audio/params'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, reverbMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -24,7 +24,7 @@ const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setNoise, setFilterEnv, setLfoRate, setLfoDepth, setLfoDest, setMasterVol, setPan, setDelayTime, setDelayMix, setGlideTime, getAudioContext } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setNoise, setFilterEnv, setLfoRate, setLfoDepth, setLfoDest, setMasterVol, setPan, setDelayTime, setDelayMix, setReverbMix, setGlideTime, getAudioContext } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -65,6 +65,7 @@ export default function App() {
   const [glideAmt, setGlideAmt] = useState(0)
   const [fenvAmtState, setFenvAmtState] = useState(0)
   const [fenvDecayState, setFenvDecayState] = useState(3)
+  const [reverbAmt, setReverbAmt] = useState(3)
   const tweenRef = useRef<number | null>(null)
 
   const stopAll = useCallback(() => {
@@ -113,6 +114,8 @@ export default function App() {
     onFenvAmt: (amt) => { setFenvAmtState(amt); setFilterEnv(fenvAmtToOctaves(amt), fenvDecayAmtToSec(fenvDecayState)) },
     fenvDecay: fenvDecayState,
     onFenvDecay: (amt) => { setFenvDecayState(amt); setFilterEnv(fenvAmtToOctaves(fenvAmtState), fenvDecayAmtToSec(amt)) },
+    reverb: reverbAmt,
+    onReverb: (amt) => { setReverbAmt(amt); setReverbMix(reverbMixAmtToLevel(amt)) },
     onVol: (v) => setMasterVol(v),
     onPan: (p) => setPan(p),
     onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
@@ -288,7 +291,7 @@ export default function App() {
     setWaveform(p.type)
     setLfoDestState(p.lfoDest)
     setLfoDest(p.lfoDest)
-    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, dt: number, dm: number, gl: number, fa: number, fd: number, e: EnvParams) => {
+    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, dt: number, dm: number, gl: number, fa: number, fd: number, rv: number, e: EnvParams) => {
       setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
       setResAmt(res); setResonance(resAmtToQ(res))
       setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
@@ -300,14 +303,15 @@ export default function App() {
       setDelayMixAmt(dm); setDelayMix(delayMixAmtToLevel(dm))
       setGlideAmt(gl); setGlideTime(glideAmtToTau(gl))
       setFenvAmtState(fa); setFenvDecayState(fd); setFilterEnv(fenvAmtToOctaves(fa), fenvDecayAmtToSec(fd))
+      setReverbAmt(rv); setReverbMix(reverbMixAmtToLevel(rv))
       setEnvState(e); setEnv(e)
     }
     if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.noiseAmt, p.delayTimeAmt, p.delayMixAmt, p.glideAmt, p.filterEnvAmt, p.filterEnvDecay, p.env)
+      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.noiseAmt, p.delayTimeAmt, p.delayMixAmt, p.glideAmt, p.filterEnvAmt, p.filterEnvDecay, p.reverbMixAmt, p.env)
       return
     }
-    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, noise: noiseAmt, dt: delayTimeAmt, dm: delayMixAmt, gl: glideAmt, fa: fenvAmtState, fd: fenvDecayState, ...env }
+    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, noise: noiseAmt, dt: delayTimeAmt, dm: delayMixAmt, gl: glideAmt, fa: fenvAmtState, fd: fenvDecayState, rv: reverbAmt, ...env }
     const DUR = 600
     const t0 = performance.now()
     const step = (now: number) => {
@@ -327,6 +331,7 @@ export default function App() {
         lp(s.gl, p.glideAmt),
         lp(s.fa, p.filterEnvAmt),
         lp(s.fd, p.filterEnvDecay),
+        lp(s.rv, p.reverbMixAmt),
         {
           attack: lp(s.attack, p.env.attack),
           decay: lp(s.decay, p.env.decay),
