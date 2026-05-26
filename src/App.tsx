@@ -24,7 +24,7 @@ const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setFilterEnv, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -244,10 +244,13 @@ export default function App() {
     setPhase('intro')
   }
 
-  // プリセット選択：波形を即変更し、ENV・FILTER・LFO を 0.6 秒かけてアニメで目標値へ。
+  // プリセット選択：波形と内部パラメータ（デチューン・フィルターEnv）を即セット。
+  // 表示のあるツマミ系（ENV・FILTER・LFO）は 0.6 秒かけてアニメで目標値へ。
   const applyPreset = (p: Preset) => {
     setType(p.type)
     setWaveform(p.type)
+    setDetune(p.detune)
+    setFilterEnv(p.filterEnvAmt, p.filterEnvDecay)
     const setAll = (cutoff: number, res: number, lr: number, ld: number, e: EnvParams) => {
       setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
       setResAmt(res); setResonance(resAmtToQ(res))

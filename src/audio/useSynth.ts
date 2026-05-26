@@ -8,12 +8,12 @@ const NOISE_LEVEL = 0.004
 
 /**
  * モノフォニックなシンセエンジン。
- * オシレーター1個 + ゲイン1個を常駐させ、noteOn でゲインを上げ、noteOff で下げる。
- * 周波数は「弾いた音(midi)」×「TUNE(半音)」で決まる。
+ * 2本のオシレーター(デチューンで厚み) + フィルター(エンベロープ付き) + ゲイン(エンベロープ) +
+ * マスター・パン → 出力。出力には薄いリバーブ(コンボルバ)を並列で混ぜて空間感を与える。
  * AudioContext はブラウザの autoplay 制限のため、最初の noteOn(ユーザー操作)で生成する。
  */
-// 音量エンベロープのピーク（元の 0.18 相当）。
-const PEAK = 0.2
+// 音量エンベロープのピーク。2本のオシレーターが加算で 2倍 になるため、従来 0.2 から下げる。
+const PEAK = 0.13
 
 export interface EnvParams {
   attack: number
@@ -24,7 +24,8 @@ export interface EnvParams {
 
 export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
-  const oscRef = useRef<OscillatorNode | null>(null)
+  const osc1Ref = useRef<OscillatorNode | null>(null)
+  const osc2Ref = useRef<OscillatorNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const filterRef = useRef<BiquadFilterNode | null>(null)
   const masterRef = useRef<GainNode | null>(null)
@@ -35,6 +36,9 @@ export function useSynth() {
   const tuneRef = useRef(0)
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
   const resRef = useRef(0.7) // クセ無し（フラット）
+  const detuneRef = useRef(0) // 2本目のオシレーターの定常デチューン量（セント）
+  const filterEnvAmtRef = useRef(0) // 弾いた瞬間のフィルター持ち上げ量（オクターブ）
+  const filterEnvDecayRef = useRef(0.3) // フィルターが基準値へ戻る時間（秒）
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
   const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
@@ -56,18 +60,40 @@ export function useSynth() {
       gain.connect(master)
       master.connect(panner)
       panner.connect(ctx.destination)
+      // 薄いリバーブ：パン後の出力を並列でコンボルバへ送り、wet で混ぜる（dry はそのまま出力）。
+      // IR は減衰ノイズを合成して生成（音源ファイルなし）。
+      const reverb = ctx.createConvolver()
+      const sr = ctx.sampleRate
+      const irLen = Math.floor(sr * 1.6)
+      const ir = ctx.createBuffer(2, irLen, sr)
+      for (let ch = 0; ch < 2; ch++) {
+        const d = ir.getChannelData(ch)
+        for (let i = 0; i < irLen; i++) d[i] = (Math.random() * 2 - 1) * Math.pow(1 - i / irLen, 2.4)
+      }
+      reverb.buffer = ir
+      const wet = ctx.createGain()
+      wet.gain.value = 0.13
+      panner.connect(wet)
+      wet.connect(reverb)
+      reverb.connect(ctx.destination)
       // ローパスフィルター：音の素(osc)とエンベロープ(gain)の間に挟む。
-      // osc → filter → gain → 出力。既定は全開なので触らなければ素の音のまま。
       const filter = ctx.createBiquadFilter()
       filter.type = 'lowpass'
       filter.frequency.value = cutoffRef.current
       filter.Q.value = resRef.current
       filter.connect(gain)
-      const osc = ctx.createOscillator()
-      osc.type = typeRef.current
-      osc.frequency.value = 440
-      osc.connect(filter)
-      osc.start()
+      // 主オシレーター 2本（デチューンで厚みを出す）。同じ波形・周波数で、osc2 だけ定常デチューン。
+      const osc1 = ctx.createOscillator()
+      osc1.type = typeRef.current
+      osc1.frequency.value = 440
+      osc1.connect(filter)
+      osc1.start()
+      const osc2 = ctx.createOscillator()
+      osc2.type = typeRef.current
+      osc2.frequency.value = 440
+      osc2.detune.value = detuneRef.current
+      osc2.connect(filter)
+      osc2.start()
       // 極小レベルのホワイトノイズを混ぜる(エンベロープ経由なので無音時は消える)。
       const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
       const data = noiseBuf.getChannelData(0)
@@ -80,35 +106,38 @@ export function useSynth() {
       noise.connect(noiseLevel)
       noiseLevel.connect(gain)
       noise.start()
-      // LFO：低速オシレーターで主オシレーターの音程(detune/セント)を揺らす＝ビブラート。
-      // depth=0 なら掛からない（触るまで素の音）。
+      // LFO：低速オシレーターで両オシレーターの音程(detune/セント)を揺らす＝ビブラート。
+      // depth=0 なら掛からない（触るまで素の音）。osc2 の定常デチューンに加算で乗る。
       const lfo = ctx.createOscillator()
       lfo.type = 'sine'
       lfo.frequency.value = lfoRateRef.current
       const lfoGain = ctx.createGain()
       lfoGain.gain.value = lfoDepthRef.current
       lfo.connect(lfoGain)
-      lfoGain.connect(osc.detune)
+      lfoGain.connect(osc1.detune)
+      lfoGain.connect(osc2.detune)
       lfo.start()
       ctxRef.current = ctx
       gainRef.current = gain
-      oscRef.current = osc
+      osc1Ref.current = osc1
+      osc2Ref.current = osc2
       filterRef.current = filter
       masterRef.current = master
       pannerRef.current = panner
       lfoRef.current = lfo
       lfoGainRef.current = lfoGain
     }
-    // 'suspended' に加え Safari の 'interrupted'（通話・スリープ後）も再開する。
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
   }, [])
 
   const applyFreq = useCallback(() => {
     const ctx = ctxRef.current
-    const osc = oscRef.current
-    if (ctx && osc && midiRef.current != null) {
+    const o1 = osc1Ref.current
+    const o2 = osc2Ref.current
+    if (ctx && o1 && o2 && midiRef.current != null) {
       const f = midiToFreq(midiRef.current) * Math.pow(2, tuneRef.current / 12)
-      osc.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
+      o1.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
+      o2.frequency.setTargetAtTime(f, ctx.currentTime, 0.006)
     }
   }, [])
 
@@ -118,22 +147,28 @@ export function useSynth() {
       midiRef.current = midi
       const ctx = ctxRef.current!
       const gain = gainRef.current!
-      // 実際に音をスケジュールする本体。context が running になってから呼ぶ。
+      const filter = filterRef.current!
       const trigger = () => {
         applyFreq()
         const now = ctx.currentTime
         const { attack, decay, sustain } = envRef.current
         const a = Math.max(0.005, attack)
         const d = Math.max(0.005, decay)
-        // 現在値から再スケジュール（連打・リリース途中の押し直しでもクリックしない）。
         const cur = Math.max(gain.gain.value, 0.0001)
         gain.gain.cancelScheduledValues(now)
         gain.gain.setValueAtTime(cur, now)
         gain.gain.linearRampToValueAtTime(PEAK, now + a)
         gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
+        // フィルターエンベロープ：弾いた瞬間に cutoff を envAmt オクターブ上げ、decay 秒で基準へ。
+        // 0 なら何もしない（基準値で安定）。
+        const envAmt = filterEnvAmtRef.current
+        const base = cutoffRef.current
+        const peak = envAmt > 0 ? Math.min(20000, base * Math.pow(2, envAmt)) : base
+        filter.frequency.cancelScheduledValues(now)
+        filter.frequency.setValueAtTime(peak, now)
+        const tau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
+        filter.frequency.setTargetAtTime(base, now + 0.005, tau)
       }
-      // アプリ復帰直後などは context が 'suspended'/'interrupted'。resume が完了してから
-      // 鳴らさないと「タップしたのに無音」になる。running なら即時、そうでなければ resume 後に。
       if (ctx.state === 'running') trigger()
       else ctx.resume().then(trigger).catch(() => {})
     },
@@ -158,7 +193,8 @@ export function useSynth() {
 
   const setWaveform = useCallback((t: OscillatorType) => {
     typeRef.current = t
-    if (oscRef.current) oscRef.current.type = t
+    if (osc1Ref.current) osc1Ref.current.type = t
+    if (osc2Ref.current) osc2Ref.current.type = t
   }, [])
 
   const setTune = useCallback(
@@ -181,6 +217,18 @@ export function useSynth() {
     const ctx = ctxRef.current
     const f = filterRef.current
     if (ctx && f) f.Q.setTargetAtTime(q, ctx.currentTime, 0.01)
+  }, [])
+
+  const setDetune = useCallback((cents: number) => {
+    detuneRef.current = cents
+    const ctx = ctxRef.current
+    const o2 = osc2Ref.current
+    if (ctx && o2) o2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
+  }, [])
+
+  const setFilterEnv = useCallback((amtOctaves: number, decaySec: number) => {
+    filterEnvAmtRef.current = amtOctaves
+    filterEnvDecayRef.current = decaySec
   }, [])
 
   const setLfoRate = useCallback((hz: number) => {
@@ -211,8 +259,6 @@ export function useSynth() {
     if (ctx && pn) pn.pan.setTargetAtTime(p, ctx.currentTime, 0.01)
   }, [])
 
-  // スリープ復帰・タブ復帰・通話後などで AudioContext が止まる。戻ってきたら先回りで再開し、
-  // 「数秒鳴らない」を防ぐ。pointerdown(capture)でも再開し、iOS のジェスチャー要件にも対応。
   useEffect(() => {
     const resume = () => {
       const ctx = ctxRef.current
@@ -231,7 +277,8 @@ export function useSynth() {
   useEffect(() => {
     return () => {
       try {
-        oscRef.current?.stop()
+        osc1Ref.current?.stop()
+        osc2Ref.current?.stop()
         void ctxRef.current?.close()
       } catch {
         // already closed
@@ -241,5 +288,20 @@ export function useSynth() {
 
   const getAudioContext = useCallback(() => ctxRef.current, [])
 
-  return { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext }
+  return {
+    noteOn,
+    noteOff,
+    setWaveform,
+    setTune,
+    setEnv,
+    setCutoff,
+    setResonance,
+    setDetune,
+    setFilterEnv,
+    setLfoRate,
+    setLfoDepth,
+    setMasterVol,
+    setPan,
+    getAudioContext,
+  }
 }
