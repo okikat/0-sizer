@@ -521,52 +521,263 @@ b {
   overflow: hidden;
 }
 .panel-wrap { flex: 1; min-height: 0; display: flex; flex-direction: column; animation: fadeIn 0.5s ease both; }
-.panel-head { margin-bottom: 8px; flex: 0 0 auto; }
-.panel-head .tag { font-size: 22px; }
 
-/* プリセット帯：出発点の音を選ぶ横長ボタン列（完成後のパネルで表示）。 */
-.preset-bar {
+/* ===== タブ行（鍵盤の真上）：[PANEL/SEQ 4] [PRESET 3] [☰ 1] = 1×8 =====
+   左手親指で PANEL/SEQ を切り替えられるよう左寄せ。右端の☰ は遠いが操作頻度が低いので OK。 */
+.tab-row {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 8px;
-  min-width: 0;
+  align-items: stretch;
+  height: 42px;
+  margin-top: 8px;
+  gap: 4px;
 }
-.preset-label {
-  flex: 0 0 auto;
-  font-size: 9px;
+.tab-toggle {
+  flex: 4 1 0;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+}
+.tab-btn {
+  flex: 1 1 0;
+  min-width: 0;
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  padding: 0 6px;
+  font-size: 13px;
   font-weight: 700;
   letter-spacing: 2px;
   color: var(--sub);
-}
-.preset-list {
-  flex: 1 1 auto;
-  min-width: 0;
-  display: flex;
-  gap: 6px;
-  overflow-x: auto;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 2px;
-}
-.preset-list::-webkit-scrollbar { height: 0; display: none; }
-.preset-btn {
-  flex: 0 0 auto;
-  white-space: nowrap;
-  padding: 7px 12px;
-  font-size: 12px;
-  font-weight: 700;
-  color: var(--txt);
-  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  /* 浮いている（非選択）：上面に薄い光、下に影。 */
+  background: linear-gradient(180deg, #1a1f27 0%, #0d1015 100%);
   border: 1px solid #000;
   border-radius: 0;
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.6);
   cursor: pointer;
 }
-.preset-btn:active {
-  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+.tab-btn.sel {
+  /* へこんで光る：上に影、文字はティールでうっすら発光。 */
   color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35), 0 0 6px rgba(90, 209, 196, 0.18);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+/* SEQ 再生中インジケータ：SEQ タブ文字の右にティールのドットが BPM で点滅。 */
+.tab-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+  animation: tab-dot-pulse 0.5s ease-in-out infinite alternate;
+}
+@keyframes tab-dot-pulse {
+  from { opacity: 0.35; }
+  to { opacity: 1; }
+}
+.tab-preset {
+  flex: 3 1 0;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 3px;
+  color: var(--txt);
+  background: linear-gradient(180deg, #1a1f27 0%, #0d1015 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+.tab-preset:active {
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85);
+  color: var(--accent);
+}
+.tab-menu-wrap {
+  flex: 1 1 0;
+  min-width: 0;
+}
+.tab-menu-btn {
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  gap: 4px;
+  background: linear-gradient(180deg, #1a1f27 0%, #0d1015 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
+}
+.tab-menu-btn span {
+  display: block;
+  width: 18px;
+  height: 2px;
+  background: var(--txt);
+  border-radius: 1px;
+}
+
+/* 上向きメニュー（タブ行のハンバーガーから上に開く）。 */
+.menu--up {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  top: auto;
+  right: 0;
+  z-index: 56;
+}
+
+/* SEQ プレースホルダ（Eternal シーケンサーは別途実装予定）。 */
+.seq-placeholder {
+  flex: 1 1 auto;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+}
+.seq-placeholder-inner {
+  text-align: center;
+  color: var(--sub);
+}
+.seq-placeholder-title {
+  font-size: 28px;
+  letter-spacing: 6px;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: 0 0 12px rgba(90, 209, 196, 0.4);
+}
+.seq-placeholder-sub { margin-top: 8px; font-size: 12px; }
+
+/* ===== PRESET モーダル（ホログラム投影風） =====
+   タブ行の上から、ティールで「投影」する。背面はうっすら暗幕。 */
+.preset-modal-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px 12px calc(64px + env(safe-area-inset-bottom)); /* 下：タブ行 + 鍵盤分の余白 */
+  background: radial-gradient(ellipse at bottom, rgba(90, 209, 196, 0.08), rgba(0, 0, 0, 0.55));
+  animation: hologramFade 0.18s ease-out both;
+}
+@keyframes hologramFade {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+.preset-modal {
+  position: relative;
+  width: 100%;
+  max-width: 520px;
+  max-height: 70vh;
+  display: flex;
+  flex-direction: column;
+  background: linear-gradient(180deg, rgba(8, 22, 24, 0.92) 0%, rgba(6, 16, 18, 0.96) 100%);
+  border: 1px solid rgba(90, 209, 196, 0.45);
+  box-shadow:
+    0 0 0 1px rgba(90, 209, 196, 0.18),
+    0 0 28px rgba(90, 209, 196, 0.35),
+    inset 0 0 0 1px rgba(90, 209, 196, 0.12);
+  overflow: hidden;
+  animation: hologramRise 0.22s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+@keyframes hologramRise {
+  from { transform: translateY(12px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+/* 走査線（ホログラム感）：薄いティール横縞を重ねる。 */
+.preset-modal-scanlines {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image: repeating-linear-gradient(
+    180deg,
+    rgba(90, 209, 196, 0.05) 0px,
+    rgba(90, 209, 196, 0.05) 1px,
+    transparent 1px,
+    transparent 3px
+  );
+  mix-blend-mode: screen;
+}
+.preset-modal-head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 14px;
+  border-bottom: 1px solid rgba(90, 209, 196, 0.25);
+}
+.preset-modal-title {
+  font-size: 12px;
+  letter-spacing: 4px;
+  font-weight: 800;
+  color: var(--accent);
+  text-shadow: 0 0 8px rgba(90, 209, 196, 0.5);
+}
+.preset-modal-close {
+  width: 28px;
+  height: 28px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 18px;
+  line-height: 1;
+  color: var(--accent);
+  background: transparent;
+  border: 1px solid rgba(90, 209, 196, 0.35);
+  border-radius: 0;
+  cursor: pointer;
+}
+.preset-modal-close:active {
+  background: rgba(90, 209, 196, 0.15);
+}
+/* グリッド：2 列で並べる。プリセット数が増えて溢れたら縦スクロール。
+   右端にスクロールバー分の余白を常時確保（スクロール時の幅ジャンプ防止）。 */
+.preset-modal-list {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  padding: 12px 16px 14px 12px; /* 右側にスクロール用の余裕 */
+  overflow-y: auto;
+}
+.preset-modal-list::-webkit-scrollbar { width: 4px; }
+.preset-modal-list::-webkit-scrollbar-thumb { background: rgba(90, 209, 196, 0.4); border-radius: 2px; }
+.preset-modal-btn {
+  padding: 12px 10px;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: rgba(90, 209, 196, 0.06);
+  border: 1px solid rgba(90, 209, 196, 0.35);
+  border-radius: 0;
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.45);
+  box-shadow: inset 0 0 12px rgba(90, 209, 196, 0.08);
+  cursor: pointer;
+  transition: background 0.12s ease, box-shadow 0.12s ease;
+}
+.preset-modal-btn:active {
+  background: rgba(90, 209, 196, 0.18);
+  box-shadow: inset 0 0 14px rgba(90, 209, 196, 0.28), 0 0 14px rgba(90, 209, 196, 0.3);
+}
+
+/* メニュー内のチェックボックス行（解説表示）。 */
+.menu-check {
+  cursor: pointer;
+}
+.menu-check input {
+  margin: 0 8px 0 2px;
+  accent-color: var(--accent);
 }
 
 /* ツマミ類は縦スクロール、鍵盤は下に固定 */

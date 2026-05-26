@@ -7,9 +7,10 @@ import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
 import { StartScreen } from './tutorial/StartScreen'
 import { IntroScreen } from './tutorial/IntroScreen'
-import { SynthPanel } from './tutorial/SynthPanel'
+import { SynthPanel, type PanelTab } from './tutorial/SynthPanel'
 import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/LessonStage'
 import { Popup } from './tutorial/Popup'
+import { PresetModal } from './tutorial/PresetModal'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
@@ -36,6 +37,8 @@ export default function App() {
   const [menuOpen, setMenuOpen] = useState(false)
   const [tutorialMenuOpen, setTutorialMenuOpen] = useState(false)
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
+  const [activeTab, setActiveTab] = useState<PanelTab>('panel')
+  const [presetModalOpen, setPresetModalOpen] = useState(false)
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [flights, setFlights] = useState<Record<string, FrameFlight>>({})
   const [installing, setInstalling] = useState<Set<FrameId>>(new Set())
@@ -360,6 +363,38 @@ export default function App() {
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
   const popupHelp = panelPopup ? FRAME_HELP[panelPopup] : null
+  const closeMenu = () => { setMenuOpen(false); setTutorialMenuOpen(false) }
+
+  // メニューの中身。タブ行のハンバーガー（panel 時）と、レッスン中の右上ボタン（lesson/ghost 時）で共有する。
+  const menuItems = phase === 'panel' ? (
+    <>
+      <label className="menu-item menu-check">
+        <input type="checkbox" checked={showHelp} onChange={() => setShowHelp((v) => !v)} />
+        <span>解説表示</span>
+      </label>
+      <div className="menu-row">
+        <button className="menu-item" onClick={() => setTutorialMenuOpen((o) => !o)}>
+          <span className="menu-arrow">◀</span>チュートリアル
+        </button>
+        {tutorialMenuOpen && (
+          <div className="menu-sub">
+            {LESSONS.map((l, i) => (
+              <button key={l.id} onClick={() => previewLesson(i)}>
+                {FRAME_TITLE[l.id]}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <button className="menu-item" onClick={() => { closeMenu(); replay() }}>
+        <span className="menu-arrow" />もう一度見る
+      </button>
+    </>
+  ) : (
+    <button className="menu-item" onClick={() => { closeMenu(); skip() }}>
+      <span className="menu-arrow" />スキップ
+    </button>
+  )
 
   return (
     <div className="app-root">
@@ -370,9 +405,14 @@ export default function App() {
         showHelp={showHelp}
         onHelpFrame={(f) => setPanelPopup(f)}
         installing={installing}
-        presets={PRESETS}
-        onPreset={applyPreset}
-        showPresets={phase === 'panel'}
+        showTabRow={phase === 'panel'}
+        activeTab={activeTab}
+        onTab={setActiveTab}
+        onOpenPresets={() => setPresetModalOpen(true)}
+        seqPlaying={false}
+        menuOpen={menuOpen && phase === 'panel'}
+        onMenuToggle={() => setMenuOpen((o) => !o)}
+        menuChildren={menuItems}
       />
 
       {phase === 'ghost' && (
@@ -397,53 +437,30 @@ export default function App() {
         />
       )}
 
-      {menuOpen && <div className="menu-backdrop" onClick={() => { setMenuOpen(false); setTutorialMenuOpen(false) }} />}
+      {menuOpen && <div className="menu-backdrop" onClick={closeMenu} />}
 
-      {/* 右上：解説表示トグル ＋ メニュー */}
-      <div className="topbar">
-        {phase === 'panel' && (
-          <label className="help-toggle">
-            <input type="checkbox" checked={showHelp} onChange={() => setShowHelp((v) => !v)} />
-            解説表示
-          </label>
-        )}
-        <div className="menu-wrap">
-          <button className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="メニュー">
-            <span />
-            <span />
-            <span />
-          </button>
-          {menuOpen && (
-            <div className="menu">
-              {phase === 'panel' ? (
-                <>
-                  <div className="menu-row">
-                    <button className="menu-item" onClick={() => setTutorialMenuOpen((o) => !o)}>
-                      <span className="menu-arrow">◀</span>チュートリアル
-                    </button>
-                    {tutorialMenuOpen && (
-                      <div className="menu-sub">
-                        {LESSONS.map((l, i) => (
-                          <button key={l.id} onClick={() => previewLesson(i)}>
-                            {FRAME_TITLE[l.id]}
-                          </button>
-                        ))}
-                      </div>
-                    )}
-                  </div>
-                  <button className="menu-item" onClick={() => { setMenuOpen(false); replay() }}>
-                    <span className="menu-arrow" />もう一度見る
-                  </button>
-                </>
-              ) : (
-                <button className="menu-item" onClick={() => { setMenuOpen(false); skip() }}>
-                  <span className="menu-arrow" />スキップ
-                </button>
-              )}
-            </div>
-          )}
+      {/* レッスン中・ghost 中はパネルがオーバーレイで隠れるため、メニューは右上に出す。
+          パネル時はタブ行のハンバーガーが担当するので不要。 */}
+      {phase !== 'panel' && (
+        <div className="topbar">
+          <div className="menu-wrap">
+            <button className="menu-btn" onClick={() => setMenuOpen((o) => !o)} aria-label="メニュー">
+              <span />
+              <span />
+              <span />
+            </button>
+            {menuOpen && <div className="menu">{menuItems}</div>}
+          </div>
         </div>
-      </div>
+      )}
+
+      {presetModalOpen && (
+        <PresetModal
+          presets={PRESETS}
+          onPick={applyPreset}
+          onClose={() => setPresetModalOpen(false)}
+        />
+      )}
 
       {popupHelp && (
         <Popup title={popupHelp.title} paragraphs={popupHelp.paragraphs} onClose={() => setPanelPopup(null)} />
