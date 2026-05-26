@@ -52,7 +52,7 @@ export interface SoundCtl {
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
-  onNoteOff: () => void
+  onNoteOff: (midi: number) => void
 }
 
 /** 波形フレーム：波形セレクタ。盤面はセレクタのみ、レッスン（大表示）では計器も見せる。

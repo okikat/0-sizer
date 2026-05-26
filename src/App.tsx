@@ -50,6 +50,9 @@ export default function App() {
   const [fine, setFine] = useState(false)
   const [snap, setSnap] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
+  // ポリフォニー：現在押されている鍵盤の集合（複数同時 OK）。
+  // keyHeld（スコープ表示用）の同期と stopAll のために保持する。
+  const heldNotesRef = useRef<Set<number>>(new Set())
   const [env, setEnvState] = useState<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
   // FILTER / LFO は controlled（プリセットで動かすため、つまみ量を保持）。
   const [cutoffAmt, setCutoffAmt] = useState(1)
@@ -69,7 +72,8 @@ export default function App() {
   const tweenRef = useRef<number | null>(null)
 
   const stopAll = useCallback(() => {
-    noteOff()
+    heldNotesRef.current.forEach((m) => noteOff(m))
+    heldNotesRef.current.clear()
     setKeyHeld(false)
   }, [noteOff])
 
@@ -118,8 +122,16 @@ export default function App() {
     onReverb: (amt) => { setReverbAmt(amt); setReverbMix(reverbMixAmtToLevel(amt)) },
     onVol: (v) => setMasterVol(v),
     onPan: (p) => setPan(p),
-    onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
-    onNoteOff: () => { setKeyHeld(false); noteOff() },
+    onNoteOn: (m) => {
+      heldNotesRef.current.add(m)
+      setKeyHeld(true)
+      noteOn(m)
+    },
+    onNoteOff: (m) => {
+      heldNotesRef.current.delete(m)
+      setKeyHeld(heldNotesRef.current.size > 0)
+      noteOff(m)
+    },
   }
 
   const commitExit = useCallback(() => {

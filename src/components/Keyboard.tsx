@@ -3,7 +3,7 @@ import type { PointerEvent as ReactPointerEvent } from 'react'
 
 interface Props {
   onNoteOn: (midi: number) => void
-  onNoteOff: () => void
+  onNoteOff: (midi: number) => void
   /** 鍵盤上の音名（ドレミ・♯）を出すか。盤面では「解説表示」と連動。 */
   showLabels?: boolean
 }
@@ -85,13 +85,11 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
       const h = held.current
       const i = h.indexOf(m)
       if (i === -1) return
-      const wasTop = i === h.length - 1
       h.splice(i, 1)
       setActive(new Set(h))
-      if (h.length === 0) onNoteOff()
-      else if (wasTop) onNoteOn(h[h.length - 1])
+      onNoteOff(m)
     },
-    [onNoteOff, onNoteOn],
+    [onNoteOff],
   )
 
   useEffect(() => {

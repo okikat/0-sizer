@@ -1,20 +1,17 @@
 import { useCallback, useEffect, useRef } from 'react'
 import { midiToFreq } from '../lib/notes'
 
-// 純音(サイン波)は Bluetooth のコーデックが扱いを誤りプツプツする。極小レベルの
-// ホワイトノイズを常に少しだけ混ぜて信号を“動かす”ことでプツプツを抑える。
-// gain(エンベロープ)経由なので、音が鳴っていない間はノイズも消える。耳で微調整する値。
-const NOISE_LEVEL = 0.004
-
 /**
- * モノフォニックなシンセエンジン。
- * 2本のオシレーター(デチューンで厚み) + フィルター(エンベロープ付き) + ゲイン(エンベロープ) +
- * マスター・パン → 出力。出力には薄いリバーブ(コンボルバ)を並列で混ぜて空間感を与える。
+ * ポリフォニックなシンセエンジン（最大 MAX_VOICES 同時発音）。
+ * 各 noteOn で 1 ボイス（osc1+osc2+noise → filter → envGain）を新規生成し、
+ * 共有チェーン（tremolo → limiter → master → panner → 出力 + reverb + delay）に流す。
+ * 上限を超えたら最古ボイスを奪い、解放後はリリースタイム経過でノードを破棄する。
  * AudioContext はブラウザの autoplay 制限のため、最初の noteOn(ユーザー操作)で生成する。
  */
-// 音量エンベロープのピーク。OSC1+OSC2 は MIX で常にトータル ≒ 1.0 に抑えるので、
-// 元の 1オシ相当（0.2 弱）に戻す。
+// 音量エンベロープのピーク。複数ボイスが重なってもクリップしないよう、
+// 出力直前の DynamicsCompressor（リミッター）で頭打ちにする。
 const PEAK = 0.18
+const MAX_VOICES = 8
 
 export interface EnvParams {
   attack: number
@@ -26,26 +23,45 @@ export interface EnvParams {
 /** LFO の行き先：音程(ビブラート) / 明るさ(オートワウ) / 音量(トレモロ) */
 export type LfoDest = 'pitch' | 'cutoff' | 'amp'
 
+// 1 ノート分の音作りに必要なノード一式。
+interface Voice {
+  midi: number
+  osc1: OscillatorNode
+  osc2: OscillatorNode
+  osc1Gain: GainNode
+  osc2Gain: GainNode
+  noise: AudioBufferSourceNode
+  noiseGain: GainNode
+  filter: BiquadFilterNode
+  envGain: GainNode
+  startedAt: number
+  cleanupTimer: ReturnType<typeof setTimeout> | null
+}
+
 export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
-  const osc1Ref = useRef<OscillatorNode | null>(null)
-  const osc2Ref = useRef<OscillatorNode | null>(null)
-  const osc1GainRef = useRef<GainNode | null>(null)
-  const osc2GainRef = useRef<GainNode | null>(null)
-  const noiseGainRef = useRef<GainNode | null>(null)
-  const gainRef = useRef<GainNode | null>(null)
-  const filterRef = useRef<BiquadFilterNode | null>(null)
+
+  // ボイスは midi 番号で索引する。同じ鍵盤を二度押した場合は再アタックする。
+  const voicesRef = useRef<Map<number, Voice>>(new Map())
+  // GLIDE 開始ピッチ（直前ボイスの目標周波数）。1 音目は使わず、2 音目以降に滑り始点として使う。
+  const lastFreqRef = useRef(440)
+
+  // ---- 共有ノード（context あたり 1 つ） ----
   const masterRef = useRef<GainNode | null>(null)
   const pannerRef = useRef<StereoPannerNode | null>(null)
+  const tremoloRef = useRef<GainNode | null>(null)
   const lfoRef = useRef<OscillatorNode | null>(null)
   const lfoPitchGainRef = useRef<GainNode | null>(null)
   const lfoCutoffGainRef = useRef<GainNode | null>(null)
   const lfoAmpGainRef = useRef<GainNode | null>(null)
-  const tremoloRef = useRef<GainNode | null>(null)
   const delayRef = useRef<DelayNode | null>(null)
   const delaySendRef = useRef<GainNode | null>(null)
   const delayFbRef = useRef<GainNode | null>(null)
   const reverbWetRef = useRef<GainNode | null>(null)
+  // 全ボイス共有のノイズ波形（ボイスごとに BufferSource を作って同じバッファを使う）
+  const noiseBufRef = useRef<AudioBuffer | null>(null)
+
+  // ---- 設定値（refs） ----
   const typeRef = useRef<OscillatorType>('sine')
   const tuneRef = useRef(0)
   const glideTauRef = useRef(0.005) // ピッチが新しい音へ滑る時定数（秒）。小さいほど即時。
@@ -64,31 +80,57 @@ export function useSynth() {
   const lfoRateRef = useRef(3.8) // Hz（RATEツマミ既定=3 に対応）
   const lfoDepthRef = useRef(0) // つまみ量 0〜10
   const lfoDestRef = useRef<LfoDest>('pitch')
-  const midiRef = useRef<number | null>(null)
   const envRef = useRef<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
+
+  // 現在の depth(amt 0〜10) と 行き先 から、3 つのゲインを設定する。
+  const applyLfo = useCallback(() => {
+    const ctx = ctxRef.current
+    const p = lfoPitchGainRef.current
+    const c = lfoCutoffGainRef.current
+    const a = lfoAmpGainRef.current
+    if (!ctx || !p || !c || !a) return
+    const amt = lfoDepthRef.current
+    const dest = lfoDestRef.current
+    // 行き先ごとの感度。聴感が揃うようにチューニング。
+    const pitchCents = dest === 'pitch' ? amt * 20 : 0 // 0〜200 cents（±2半音）
+    const cutoffCents = dest === 'cutoff' ? amt * 100 : 0 // 0〜1000 cents（≒±10半音/オクターブ弱）
+    const ampMod = dest === 'amp' ? amt * 0.07 : 0 // 0〜0.7（音量を 0.3〜1.7 で揺らす）
+    const t = ctx.currentTime
+    p.gain.setTargetAtTime(pitchCents, t, 0.02)
+    c.gain.setTargetAtTime(cutoffCents, t, 0.02)
+    a.gain.setTargetAtTime(ampMod, t, 0.02)
+  }, [])
 
   const ensure = useCallback(() => {
     // 'closed' になった AudioContext は復活できない（resume が必ず失敗する）。
     // 端末がオーディオセッションを破棄した（バックグラウンド長期化／ブラウザ復帰）後など。
     // この場合は ref を捨てて、下のブロックで新規に作り直す。
     if (ctxRef.current && ctxRef.current.state === 'closed') {
+      voicesRef.current.forEach((v) => { if (v.cleanupTimer) clearTimeout(v.cleanupTimer) })
+      voicesRef.current.clear()
       ctxRef.current = null
     }
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctor()
-      const gain = ctx.createGain()
-      gain.gain.value = 0
-      // トレモロ用ゲイン：LFO が AMP に向くとここで音量を揺らす。既定 1.0。
+      // 共有出力チェーン：voice.envGain → tremolo → limiter → master → panner → 出力
+      // tremolo は LFO(AMP) で揺らす共有ゲイン。
       const tremolo = ctx.createGain()
       tremolo.gain.value = 1
-      // マスター音量 → 定位(パン) → 出力。MIX モジュールがここを操作する。
+      // リミッター：和音で総音量が上がっても出力をクリップさせない安全網。
+      // 通常の演奏ではほとんど触れず、強い和音や NOISE 最大時に頭を抑える。
+      const limiter = ctx.createDynamicsCompressor()
+      limiter.threshold.value = -6
+      limiter.knee.value = 8
+      limiter.ratio.value = 8
+      limiter.attack.value = 0.003
+      limiter.release.value = 0.1
       const master = ctx.createGain()
       master.gain.value = masterVolRef.current
       const panner = ctx.createStereoPanner()
       panner.pan.value = panRef.current
-      gain.connect(tremolo)
-      tremolo.connect(master)
+      tremolo.connect(limiter)
+      limiter.connect(master)
       master.connect(panner)
       panner.connect(ctx.destination)
       // 薄いリバーブ：パン後の出力を並列でコンボルバへ送り、wet で混ぜる（dry はそのまま出力）。
@@ -120,54 +162,9 @@ export function useSynth() {
       delay.connect(ctx.destination)
       delay.connect(delayFb)
       delayFb.connect(delay)
-      // ローパスフィルター：音の素(osc)とエンベロープ(gain)の間に挟む。
-      const filter = ctx.createBiquadFilter()
-      filter.type = 'lowpass'
-      filter.frequency.value = cutoffRef.current
-      filter.Q.value = resRef.current
-      filter.connect(gain)
-      // 主オシレーター 2本。osc2 は定常デチューン。MIX で 1↔2 のバランスを取り、
-      // 合計レベルは概ね 1.0 に保つ（osc1Gain = 1-mix / osc2Gain = mix の線形クロスフェード）。
-      const osc1 = ctx.createOscillator()
-      osc1.type = typeRef.current
-      osc1.frequency.value = 440
-      const osc1Gain = ctx.createGain()
-      osc1Gain.gain.value = 1 - mixBalanceRef.current
-      osc1.connect(osc1Gain)
-      osc1Gain.connect(filter)
-      osc1.start()
-      const osc2 = ctx.createOscillator()
-      osc2.type = typeRef.current
-      osc2.frequency.value = 440
-      osc2.detune.value = detuneRef.current
-      const osc2Gain = ctx.createGain()
-      osc2Gain.gain.value = mixBalanceRef.current
-      osc2.connect(osc2Gain)
-      osc2Gain.connect(filter)
-      osc2.start()
-      // 極小レベルのホワイトノイズを混ぜる(エンベロープ経由なので無音時は消える)。
-      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
-      const data = noiseBuf.getChannelData(0)
-      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
-      const noise = ctx.createBufferSource()
-      noise.buffer = noiseBuf
-      noise.loop = true
-      const noiseLevel = ctx.createGain()
-      noiseLevel.gain.value = NOISE_LEVEL
-      noise.connect(noiseLevel)
-      noiseLevel.connect(gain)
-      noise.start()
-      // ユーザー操作の NOISE 音源（フィルター経由で envelope に乗せる＝風/吹奏感などに使える）。
-      const noiseUser = ctx.createBufferSource()
-      noiseUser.buffer = noiseBuf
-      noiseUser.loop = true
-      const noiseUserGain = ctx.createGain()
-      noiseUserGain.gain.value = noiseLevelRef.current
-      noiseUser.connect(noiseUserGain)
-      noiseUserGain.connect(filter)
-      noiseUser.start()
       // LFO：低速オシレーターで「ピッチ／カットオフ／音量」のいずれかを揺らす。
-      // 3 つの行き先用ゲインを並列に置き、現在の行き先以外は 0、選んだ先だけ depth に応じた値に。
+      // pitch/cutoff のゲインはボイス生成時に各ボイスの osc/filter に追加で接続する。
+      // amp はトレモロに直接（共有）。
       const lfo = ctx.createOscillator()
       lfo.type = 'sine'
       lfo.frequency.value = lfoRateRef.current
@@ -178,79 +175,176 @@ export function useSynth() {
       const lfoAmpGain = ctx.createGain()
       lfoAmpGain.gain.value = 0
       lfo.connect(lfoPitchGain)
-      lfoPitchGain.connect(osc1.detune)
-      lfoPitchGain.connect(osc2.detune)
       lfo.connect(lfoCutoffGain)
-      lfoCutoffGain.connect(filter.detune)
       lfo.connect(lfoAmpGain)
       lfoAmpGain.connect(tremolo.gain)
       lfo.start()
+      // 共有ノイズバッファ：ボイス毎に BufferSource を作り、このバッファを参照させる。
+      const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
+      const data = noiseBuf.getChannelData(0)
+      for (let i = 0; i < data.length; i++) data[i] = Math.random() * 2 - 1
+
       ctxRef.current = ctx
-      gainRef.current = gain
-      osc1Ref.current = osc1
-      osc2Ref.current = osc2
-      osc1GainRef.current = osc1Gain
-      osc2GainRef.current = osc2Gain
-      noiseGainRef.current = noiseUserGain
-      filterRef.current = filter
       masterRef.current = master
       pannerRef.current = panner
+      tremoloRef.current = tremolo
       lfoRef.current = lfo
       lfoPitchGainRef.current = lfoPitchGain
       lfoCutoffGainRef.current = lfoCutoffGain
       lfoAmpGainRef.current = lfoAmpGain
-      tremoloRef.current = tremolo
       delayRef.current = delay
       delaySendRef.current = delaySend
       delayFbRef.current = delayFb
       reverbWetRef.current = wet
+      noiseBufRef.current = noiseBuf
       // 既定の depth=0 なので 3 つとも 0 のまま。OK。
+      applyLfo()
     }
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
+  }, [applyLfo])
+
+  // 1 ボイスを生成して共有ノードに接続する。
+  const createVoice = useCallback((midi: number): Voice | null => {
+    const ctx = ctxRef.current
+    const tremolo = tremoloRef.current
+    const lfoPitchGain = lfoPitchGainRef.current
+    const lfoCutoffGain = lfoCutoffGainRef.current
+    const noiseBuf = noiseBufRef.current
+    if (!ctx || !tremolo || !lfoPitchGain || !lfoCutoffGain || !noiseBuf) return null
+
+    const envGain = ctx.createGain()
+    envGain.gain.value = 0
+    envGain.connect(tremolo)
+
+    const filter = ctx.createBiquadFilter()
+    filter.type = 'lowpass'
+    filter.frequency.value = cutoffRef.current
+    filter.Q.value = resRef.current
+    filter.connect(envGain)
+    lfoCutoffGain.connect(filter.detune)
+
+    const osc1 = ctx.createOscillator()
+    osc1.type = typeRef.current
+    const osc1Gain = ctx.createGain()
+    osc1Gain.gain.value = 1 - mixBalanceRef.current
+    osc1.connect(osc1Gain)
+    osc1Gain.connect(filter)
+    lfoPitchGain.connect(osc1.detune)
+
+    const osc2 = ctx.createOscillator()
+    osc2.type = typeRef.current
+    osc2.detune.value = detuneRef.current
+    const osc2Gain = ctx.createGain()
+    osc2Gain.gain.value = mixBalanceRef.current
+    osc2.connect(osc2Gain)
+    osc2Gain.connect(filter)
+    lfoPitchGain.connect(osc2.detune)
+
+    const noise = ctx.createBufferSource()
+    noise.buffer = noiseBuf
+    noise.loop = true
+    const noiseGain = ctx.createGain()
+    noiseGain.gain.value = noiseLevelRef.current
+    noise.connect(noiseGain)
+    noiseGain.connect(filter)
+
+    // ピッチ初期値：他のボイスが鳴っていれば lastFreq から滑り、なければ即座に目標へ。
+    const target = midiToFreq(midi) * Math.pow(2, tuneRef.current / 12)
+    const now = ctx.currentTime
+    if (voicesRef.current.size > 0) {
+      const tau = glideTauRef.current
+      osc1.frequency.setValueAtTime(lastFreqRef.current, now)
+      osc2.frequency.setValueAtTime(lastFreqRef.current, now)
+      osc1.frequency.setTargetAtTime(target, now, tau)
+      osc2.frequency.setTargetAtTime(target, now, tau)
+    } else {
+      osc1.frequency.setValueAtTime(target, now)
+      osc2.frequency.setValueAtTime(target, now)
+    }
+    lastFreqRef.current = target
+
+    osc1.start()
+    osc2.start()
+    noise.start()
+
+    return {
+      midi,
+      osc1, osc2, osc1Gain, osc2Gain,
+      noise, noiseGain,
+      filter, envGain,
+      startedAt: now,
+      cleanupTimer: null,
+    }
   }, [])
 
-  const applyFreq = useCallback(() => {
-    const ctx = ctxRef.current
-    const o1 = osc1Ref.current
-    const o2 = osc2Ref.current
-    if (ctx && o1 && o2 && midiRef.current != null) {
-      const f = midiToFreq(midiRef.current) * Math.pow(2, tuneRef.current / 12)
-      const tau = glideTauRef.current
-      o1.frequency.setTargetAtTime(f, ctx.currentTime, tau)
-      o2.frequency.setTargetAtTime(f, ctx.currentTime, tau)
+  // ボイスのノードを停止・切断する。リリース完了後に呼ぶ。
+  const hardStopVoice = useCallback((v: Voice) => {
+    try { v.osc1.stop() } catch { /* already stopped */ }
+    try { v.osc2.stop() } catch { /* already stopped */ }
+    try { v.noise.stop() } catch { /* already stopped */ }
+    try { v.envGain.disconnect() } catch { /* already disconnected */ }
+    try { v.filter.disconnect() } catch { /* already disconnected */ }
+    try { v.osc1.disconnect() } catch { /* */ }
+    try { v.osc2.disconnect() } catch { /* */ }
+    try { v.noise.disconnect() } catch { /* */ }
+    try { v.osc1Gain.disconnect() } catch { /* */ }
+    try { v.osc2Gain.disconnect() } catch { /* */ }
+    try { v.noiseGain.disconnect() } catch { /* */ }
+    if (v.cleanupTimer) {
+      clearTimeout(v.cleanupTimer)
+      v.cleanupTimer = null
     }
   }, [])
 
   const noteOn = useCallback(
     (midi: number) => {
       ensure()
-      midiRef.current = midi
-      // ref から都度読む（再生成された場合に最新のノードを掴むため）。
       const trigger = () => {
-        applyFreq()
         const ctx = ctxRef.current
-        const gain = gainRef.current
-        const filter = filterRef.current
-        if (!ctx || !gain || !filter) return
+        if (!ctx) return
+        let voice = voicesRef.current.get(midi)
+        if (voice) {
+          // 同じノートの再トリガ：解放タイマーをキャンセルし、エンベロープを再アタック。
+          if (voice.cleanupTimer) {
+            clearTimeout(voice.cleanupTimer)
+            voice.cleanupTimer = null
+          }
+        } else {
+          // 上限超なら最古ボイスを奪う。
+          if (voicesRef.current.size >= MAX_VOICES) {
+            const sorted = Array.from(voicesRef.current.values()).sort((a, b) => a.startedAt - b.startedAt)
+            const oldest = sorted[0]
+            if (oldest) {
+              hardStopVoice(oldest)
+              voicesRef.current.delete(oldest.midi)
+            }
+          }
+          const created = createVoice(midi)
+          if (!created) return
+          voice = created
+          voicesRef.current.set(midi, voice)
+        }
+        // 音量エンベロープ。
         const now = ctx.currentTime
         const { attack, decay, sustain } = envRef.current
         const a = Math.max(0.005, attack)
         const d = Math.max(0.005, decay)
-        const cur = Math.max(gain.gain.value, 0.0001)
-        gain.gain.cancelScheduledValues(now)
-        gain.gain.setValueAtTime(cur, now)
-        gain.gain.linearRampToValueAtTime(PEAK, now + a)
-        gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
+        const cur = Math.max(voice.envGain.gain.value, 0.0001)
+        voice.envGain.gain.cancelScheduledValues(now)
+        voice.envGain.gain.setValueAtTime(cur, now)
+        voice.envGain.gain.linearRampToValueAtTime(PEAK, now + a)
+        voice.envGain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
         // フィルターエンベロープ：弾いた瞬間に cutoff を envAmt オクターブ上げ、decay 秒で基準へ。
         const envAmt = filterEnvAmtRef.current
         const base = cutoffRef.current
         const peak = envAmt > 0 ? Math.min(20000, base * Math.pow(2, envAmt)) : base
-        filter.frequency.cancelScheduledValues(now)
-        filter.frequency.setValueAtTime(peak, now)
+        voice.filter.frequency.cancelScheduledValues(now)
+        voice.filter.frequency.setValueAtTime(peak, now)
         const tau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
-        filter.frequency.setTargetAtTime(base, now + 0.005, tau)
+        voice.filter.frequency.setTargetAtTime(base, now + 0.005, tau)
       }
-      const ctx = ctxRef.current!
+      const ctx = ctxRef.current
+      if (!ctx) return
       if (ctx.state === 'running') {
         trigger()
         return
@@ -267,20 +361,34 @@ export function useSynth() {
           else ctx2.resume().then(trigger).catch(() => {})
         })
     },
-    [ensure, applyFreq],
+    [ensure, createVoice, hardStopVoice],
   )
 
-  const noteOff = useCallback(() => {
-    const ctx = ctxRef.current
-    const gain = gainRef.current
-    if (!ctx || !gain) return
-    const now = ctx.currentTime
-    const r = Math.max(0.01, envRef.current.release)
-    const cur = gain.gain.value
-    gain.gain.cancelScheduledValues(now)
-    gain.gain.setValueAtTime(cur, now)
-    gain.gain.linearRampToValueAtTime(0.0001, now + r)
-  }, [])
+  const noteOff = useCallback(
+    (midi: number) => {
+      const ctx = ctxRef.current
+      if (!ctx) return
+      const voice = voicesRef.current.get(midi)
+      if (!voice) return
+      const now = ctx.currentTime
+      const r = Math.max(0.01, envRef.current.release)
+      const cur = voice.envGain.gain.value
+      voice.envGain.gain.cancelScheduledValues(now)
+      voice.envGain.gain.setValueAtTime(cur, now)
+      voice.envGain.gain.linearRampToValueAtTime(0.0001, now + r)
+      // クリーンアップ：リリースが終わったらノードを停止・解放。
+      if (voice.cleanupTimer) clearTimeout(voice.cleanupTimer)
+      voice.cleanupTimer = setTimeout(() => {
+        hardStopVoice(voice)
+        voicesRef.current.delete(midi)
+      }, (r + 0.05) * 1000)
+    },
+    [hardStopVoice],
+  )
+
+  // ---- セッター ----
+  // 設定変更は ref に保存しつつ、現在鳴っている全ボイスにも反映する。
+  // 反映の必要がないもの（envelope/filterEnv）は ref のみ更新（次の noteOn から効く）。
 
   const setEnv = useCallback((e: EnvParams) => {
     envRef.current = e
@@ -288,57 +396,70 @@ export function useSynth() {
 
   const setWaveform = useCallback((t: OscillatorType) => {
     typeRef.current = t
-    if (osc1Ref.current) osc1Ref.current.type = t
-    if (osc2Ref.current) osc2Ref.current.type = t
+    voicesRef.current.forEach((v) => {
+      v.osc1.type = t
+      v.osc2.type = t
+    })
   }, [])
 
-  const setTune = useCallback(
-    (semitones: number) => {
-      tuneRef.current = semitones
-      applyFreq()
-    },
-    [applyFreq],
-  )
+  const setTune = useCallback((semitones: number) => {
+    tuneRef.current = semitones
+    const ctx = ctxRef.current
+    if (!ctx) return
+    const tau = glideTauRef.current
+    voicesRef.current.forEach((v) => {
+      const target = midiToFreq(v.midi) * Math.pow(2, semitones / 12)
+      v.osc1.frequency.setTargetAtTime(target, ctx.currentTime, tau)
+      v.osc2.frequency.setTargetAtTime(target, ctx.currentTime, tau)
+    })
+  }, [])
 
   const setCutoff = useCallback((hz: number) => {
     cutoffRef.current = hz
     const ctx = ctxRef.current
-    const f = filterRef.current
-    if (ctx && f) f.frequency.setTargetAtTime(hz, ctx.currentTime, 0.01)
+    if (!ctx) return
+    voicesRef.current.forEach((v) => {
+      v.filter.frequency.setTargetAtTime(hz, ctx.currentTime, 0.01)
+    })
   }, [])
 
   const setResonance = useCallback((q: number) => {
     resRef.current = q
     const ctx = ctxRef.current
-    const f = filterRef.current
-    if (ctx && f) f.Q.setTargetAtTime(q, ctx.currentTime, 0.01)
+    if (!ctx) return
+    voicesRef.current.forEach((v) => {
+      v.filter.Q.setTargetAtTime(q, ctx.currentTime, 0.01)
+    })
   }, [])
 
   const setDetune = useCallback((cents: number) => {
     detuneRef.current = cents
     const ctx = ctxRef.current
-    const o2 = osc2Ref.current
-    if (ctx && o2) o2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
+    if (!ctx) return
+    voicesRef.current.forEach((v) => {
+      v.osc2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
+    })
   }, [])
 
   const setNoise = useCallback((level: number) => {
     const l = Math.max(0, level)
     noiseLevelRef.current = l
     const ctx = ctxRef.current
-    const g = noiseGainRef.current
-    if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
+    if (!ctx) return
+    voicesRef.current.forEach((v) => {
+      v.noiseGain.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
+    })
   }, [])
 
   const setMix = useCallback((balance: number) => {
     const b = Math.max(0, Math.min(1, balance))
     mixBalanceRef.current = b
     const ctx = ctxRef.current
-    const g1 = osc1GainRef.current
-    const g2 = osc2GainRef.current
-    if (ctx && g1 && g2) {
-      g1.gain.setTargetAtTime(1 - b, ctx.currentTime, 0.02)
-      g2.gain.setTargetAtTime(b, ctx.currentTime, 0.02)
-    }
+    if (!ctx) return
+    voicesRef.current.forEach((v) => {
+      v.osc1Gain.gain.setTargetAtTime(1 - b, ctx.currentTime, 0.02)
+      v.osc2Gain.gain.setTargetAtTime(b, ctx.currentTime, 0.02)
+    })
   }, [])
 
   const setFilterEnv = useCallback((amtOctaves: number, decaySec: number) => {
@@ -351,25 +472,6 @@ export function useSynth() {
     const ctx = ctxRef.current
     const lfo = lfoRef.current
     if (ctx && lfo) lfo.frequency.setTargetAtTime(hz, ctx.currentTime, 0.02)
-  }, [])
-
-  // 現在の depth(amt 0〜10) と 行き先 から、3 つのゲインを設定する。
-  const applyLfo = useCallback(() => {
-    const ctx = ctxRef.current
-    const p = lfoPitchGainRef.current
-    const c = lfoCutoffGainRef.current
-    const a = lfoAmpGainRef.current
-    if (!ctx || !p || !c || !a) return
-    const amt = lfoDepthRef.current
-    const dest = lfoDestRef.current
-    // 行き先ごとの感度。聴感が揃うようにチューニング。
-    const pitchCents = dest === 'pitch' ? amt * 20 : 0   // 0〜200 cents（±2半音）
-    const cutoffCents = dest === 'cutoff' ? amt * 100 : 0 // 0〜1000 cents（≒±10半音/オクターブ弱）
-    const ampMod = dest === 'amp' ? amt * 0.07 : 0       // 0〜0.7（音量を 0.3〜1.7 で揺らす）
-    const t = ctx.currentTime
-    p.gain.setTargetAtTime(pitchCents, t, 0.02)
-    c.gain.setTargetAtTime(cutoffCents, t, 0.02)
-    a.gain.setTargetAtTime(ampMod, t, 0.02)
   }, [])
 
   const setLfoDepth = useCallback((amt: number) => {
@@ -441,10 +543,18 @@ export function useSynth() {
   }, [])
 
   useEffect(() => {
+    // クリーンアップ時点での Map（unmount 時に鳴っているボイス）を解放する。
+    // ref を直接読みたいケース（lint の警告はここでは正しくない）。
+    const voices = voicesRef
     return () => {
       try {
-        osc1Ref.current?.stop()
-        osc2Ref.current?.stop()
+        voices.current.forEach((v) => {
+          try { v.osc1.stop() } catch { /* */ }
+          try { v.osc2.stop() } catch { /* */ }
+          try { v.noise.stop() } catch { /* */ }
+          if (v.cleanupTimer) clearTimeout(v.cleanupTimer)
+        })
+        voices.current.clear()
         void ctxRef.current?.close()
       } catch {
         // already closed
