@@ -5,7 +5,7 @@ import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
 import type { EnvParams, LfoDest } from '../audio/useSynth'
-import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs } from '../audio/params'
+import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs, fenvDecayAmtToSec } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
 
@@ -43,6 +43,10 @@ export interface SoundCtl {
   onDelayMix: (amt: number) => void
   glide: number
   onGlide: (amt: number) => void
+  fenvAmt: number
+  onFenvAmt: (amt: number) => void
+  fenvDecay: number
+  onFenvDecay: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -460,6 +464,56 @@ export function GlideFrame({
         format={(v) => ({ main: String(Math.round(v)) })}
         onChange={onGlide}
       />
+    </div>
+  )
+}
+
+/** FILTER ENV フレーム：AMOUNT（CUTOFFをどれだけ持ち上げるか）と DECAY（戻る時間）の2ツマミ。 */
+export function FilterEnvFrame({
+  fenvAmt,
+  onFenvAmt,
+  fenvDecay,
+  onFenvDecay,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'fenvAmt' | 'onFenvAmt' | 'fenvDecay' | 'onFenvDecay' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-fenv">
+      <div className="fenv-knobs">
+        <Knob
+          value={fenvAmt}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={0}
+          label="AMOUNT"
+          format={(v) => ({ main: String(Math.round(v)) })}
+          onChange={onFenvAmt}
+        />
+        <Knob
+          value={fenvDecay}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={3}
+          label="DECAY"
+          format={(v) => ({ main: `${Math.round(fenvDecayAmtToSec(v) * 1000)}` })}
+          onChange={onFenvDecay}
+        />
+      </div>
     </div>
   )
 }

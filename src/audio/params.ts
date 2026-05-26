@@ -33,6 +33,11 @@ export const delayMixAmtToLevel = (amt: number) => (amt / 10) * 0.5
 // GLIDE TIME は「つまみ 0〜10」を 5〜505ms（時定数 tau）。0で即時、大きいほどゆっくり滑る。
 export const glideAmtToTau = (amt: number) => 0.005 + (amt / 10) * 0.5
 
+// FILTER ENV AMOUNT は「つまみ 0〜10」を 0〜3 オクターブの持ち上げに。
+export const fenvAmtToOctaves = (amt: number) => (amt / 10) * 3
+// FILTER ENV DECAY は「つまみ 0〜10」を 50ms〜1.5s に。
+export const fenvDecayAmtToSec = (amt: number) => 0.05 + (amt / 10) * 1.45
+
 // OSC2 DETUNE は「つまみ 0〜10」を 0〜50 セントに（広めの厚み）。
 export const detuneAmtToCents = (amt: number) => amt * 5
 // OSC2 MIX は「つまみ 0〜10」を 0〜1 のバランス（0=OSC1のみ, 10=OSC2のみ, 5=半々）。

@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay' | 'glide'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise' | 'delay' | 'glide' | 'fenv'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -15,6 +15,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   noise: 'NOISE',
   delay: 'DELAY',
   glide: 'GLIDE',
+  fenv: 'FILTER ENV',
 }
 
 export interface Lesson {
@@ -156,6 +157,19 @@ export const LESSONS: Lesson[] = [
       'GLIDE ＝ ポルタメント（portamento）とも。音と音を切らず、ピッチで繋ぐ奏法。',
     ],
   },
+  {
+    id: 'fenv',
+    realizes: ['fenv'],
+    stageTitle: 'ペチッ：FILTER ENV',
+    popup: [
+      'FILTER ENV は「弾いた瞬間にフィルターを動かす」担当。鍵盤を押すと CUTOFF が一瞬上がってブライトに → DECAY の時間で元の位置（FILTER で設定した CUTOFF）へ戻ります。',
+      'これがピアノの「ペチッ」、ベースの「ニュッ」、アシッドベースの「ニャーォ」といった打鍵感の正体です。',
+      '「AMOUNT」は持ち上げ量、「DECAY」は戻る時間。AMOUNT が 0 なら何も起きません。',
+      'コツ：**FILTER の CUTOFF を少し下げて** フィルターが効く状態にしてから AMOUNT を上げると、効果がはっきり聴こえます。CUTOFF が全開だと変化が分かりにくいです。',
+      '「アシッドベース」プリセットを呼んで CUTOFF を低めにし、AMOUNT を最大にすると、303 ぽい「ニャーォ」が手に入ります。',
+      'ENV ＝ Envelope（エンベロープ／時間変化の輪郭）。音量だけでなくフィルターにもエンベロープがかけられます。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -243,6 +257,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '前の音から次の音へピッチを滑らせます。TIME＝滑る速さ（0で即時、上げるほどゆっくり）。',
       '薄くかけると滑らかさ、強くかけると歌うような表現に。ベースやリードで効果的。',
+    ],
+  },
+  fenv: {
+    title: 'FILTER ENV',
+    paragraphs: [
+      '弾いた瞬間に CUTOFF を持ち上げて、時間をかけて戻す「フィルターのエンベロープ」。打鍵感や 303 風の「ニャーォ」を作ります。',
+      'AMOUNT＝持ち上げる量、DECAY＝戻るまでの時間。FILTER の CUTOFF を下げた状態でかけると効果がはっきり出ます。',
     ],
   },
 }

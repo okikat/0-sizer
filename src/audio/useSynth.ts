@@ -66,6 +66,12 @@ export function useSynth() {
   const envRef = useRef<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
 
   const ensure = useCallback(() => {
+    // 'closed' になった AudioContext は復活できない（resume が必ず失敗する）。
+    // 端末がオーディオセッションを破棄した（バックグラウンド長期化／ブラウザ復帰）後など。
+    // この場合は ref を捨てて、下のブロックで新規に作り直す。
+    if (ctxRef.current && ctxRef.current.state === 'closed') {
+      ctxRef.current = null
+    }
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
       const ctx = new Ctor()
@@ -216,11 +222,13 @@ export function useSynth() {
     (midi: number) => {
       ensure()
       midiRef.current = midi
-      const ctx = ctxRef.current!
-      const gain = gainRef.current!
-      const filter = filterRef.current!
+      // ref から都度読む（再生成された場合に最新のノードを掴むため）。
       const trigger = () => {
         applyFreq()
+        const ctx = ctxRef.current
+        const gain = gainRef.current
+        const filter = filterRef.current
+        if (!ctx || !gain || !filter) return
         const now = ctx.currentTime
         const { attack, decay, sustain } = envRef.current
         const a = Math.max(0.005, attack)
@@ -231,7 +239,6 @@ export function useSynth() {
         gain.gain.linearRampToValueAtTime(PEAK, now + a)
         gain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
         // フィルターエンベロープ：弾いた瞬間に cutoff を envAmt オクターブ上げ、decay 秒で基準へ。
-        // 0 なら何もしない（基準値で安定）。
         const envAmt = filterEnvAmtRef.current
         const base = cutoffRef.current
         const peak = envAmt > 0 ? Math.min(20000, base * Math.pow(2, envAmt)) : base
@@ -240,8 +247,22 @@ export function useSynth() {
         const tau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
         filter.frequency.setTargetAtTime(base, now + 0.005, tau)
       }
-      if (ctx.state === 'running') trigger()
-      else ctx.resume().then(trigger).catch(() => {})
+      const ctx = ctxRef.current!
+      if (ctx.state === 'running') {
+        trigger()
+        return
+      }
+      ctx
+        .resume()
+        .then(trigger)
+        .catch(() => {
+          // resume が失敗するのは context が closed のとき。捨てて新規生成して再試行。
+          ctxRef.current = null
+          ensure()
+          const ctx2 = ctxRef.current!
+          if (ctx2.state === 'running') trigger()
+          else ctx2.resume().then(trigger).catch(() => {})
+        })
     },
     [ensure, applyFreq],
   )

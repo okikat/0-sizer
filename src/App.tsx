@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams, type LfoDest } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, glideAmtToTau } from './audio/params'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -63,6 +63,8 @@ export default function App() {
   const [delayTimeAmt, setDelayTimeAmt] = useState(3)
   const [delayMixAmt, setDelayMixAmt] = useState(0)
   const [glideAmt, setGlideAmt] = useState(0)
+  const [fenvAmtState, setFenvAmtState] = useState(0)
+  const [fenvDecayState, setFenvDecayState] = useState(3)
   const tweenRef = useRef<number | null>(null)
 
   const stopAll = useCallback(() => {
@@ -107,6 +109,10 @@ export default function App() {
     onDelayMix: (amt) => { setDelayMixAmt(amt); setDelayMix(delayMixAmtToLevel(amt)) },
     glide: glideAmt,
     onGlide: (amt) => { setGlideAmt(amt); setGlideTime(glideAmtToTau(amt)) },
+    fenvAmt: fenvAmtState,
+    onFenvAmt: (amt) => { setFenvAmtState(amt); setFilterEnv(fenvAmtToOctaves(amt), fenvDecayAmtToSec(fenvDecayState)) },
+    fenvDecay: fenvDecayState,
+    onFenvDecay: (amt) => { setFenvDecayState(amt); setFilterEnv(fenvAmtToOctaves(fenvAmtState), fenvDecayAmtToSec(amt)) },
     onVol: (v) => setMasterVol(v),
     onPan: (p) => setPan(p),
     onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
@@ -280,10 +286,9 @@ export default function App() {
   const applyPreset = (p: Preset) => {
     setType(p.type)
     setWaveform(p.type)
-    setFilterEnv(p.filterEnvAmt, p.filterEnvDecay)
     setLfoDestState(p.lfoDest)
     setLfoDest(p.lfoDest)
-    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, dt: number, dm: number, gl: number, e: EnvParams) => {
+    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, dt: number, dm: number, gl: number, fa: number, fd: number, e: EnvParams) => {
       setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
       setResAmt(res); setResonance(resAmtToQ(res))
       setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
@@ -294,14 +299,15 @@ export default function App() {
       setDelayTimeAmt(dt); setDelayTime(delayTimeAmtToSec(dt))
       setDelayMixAmt(dm); setDelayMix(delayMixAmtToLevel(dm))
       setGlideAmt(gl); setGlideTime(glideAmtToTau(gl))
+      setFenvAmtState(fa); setFenvDecayState(fd); setFilterEnv(fenvAmtToOctaves(fa), fenvDecayAmtToSec(fd))
       setEnvState(e); setEnv(e)
     }
     if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.noiseAmt, p.delayTimeAmt, p.delayMixAmt, p.glideAmt, p.env)
+      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.noiseAmt, p.delayTimeAmt, p.delayMixAmt, p.glideAmt, p.filterEnvAmt, p.filterEnvDecay, p.env)
       return
     }
-    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, noise: noiseAmt, dt: delayTimeAmt, dm: delayMixAmt, gl: glideAmt, ...env }
+    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, noise: noiseAmt, dt: delayTimeAmt, dm: delayMixAmt, gl: glideAmt, fa: fenvAmtState, fd: fenvDecayState, ...env }
     const DUR = 600
     const t0 = performance.now()
     const step = (now: number) => {
@@ -319,6 +325,8 @@ export default function App() {
         lp(s.dt, p.delayTimeAmt),
         lp(s.dm, p.delayMixAmt),
         lp(s.gl, p.glideAmt),
+        lp(s.fa, p.filterEnvAmt),
+        lp(s.fd, p.filterEnvDecay),
         {
           attack: lp(s.attack, p.env.attack),
           decay: lp(s.decay, p.env.decay),

@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, FilterEnvFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -110,6 +110,14 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       return (
         <div data-stage-frame="glide" className={fp.className + ' slot slot-glide filled stage-glide'} style={fp.style}>
           <GlideFrame compact showText morphing={exiting} glide={sound.glide} onGlide={sound.onGlide} fine={sound.fine} snap={sound.snap} />
+        </div>
+      )
+    }
+    if (lesson.id === 'fenv') {
+      const fp = frameProps('fenv')
+      return (
+        <div data-stage-frame="fenv" className={fp.className + ' slot slot-fenv filled stage-fenv'} style={fp.style}>
+          <FilterEnvFrame compact showText morphing={exiting} fenvAmt={sound.fenvAmt} onFenvAmt={sound.onFenvAmt} fenvDecay={sound.fenvDecay} onFenvDecay={sound.onFenvDecay} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }
