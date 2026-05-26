@@ -625,13 +625,27 @@ b {
   border-radius: 1px;
 }
 
-/* 上向きメニュー（タブ行のハンバーガーから上に開く）。 */
-.menu--up {
+/* 上向きメニュー（タブ行のハンバーガーから上に開く）。
+   `.menu` の `top: 42px` を確実に上書きするため二重クラスで指定する
+   （単独 `.menu--up` だと CSS の書き順次第で負けて、ボックスが潰れる）。
+   背景は明示的に再宣言（保険）、z-index は backdrop(55) より上、
+   横幅はアプリ枠を超えないよう制限。 */
+.menu.menu--up {
   position: absolute;
-  bottom: calc(100% + 6px);
   top: auto;
+  bottom: calc(100% + 6px);
   right: 0;
-  z-index: 56;
+  z-index: 60;
+  background-color: var(--panel);
+  max-width: calc(100vw - 24px);
+}
+/* 上向きメニュー内のフライアウト（チュートリアル → 各レッスン）。
+   13 レッスンが縦に並ぶと viewport を超えるため、高さを clamp してスクロール。
+   横方向もアプリ枠を超えないよう max-width を入れる。 */
+.menu.menu--up .menu-sub {
+  max-width: calc(100vw - 24px);
+  max-height: min(50dvh, 280px);
+  overflow-y: auto;
 }
 
 /* ===== Eternal シーケンサー ===== */
