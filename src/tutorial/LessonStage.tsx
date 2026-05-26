@@ -81,11 +81,11 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       )
     if (lesson.id === 'osc2') {
       // パネル装着時の拡大版：パネルと同じ「箱（slot）」スタイルで、ただし大きく見せる。
-      // OK後の演出は中身が変わらず、サイズだけ縮んで定位置へ。
+      // OK後は値LEDが畳まれ、枠も上に縮んで、パネル装着時の比率になってから移動。
       const fp = frameProps('osc2')
       return (
         <div data-stage-frame="osc2" className={fp.className + ' slot slot-osc2 filled stage-osc2'} style={fp.style}>
-          <Osc2Frame compact showText mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
+          <Osc2Frame compact showText morphing={exiting} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }
