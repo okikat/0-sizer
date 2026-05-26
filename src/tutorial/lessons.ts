@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -11,6 +11,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   filter: 'フィルター',
   lfo: 'LFO',
   mix: 'MIX',
+  osc2: 'OSC2',
 }
 
 export interface Lesson {
@@ -103,6 +104,18 @@ export const LESSONS: Lesson[] = [
       'MIX ＝ ミックス。複数の音や仕上げのバランスを取ること。ここでは「音量」と「左右の位置」を整えます。',
     ],
   },
+  {
+    id: 'osc2',
+    realizes: ['osc2'],
+    stageTitle: '太くする：OSC2',
+    popup: [
+      'OSC2 は「2本目の音の素」。1本目（OSC1）に少しだけずらして重ねると、音が太く豊かになります。',
+      '「MIX」は OSC1 と OSC2 のバランス。0で OSC1 のみ、最大で OSC2 のみ、真ん中（5）で半々。DETUNE の効果は、両方が鳴っている時にいちばん感じられます。',
+      '「DETUNE」は OSC2 を OSC1 からどれだけずらすか。0で同じ高さ、少し上げると自然な厚み、もっと上げると「うわぁん」と揺らぐ「うなり（ビート）」が出ます。',
+      '鍵盤を押しっぱなしで、MIX を真ん中にして DETUNE を少しずつ上げてみて。シンセらしい太い音に変わっていきます。',
+      'OSC ＝ Oscillator（オシレーター）。音の素となる波。OSC2 はその2本目。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -162,6 +175,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '音の最終出口。VOL＝全体の音量、PAN＝左右の位置（定位）。',
       'PAN は左に回すと左から、右で右から聞こえます（中央で真ん中）。イヤホンだと分かりやすいです。',
+    ],
+  },
+  osc2: {
+    title: 'OSC2',
+    paragraphs: [
+      '2本目の音の素。MIX で OSC1↔OSC2 のバランス、DETUNE で OSC2 をどれだけずらすかを決めます。',
+      '少しずらすと厚み、多めにずらすと「うなり」。MIX を真ん中にして DETUNE を上げると効果が一番出ます。',
     ],
   },
 }

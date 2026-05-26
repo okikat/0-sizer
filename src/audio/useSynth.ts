@@ -12,8 +12,9 @@ const NOISE_LEVEL = 0.004
  * マスター・パン → 出力。出力には薄いリバーブ(コンボルバ)を並列で混ぜて空間感を与える。
  * AudioContext はブラウザの autoplay 制限のため、最初の noteOn(ユーザー操作)で生成する。
  */
-// 音量エンベロープのピーク。2本のオシレーターが加算で 2倍 になるため、従来 0.2 から下げる。
-const PEAK = 0.13
+// 音量エンベロープのピーク。OSC1+OSC2 は MIX で常にトータル ≒ 1.0 に抑えるので、
+// 元の 1オシ相当（0.2 弱）に戻す。
+const PEAK = 0.18
 
 export interface EnvParams {
   attack: number
@@ -26,6 +27,8 @@ export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
   const osc1Ref = useRef<OscillatorNode | null>(null)
   const osc2Ref = useRef<OscillatorNode | null>(null)
+  const osc1GainRef = useRef<GainNode | null>(null)
+  const osc2GainRef = useRef<GainNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const filterRef = useRef<BiquadFilterNode | null>(null)
   const masterRef = useRef<GainNode | null>(null)
@@ -37,6 +40,7 @@ export function useSynth() {
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
   const resRef = useRef(0.7) // クセ無し（フラット）
   const detuneRef = useRef(0) // 2本目のオシレーターの定常デチューン量（セント）
+  const mixBalanceRef = useRef(0.5) // OSC1↔OSC2 のミックス（0=OSC1のみ, 1=OSC2のみ, 0.5=等量）
   const filterEnvAmtRef = useRef(0) // 弾いた瞬間のフィルター持ち上げ量（オクターブ）
   const filterEnvDecayRef = useRef(0.3) // フィルターが基準値へ戻る時間（秒）
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
@@ -82,17 +86,24 @@ export function useSynth() {
       filter.frequency.value = cutoffRef.current
       filter.Q.value = resRef.current
       filter.connect(gain)
-      // 主オシレーター 2本（デチューンで厚みを出す）。同じ波形・周波数で、osc2 だけ定常デチューン。
+      // 主オシレーター 2本。osc2 は定常デチューン。MIX で 1↔2 のバランスを取り、
+      // 合計レベルは概ね 1.0 に保つ（osc1Gain = 1-mix / osc2Gain = mix の線形クロスフェード）。
       const osc1 = ctx.createOscillator()
       osc1.type = typeRef.current
       osc1.frequency.value = 440
-      osc1.connect(filter)
+      const osc1Gain = ctx.createGain()
+      osc1Gain.gain.value = 1 - mixBalanceRef.current
+      osc1.connect(osc1Gain)
+      osc1Gain.connect(filter)
       osc1.start()
       const osc2 = ctx.createOscillator()
       osc2.type = typeRef.current
       osc2.frequency.value = 440
       osc2.detune.value = detuneRef.current
-      osc2.connect(filter)
+      const osc2Gain = ctx.createGain()
+      osc2Gain.gain.value = mixBalanceRef.current
+      osc2.connect(osc2Gain)
+      osc2Gain.connect(filter)
       osc2.start()
       // 極小レベルのホワイトノイズを混ぜる(エンベロープ経由なので無音時は消える)。
       const noiseBuf = ctx.createBuffer(1, Math.floor(ctx.sampleRate * 2), ctx.sampleRate)
@@ -121,6 +132,8 @@ export function useSynth() {
       gainRef.current = gain
       osc1Ref.current = osc1
       osc2Ref.current = osc2
+      osc1GainRef.current = osc1Gain
+      osc2GainRef.current = osc2Gain
       filterRef.current = filter
       masterRef.current = master
       pannerRef.current = panner
@@ -226,6 +239,18 @@ export function useSynth() {
     if (ctx && o2) o2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
   }, [])
 
+  const setMix = useCallback((balance: number) => {
+    const b = Math.max(0, Math.min(1, balance))
+    mixBalanceRef.current = b
+    const ctx = ctxRef.current
+    const g1 = osc1GainRef.current
+    const g2 = osc2GainRef.current
+    if (ctx && g1 && g2) {
+      g1.gain.setTargetAtTime(1 - b, ctx.currentTime, 0.02)
+      g2.gain.setTargetAtTime(b, ctx.currentTime, 0.02)
+    }
+  }, [])
+
   const setFilterEnv = useCallback((amtOctaves: number, decaySec: number) => {
     filterEnvAmtRef.current = amtOctaves
     filterEnvDecayRef.current = decaySec
@@ -297,6 +322,7 @@ export function useSynth() {
     setCutoff,
     setResonance,
     setDetune,
+    setMix,
     setFilterEnv,
     setLfoRate,
     setLfoDepth,

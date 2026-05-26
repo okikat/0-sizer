@@ -5,7 +5,7 @@ import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
 import type { EnvParams } from '../audio/useSynth'
-import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan } from '../audio/params'
+import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
 
@@ -29,6 +29,10 @@ export interface SoundCtl {
   onLfoRate: (amt: number) => void
   lfoDepth: number
   onLfoDepth: (amt: number) => void
+  detune: number
+  onDetune: (amt: number) => void
+  mix: number
+  onMix: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -273,6 +277,56 @@ export function MixFrame({
           label="PAN"
           format={(v) => ({ main: fmtPan(v) })}
           onChange={(v) => onPan(panAmtToPos(v))}
+        />
+      </div>
+    </div>
+  )
+}
+
+/** OSC2フレーム：MIX（OSC1↔OSC2バランス）と DETUNE（OSC2のずらし量）の2ツマミ。 */
+export function Osc2Frame({
+  mix,
+  onMix,
+  detune,
+  onDetune,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'mix' | 'onMix' | 'detune' | 'onDetune' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-osc2">
+      <div className="osc2-knobs">
+        <Knob
+          value={mix}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={5}
+          label="MIX"
+          format={(v) => ({ main: fmtMix(v) })}
+          onChange={onMix}
+        />
+        <Knob
+          value={detune}
+          fine={fine}
+          snap={snap}
+          snapStep={1}
+          morphing={morphing}
+          showText={showText}
+          showHint={!compact}
+          min={0}
+          max={10}
+          defaultValue={0}
+          label="DETUNE"
+          format={(v) => ({ main: `${Math.round(detuneAmtToCents(v))}` })}
+          onChange={onDetune}
         />
       </div>
     </div>

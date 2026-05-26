@@ -20,3 +20,14 @@ export const lfoDepthToCents = (amt: number) => (amt / 10) * 200
 export const volAmtToGain = (amt: number) => amt / 10
 export const panAmtToPos = (amt: number) => amt / 5
 export const fmtPan = (amt: number) => (amt === 0 ? 'C' : amt < 0 ? `L${Math.abs(Math.round(amt))}` : `R${Math.round(amt)}`)
+
+// OSC2 DETUNE は「つまみ 0〜10」を 0〜50 セントに（広めの厚み）。
+export const detuneAmtToCents = (amt: number) => amt * 5
+// OSC2 MIX は「つまみ 0〜10」を 0〜1 のバランス（0=OSC1のみ, 10=OSC2のみ, 5=半々）。
+export const mixAmtToBalance = (amt: number) => amt / 10
+export const fmtMix = (amt: number) => {
+  const a = Math.round(amt)
+  if (a === 5) return 'M' // middle
+  if (a < 5) return `1:${5 - a}` // OSC1 dominant
+  return `${a - 5}:2` // OSC2 dominant
+}

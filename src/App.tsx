@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, lfoDepthToCents } from './audio/params'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, lfoDepthToCents, detuneAmtToCents, mixAmtToBalance } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -24,7 +24,7 @@ const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setFilterEnv, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext } = useSynth()
+  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setFilterEnv, setLfoRate, setLfoDepth, setMasterVol, setPan, getAudioContext } = useSynth()
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -56,6 +56,8 @@ export default function App() {
   const [resAmt, setResAmt] = useState(0)
   const [lfoRateAmt, setLfoRateAmt] = useState(3)
   const [lfoDepthAmt, setLfoDepthAmt] = useState(0)
+  const [detuneAmt, setDetuneAmt] = useState(0)
+  const [mixAmt, setMixAmt] = useState(5)
   const tweenRef = useRef<number | null>(null)
 
   const stopAll = useCallback(() => {
@@ -86,6 +88,10 @@ export default function App() {
     onLfoRate: (amt) => { setLfoRateAmt(amt); setLfoRate(lfoRateToHz(amt)) },
     lfoDepth: lfoDepthAmt,
     onLfoDepth: (amt) => { setLfoDepthAmt(amt); setLfoDepth(lfoDepthToCents(amt)) },
+    detune: detuneAmt,
+    onDetune: (amt) => { setDetuneAmt(amt); setDetune(detuneAmtToCents(amt)) },
+    mix: mixAmt,
+    onMix: (amt) => { setMixAmt(amt); setMix(mixAmtToBalance(amt)) },
     onVol: (v) => setMasterVol(v),
     onPan: (p) => setPan(p),
     onNoteOn: (m) => { setKeyHeld(true); noteOn(m) },
@@ -173,6 +179,14 @@ export default function App() {
     return () => timers.forEach(clearTimeout)
   }, [phase, stage, lessonIndex, commitExit, getAudioContext])
 
+  // 取付先（空きベイ）を画面内に出す。グリッドが縦に伸びても、着弾点が画面外に行かない。
+  const scrollToBay = (id: FrameId) => {
+    requestAnimationFrame(() => {
+      const el = document.querySelector(`[data-slot="${id}"]`)
+      el?.scrollIntoView({ block: 'center', behavior: 'auto' })
+    })
+  }
+
   const beginLesson = (i: number) => {
     setFlights({})
     flightDataRef.current = {}
@@ -182,6 +196,7 @@ export default function App() {
     setPopupOpen(false)
     setStage('blink')
     setPhase('lesson')
+    scrollToBay(LESSONS[i].id)
   }
 
   const onOK = () => {
@@ -222,6 +237,7 @@ export default function App() {
     setPopupOpen(false)
     setStage('blink')
     setPhase('lesson')
+    scrollToBay(LESSONS[i].id)
   }
 
   const skip = () => {
@@ -244,26 +260,27 @@ export default function App() {
     setPhase('intro')
   }
 
-  // プリセット選択：波形と内部パラメータ（デチューン・フィルターEnv）を即セット。
-  // 表示のあるツマミ系（ENV・FILTER・LFO）は 0.6 秒かけてアニメで目標値へ。
+  // プリセット選択：波形と内部パラメータ（フィルターEnv）を即セット。
+  // 表示のあるツマミ系（ENV・FILTER・LFO・OSC2 の MIX/DETUNE）は 0.6 秒かけてアニメで目標値へ。
   const applyPreset = (p: Preset) => {
     setType(p.type)
     setWaveform(p.type)
-    setDetune(p.detune)
     setFilterEnv(p.filterEnvAmt, p.filterEnvDecay)
-    const setAll = (cutoff: number, res: number, lr: number, ld: number, e: EnvParams) => {
+    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, e: EnvParams) => {
       setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
       setResAmt(res); setResonance(resAmtToQ(res))
       setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
       setLfoDepthAmt(ld); setLfoDepth(lfoDepthToCents(ld))
+      setMixAmt(mix); setMix(mixAmtToBalance(mix))
+      setDetuneAmt(det); setDetune(detuneAmtToCents(det))
       setEnvState(e); setEnv(e)
     }
     if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.env)
+      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.env)
       return
     }
-    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, ...env }
+    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, ...env }
     const DUR = 600
     const t0 = performance.now()
     const step = (now: number) => {
@@ -275,6 +292,8 @@ export default function App() {
         lp(s.res, p.res),
         lp(s.lr, p.lfoRate),
         lp(s.ld, p.lfoDepth),
+        lp(s.mix, p.mixAmt),
+        lp(s.det, p.detuneAmt),
         {
           attack: lp(s.attack, p.env.attack),
           decay: lp(s.decay, p.env.decay),
