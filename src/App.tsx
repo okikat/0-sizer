@@ -219,6 +219,31 @@ export default function App() {
     }
   }, [seqPlaying, seqBpm, noteOn, noteOff])
 
+  // ===== ☰ メニュー：外側タップで閉じる =====
+  // 以前は透明な .menu-backdrop（position: fixed）で受けていたが、
+  // panel-wrap の祖先スタッキングや DOM 配置の関係でメニュー自身（z-index 60）より
+  // backdrop（z-index 55）が上に乗ってしまい、メニュー項目のタップを横取りしていた。
+  // document レベルで pointerdown を見て、`.menu-wrap` の外側なら閉じる方式に切り替える。
+  // `.menu-wrap` はハンバーガーボタン本体とメニュー両方を含むので、自身のトグルや
+  // 項目タップは「内側」と判定される。
+  useEffect(() => {
+    if (!menuOpen) return
+    const handler = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null
+      if (t && t.closest('.menu-wrap')) return
+      setMenuOpen(false)
+      setTutorialMenuOpen(false)
+    }
+    // 「メニューを開いた瞬間のクリック」自体は除外（同イベントで閉じてしまう挙動の回避）。
+    const id = window.setTimeout(() => {
+      document.addEventListener('pointerdown', handler, true)
+    }, 0)
+    return () => {
+      window.clearTimeout(id)
+      document.removeEventListener('pointerdown', handler, true)
+    }
+  }, [menuOpen])
+
   // セル On/Off。再生は止めずに編集できる。
   const toggleSeqCell = (step: number, midi: number) => {
     setSeqPattern((prev) => {
@@ -542,7 +567,7 @@ export default function App() {
         />
       )}
 
-      {menuOpen && <div className="menu-backdrop" onClick={closeMenu} />}
+      {/* メニューの外側タップ検知は document.pointerdown で行う（.menu-backdrop は廃止） */}
 
       {/* レッスン中・ghost 中はパネルがオーバーレイで隠れるため、メニューは右上に出す。
           パネル時はタブ行のハンバーガーが担当するので不要。 */}
