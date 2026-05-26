@@ -55,6 +55,8 @@ interface Props {
   menuOpen: boolean
   onMenuToggle: () => void
   menuChildren: ReactNode
+  /** SEQ タブのとき表示する中身（App が SeqPanel を渡す）。 */
+  seqContent: ReactNode
 }
 
 export function SynthPanel({
@@ -72,6 +74,7 @@ export function SynthPanel({
   menuOpen,
   onMenuToggle,
   menuChildren,
+  seqContent,
 }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   useCellSize(gridRef)
@@ -136,12 +139,7 @@ export function SynthPanel({
             </div>
           </div>
         ) : (
-          <div className="seq-placeholder">
-            <div className="seq-placeholder-inner">
-              <div className="seq-placeholder-title">SEQ</div>
-              <div className="seq-placeholder-sub">Eternal シーケンサーは準備中</div>
-            </div>
-          </div>
+          seqContent
         )}
       </div>
 

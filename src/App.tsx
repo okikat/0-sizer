@@ -11,11 +11,15 @@ import { SynthPanel, type PanelTab } from './tutorial/SynthPanel'
 import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/LessonStage'
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
+import { SeqPanel } from './tutorial/SeqPanel'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, cellKey as seqCellKey } from './tutorial/seqConst'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
 
 const DONE_KEY = '0sizer.tutorialDone'
+const SEQ_PATTERN_KEY = '0sizer.seqPattern'
+const SEQ_BPM_KEY = '0sizer.seqBpm'
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -39,6 +43,30 @@ export default function App() {
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [activeTab, setActiveTab] = useState<PanelTab>('panel')
   const [presetModalOpen, setPresetModalOpen] = useState(false)
+
+  // ===== Eternal シーケンサーの状態 =====
+  // パターンと BPM は localStorage に保存。再生位置とフラグは揮発で OK。
+  const [seqPattern, setSeqPattern] = useState<Set<string>>(() => {
+    try {
+      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_PATTERN_KEY) : null
+      if (stored) return new Set(JSON.parse(stored) as string[])
+    } catch {
+      // 壊れていれば空で始める
+    }
+    return new Set()
+  })
+  const [seqBpm, setSeqBpm] = useState<number>(() => {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_BPM_KEY) : null
+    const n = stored ? Number(stored) : 120
+    if (!Number.isFinite(n) || n < SEQ_BPM_MIN || n > SEQ_BPM_MAX) return 120
+    return n
+  })
+  const [seqPlaying, setSeqPlaying] = useState(false)
+  const [seqCurrentStep, setSeqCurrentStep] = useState(-1)
+  // 再生ループから最新のパターン／音源を取るための ref。
+  // パターンを依存配列に入れると編集のたびに再生がリセットされてしまう。
+  const seqPatternRef = useRef(seqPattern)
+  useEffect(() => { seqPatternRef.current = seqPattern }, [seqPattern])
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [flights, setFlights] = useState<Record<string, FrameFlight>>({})
   const [installing, setInstalling] = useState<Set<FrameId>>(new Set())
@@ -78,6 +106,8 @@ export default function App() {
     heldNotesRef.current.forEach((m) => noteOff(m))
     heldNotesRef.current.clear()
     setKeyHeld(false)
+    // レッスン突入や画面遷移時に SEQ も止める。音と動線をクリーンに。
+    setSeqPlaying(false)
   }, [noteOff])
 
   const sound: SoundCtl = {
@@ -135,6 +165,69 @@ export default function App() {
       setKeyHeld(heldNotesRef.current.size > 0)
       noteOff(m)
     },
+  }
+
+  // ===== SEQ：パターンと BPM を localStorage に永続化 =====
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEQ_PATTERN_KEY, JSON.stringify(Array.from(seqPattern)))
+    } catch {
+      // 容量上限や private モード等。失敗しても再生には影響しない。
+    }
+  }, [seqPattern])
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEQ_BPM_KEY, String(seqBpm))
+    } catch {
+      // 同上
+    }
+  }, [seqBpm])
+
+  // ===== SEQ：再生ループ =====
+  // 16 分音符単位で setInterval を回す。各ステップで音を「ゲート 85%」で打って離す。
+  // パターンは ref から都度読むので、再生中に編集してもループが止まらない。
+  // BPM 変更は effect 再起動として反映（簡素化のため、その時点で先頭に戻る挙動）。
+  useEffect(() => {
+    if (!seqPlaying) return
+    const stepMs = 60000 / (seqBpm * 4)
+    let curStep = -1
+    const releaseTimers: ReturnType<typeof setTimeout>[] = []
+
+    const advance = () => {
+      curStep = (curStep + 1) % SEQ_STEPS
+      setSeqCurrentStep(curStep)
+      const midis: number[] = []
+      for (const m of SEQ_PITCHES) {
+        if (seqPatternRef.current.has(seqCellKey(curStep, m))) midis.push(m)
+      }
+      midis.forEach((m) => noteOn(m))
+      const t = setTimeout(() => {
+        midis.forEach((m) => noteOff(m))
+      }, stepMs * 0.85)
+      releaseTimers.push(t)
+    }
+    advance()
+    const id = setInterval(advance, stepMs)
+
+    return () => {
+      clearInterval(id)
+      releaseTimers.forEach((t) => clearTimeout(t))
+      // SEQ が打った可能性のある全ピッチを念のため離す（停止後の長い尾を防ぐ）。
+      SEQ_PITCHES.forEach((m) => noteOff(m))
+      // 再生ヘッドを消す（停止 or BPM 変更でループ再起動する瞬間）。
+      setSeqCurrentStep(-1)
+    }
+  }, [seqPlaying, seqBpm, noteOn, noteOff])
+
+  // セル On/Off。再生は止めずに編集できる。
+  const toggleSeqCell = (step: number, midi: number) => {
+    setSeqPattern((prev) => {
+      const next = new Set(prev)
+      const k = seqCellKey(step, midi)
+      if (next.has(k)) next.delete(k)
+      else next.add(k)
+      return next
+    })
   }
 
   const commitExit = useCallback(() => {
@@ -409,10 +502,22 @@ export default function App() {
         activeTab={activeTab}
         onTab={setActiveTab}
         onOpenPresets={() => setPresetModalOpen(true)}
-        seqPlaying={false}
+        seqPlaying={seqPlaying}
         menuOpen={menuOpen && phase === 'panel'}
         onMenuToggle={() => setMenuOpen((o) => !o)}
         menuChildren={menuItems}
+        seqContent={
+          <SeqPanel
+            pattern={seqPattern}
+            currentStep={seqCurrentStep}
+            playing={seqPlaying}
+            bpm={seqBpm}
+            onToggleCell={toggleSeqCell}
+            onClear={() => setSeqPattern(new Set())}
+            onTogglePlay={() => setSeqPlaying((p) => !p)}
+            onBpm={setSeqBpm}
+          />
+        }
       />
 
       {phase === 'ghost' && (

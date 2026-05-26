@@ -634,26 +634,163 @@ b {
   z-index: 56;
 }
 
-/* SEQ プレースホルダ（Eternal シーケンサーは別途実装予定）。 */
-.seq-placeholder {
+/* ===== Eternal シーケンサー ===== */
+.seq-panel {
   flex: 1 1 auto;
   display: flex;
+  flex-direction: column;
+  gap: 10px;
+  padding: 10px 6px;
+  min-height: 0;
+  color: var(--txt);
+}
+
+/* トランスポート行：▶/⏹、BPM ±、クリア。 */
+.seq-transport {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 4px;
+}
+.seq-play {
+  width: 44px;
+  height: 36px;
+  display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-height: 0;
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--txt);
+  background: linear-gradient(180deg, #1a1f27 0%, #0d1015 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.08), 0 2px 4px rgba(0, 0, 0, 0.6);
+  cursor: pointer;
 }
-.seq-placeholder-inner {
-  text-align: center;
+.seq-play.on {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+.seq-bpm {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+.seq-bpm-bump {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 32px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 700;
   color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
 }
-.seq-placeholder-title {
-  font-size: 28px;
-  letter-spacing: 6px;
+.seq-bpm-bump:active { color: var(--accent); background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%); }
+.seq-bpm-display {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 4px;
+  padding: 4px 10px;
+  min-width: 68px;
+  justify-content: center;
+  background: #0a0c0f;
+  border: 1px solid rgba(90, 209, 196, 0.35);
+  box-shadow: inset 0 0 8px rgba(90, 209, 196, 0.12);
+}
+.seq-bpm-label { font-size: 11px; color: var(--sub); }
+.seq-bpm-value {
+  font-size: 16px;
   font-weight: 800;
   color: var(--accent);
-  text-shadow: 0 0 12px rgba(90, 209, 196, 0.4);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.4);
+  letter-spacing: 1px;
 }
-.seq-placeholder-sub { margin-top: 8px; font-size: 12px; }
+.seq-clear {
+  flex: 0 0 auto;
+  height: 32px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+.seq-clear:active { color: var(--accent); }
+
+/* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
+.seq-grid-wrap {
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto;
+  display: flex;
+  justify-content: center;
+}
+.seq-grid {
+  /* セルサイズは画面幅に応じて 18px〜32px。
+     幅 = (利用可能 − ラベル列 28px − 4 拍区切り計 9px) / 16。 */
+  --seq-cell: clamp(18px, calc((100vw - 28px - 9px - 24px) / 16), 32px);
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px;
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+}
+.seq-row {
+  display: flex;
+  align-items: center;
+  gap: 2px;
+}
+.seq-row-label {
+  flex: 0 0 auto;
+  width: 24px;
+  font-size: 10px;
+  font-weight: 700;
+  text-align: center;
+  color: var(--sub);
+  letter-spacing: 1px;
+}
+.seq-cell {
+  flex: 0 0 auto;
+  width: var(--seq-cell);
+  height: var(--seq-cell);
+  padding: 0;
+  background: #0a0d11;
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 0;
+  cursor: pointer;
+  transition: background 0.08s ease, box-shadow 0.08s ease;
+}
+.seq-cell.bar-start { margin-left: 3px; }
+.seq-cell:active { background: #14181f; }
+.seq-cell.on {
+  background: linear-gradient(180deg, rgba(90, 209, 196, 0.55) 0%, rgba(90, 209, 196, 0.35) 100%);
+  border-color: rgba(90, 209, 196, 0.7);
+  box-shadow: inset 0 0 6px rgba(90, 209, 196, 0.3), 0 0 4px rgba(90, 209, 196, 0.25);
+}
+/* 再生ヘッド列：そのステップの全セルを少しブライトに、点灯セルはさらに強調。 */
+.seq-cell.col-active {
+  background: #1a2228;
+  box-shadow: inset 0 0 0 1px rgba(90, 209, 196, 0.3);
+}
+.seq-cell.col-active.on {
+  background: linear-gradient(180deg, rgba(120, 230, 218, 0.85) 0%, rgba(90, 209, 196, 0.6) 100%);
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.3), 0 0 10px rgba(90, 209, 196, 0.65);
+}
 
 /* ===== PRESET モーダル（ホログラム投影風） =====
    タブ行の上から、ティールで「投影」する。背面はうっすら暗幕。 */
