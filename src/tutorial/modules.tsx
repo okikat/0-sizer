@@ -33,6 +33,8 @@ export interface SoundCtl {
   onDetune: (amt: number) => void
   mix: number
   onMix: (amt: number) => void
+  noise: number
+  onNoise: (amt: number) => void
   onVol: (v: number) => void
   onPan: (p: number) => void
   onNoteOn: (midi: number) => void
@@ -329,6 +331,37 @@ export function Osc2Frame({
           onChange={onDetune}
         />
       </div>
+    </div>
+  )
+}
+
+/** NOISEフレーム：ホワイトノイズの音量1ツマミ（2×2）。 */
+export function NoiseFrame({
+  noise,
+  onNoise,
+  fine,
+  snap,
+  compact = false,
+  showText = true,
+  morphing = false,
+}: Pick<SoundCtl, 'noise' | 'onNoise' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+  return (
+    <div className="mod mod-noise">
+      <Knob
+        value={noise}
+        fine={fine}
+        snap={snap}
+        snapStep={1}
+        morphing={morphing}
+        showText={showText}
+        showHint={!compact}
+        min={0}
+        max={10}
+        defaultValue={0}
+        label="LEVEL"
+        format={(v) => ({ main: String(Math.round(v)) })}
+        onChange={onNoise}
+      />
     </div>
   )
 }

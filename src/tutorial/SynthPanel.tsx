@@ -1,7 +1,7 @@
 import { useLayoutEffect, useRef, type RefObject } from 'react'
 import { type FrameId } from './lessons'
 import { type Preset } from './presets'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, KeyboardModule, type SoundCtl } from './modules'
 
 const COLS = 8
 const GAP = 0
@@ -13,6 +13,7 @@ const PANEL_LABELS: Partial<Record<FrameId, string>> = {
   lfo: 'LFO',
   mix: 'MIX',
   osc2: 'OSC2',
+  noise: 'NOISE',
 }
 
 function useCellSize(ref: RefObject<HTMLDivElement | null>) {
@@ -105,6 +106,9 @@ export function SynthPanel({ realized, blinkingId, sound, showHelp, onHelpFrame,
             </Slot>
             <Slot {...slotProps('osc2')}>
               <Osc2Frame compact showText={showHelp} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
+            </Slot>
+            <Slot {...slotProps('noise')}>
+              <NoiseFrame compact showText={showHelp} noise={sound.noise} onNoise={sound.onNoise} fine={sound.fine} snap={sound.snap} />
             </Slot>
           </div>
         </div>

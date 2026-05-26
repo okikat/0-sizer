@@ -1,5 +1,5 @@
 // 盤面のフレーム（枠）単位。レッスンはフレームを1つ以上「実体化」させる。
-export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2'
+export type FrameId = 'keys' | 'wave' | 'pitch' | 'fine' | 'snap' | 'env' | 'filter' | 'lfo' | 'mix' | 'osc2' | 'noise'
 
 export const FRAME_TITLE: Record<FrameId, string> = {
   keys: '鍵盤',
@@ -12,6 +12,7 @@ export const FRAME_TITLE: Record<FrameId, string> = {
   lfo: 'LFO',
   mix: 'MIX',
   osc2: 'OSC2',
+  noise: 'NOISE',
 }
 
 export interface Lesson {
@@ -116,6 +117,18 @@ export const LESSONS: Lesson[] = [
       'OSC ＝ Oscillator（オシレーター）。音の素となる波。OSC2 はその2本目。',
     ],
   },
+  {
+    id: 'noise',
+    realizes: ['noise'],
+    stageTitle: '混ぜる：NOISE',
+    popup: [
+      'NOISE は「ザー」というホワイトノイズの音源。波形（OSC1/OSC2）に少し混ぜると、息づかいや、シャーッとした質感が足せます。',
+      '「LEVEL」を上げると混ざるノイズが増えます。0でオフ、上げるほど「ザー」が強くなります。',
+      'コツ：フィルターの後段に通っているので、CUTOFF を下げるとノイズも一緒に削れて、こもった「フゥー」という風音や、シューッとした息感になります。',
+      'NOISE は単独でも鳴らせます。LEVEL を最大にすると、ホワイトノイズ単体に。波/海/雨/シンバルのような効果音の素として使えます。',
+      'NOISE ＝ 雑音（あらゆる音程を含む音）。シンセではこれを「素」として、フィルターやエンベロープで形を与えていきます。',
+    ],
+  },
 ]
 
 /** フレームを教えたレッスン（解説の再表示用）。 */
@@ -182,6 +195,13 @@ export const FRAME_HELP: Record<FrameId, { title: string; paragraphs: string[] }
     paragraphs: [
       '2本目の音の素。MIX で OSC1↔OSC2 のバランス、DETUNE で OSC2 をどれだけずらすかを決めます。',
       '少しずらすと厚み、多めにずらすと「うなり」。MIX を真ん中にして DETUNE を上げると効果が一番出ます。',
+    ],
+  },
+  noise: {
+    title: 'NOISE',
+    paragraphs: [
+      'ホワイトノイズの音源。LEVEL で混ぜる量を決めます。フィルター(CUTOFF)を下げるとノイズもこもり、風や息のようになります。',
+      '波形に少し混ぜると、息づかいや質感を足せます。最大にすればホワイトノイズ単体に。',
     ],
   },
 }

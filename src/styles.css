@@ -613,6 +613,7 @@ b {
 .slot-lfo      { grid-column: 1 / span 4; grid-row: 6 / span 2; }
 .slot-mix      { grid-column: 5 / span 4; grid-row: 6 / span 2; }
 .slot-osc2     { grid-column: 1 / span 4; grid-row: 8 / span 2; }
+.slot-noise    { grid-column: 5 / span 2; grid-row: 8 / span 2; }
 
 /* モジュールは板に彫り込まれた区画（直角・マット）。白枠は使わず段差で分ける。 */
 .slot {
@@ -1089,6 +1090,16 @@ b {
 }
 .stage-module.exiting .stage-osc2 {
   aspect-ratio: 2 / 1;
+}
+/* NOISE のレッスン：2×2(=1:1) のパネル装着比。初期は値LED分すこし背高く、OKで正方形に縮む。 */
+.stage-noise {
+  width: 200px;
+  max-width: 56vw;
+  aspect-ratio: 200 / 240;
+  transition: transform 0.44s cubic-bezier(0.4, 0, 0.2, 1), aspect-ratio 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.stage-module.exiting .stage-noise {
+  aspect-ratio: 1 / 1;
 }
 .stage-frame.f-hover { transition: transform 0.34s cubic-bezier(0.2, 0.8, 0.3, 1); }
 .stage-frame.f-glide { transition: transform 0.76s cubic-bezier(0.35, 0, 0.2, 1); }

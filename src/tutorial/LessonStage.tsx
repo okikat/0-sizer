@@ -1,6 +1,6 @@
 import type { CSSProperties } from 'react'
 import { Popup } from './Popup'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, KeyboardModule, type SoundCtl } from './modules'
 import type { Lesson, FrameId } from './lessons'
 
 export interface FrameFlight {
@@ -86,6 +86,14 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       return (
         <div data-stage-frame="osc2" className={fp.className + ' slot slot-osc2 filled stage-osc2'} style={fp.style}>
           <Osc2Frame compact showText morphing={exiting} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
+        </div>
+      )
+    }
+    if (lesson.id === 'noise') {
+      const fp = frameProps('noise')
+      return (
+        <div data-stage-frame="noise" className={fp.className + ' slot slot-noise filled stage-noise'} style={fp.style}>
+          <NoiseFrame compact showText morphing={exiting} noise={sound.noise} onNoise={sound.onNoise} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }

@@ -29,6 +29,7 @@ export function useSynth() {
   const osc2Ref = useRef<OscillatorNode | null>(null)
   const osc1GainRef = useRef<GainNode | null>(null)
   const osc2GainRef = useRef<GainNode | null>(null)
+  const noiseGainRef = useRef<GainNode | null>(null)
   const gainRef = useRef<GainNode | null>(null)
   const filterRef = useRef<BiquadFilterNode | null>(null)
   const masterRef = useRef<GainNode | null>(null)
@@ -41,6 +42,7 @@ export function useSynth() {
   const resRef = useRef(0.7) // クセ無し（フラット）
   const detuneRef = useRef(0) // 2本目のオシレーターの定常デチューン量（セント）
   const mixBalanceRef = useRef(0.5) // OSC1↔OSC2 のミックス（0=OSC1のみ, 1=OSC2のみ, 0.5=等量）
+  const noiseLevelRef = useRef(0) // NOISE 音源の音量（0=オフ、1で結構うるさい）
   const filterEnvAmtRef = useRef(0) // 弾いた瞬間のフィルター持ち上げ量（オクターブ）
   const filterEnvDecayRef = useRef(0.3) // フィルターが基準値へ戻る時間（秒）
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
@@ -117,6 +119,15 @@ export function useSynth() {
       noise.connect(noiseLevel)
       noiseLevel.connect(gain)
       noise.start()
+      // ユーザー操作の NOISE 音源（フィルター経由で envelope に乗せる＝風/吹奏感などに使える）。
+      const noiseUser = ctx.createBufferSource()
+      noiseUser.buffer = noiseBuf
+      noiseUser.loop = true
+      const noiseUserGain = ctx.createGain()
+      noiseUserGain.gain.value = noiseLevelRef.current
+      noiseUser.connect(noiseUserGain)
+      noiseUserGain.connect(filter)
+      noiseUser.start()
       // LFO：低速オシレーターで両オシレーターの音程(detune/セント)を揺らす＝ビブラート。
       // depth=0 なら掛からない（触るまで素の音）。osc2 の定常デチューンに加算で乗る。
       const lfo = ctx.createOscillator()
@@ -134,6 +145,7 @@ export function useSynth() {
       osc2Ref.current = osc2
       osc1GainRef.current = osc1Gain
       osc2GainRef.current = osc2Gain
+      noiseGainRef.current = noiseUserGain
       filterRef.current = filter
       masterRef.current = master
       pannerRef.current = panner
@@ -239,6 +251,14 @@ export function useSynth() {
     if (ctx && o2) o2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
   }, [])
 
+  const setNoise = useCallback((level: number) => {
+    const l = Math.max(0, level)
+    noiseLevelRef.current = l
+    const ctx = ctxRef.current
+    const g = noiseGainRef.current
+    if (ctx && g) g.gain.setTargetAtTime(l, ctx.currentTime, 0.02)
+  }, [])
+
   const setMix = useCallback((balance: number) => {
     const b = Math.max(0, Math.min(1, balance))
     mixBalanceRef.current = b
@@ -323,6 +343,7 @@ export function useSynth() {
     setResonance,
     setDetune,
     setMix,
+    setNoise,
     setFilterEnv,
     setLfoRate,
     setLfoDepth,

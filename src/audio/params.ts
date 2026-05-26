@@ -21,6 +21,9 @@ export const volAmtToGain = (amt: number) => amt / 10
 export const panAmtToPos = (amt: number) => amt / 5
 export const fmtPan = (amt: number) => (amt === 0 ? 'C' : amt < 0 ? `L${Math.abs(Math.round(amt))}` : `R${Math.round(amt)}`)
 
+// NOISE LEVEL は「つまみ 0〜10」を 0〜0.5 のゲインに（オシ2本と釣り合う上限）。
+export const noiseAmtToLevel = (amt: number) => (amt / 10) * 0.5
+
 // OSC2 DETUNE は「つまみ 0〜10」を 0〜50 セントに（広めの厚み）。
 export const detuneAmtToCents = (amt: number) => amt * 5
 // OSC2 MIX は「つまみ 0〜10」を 0〜1 のバランス（0=OSC1のみ, 10=OSC2のみ, 5=半々）。
