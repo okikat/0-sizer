@@ -934,12 +934,15 @@ b {
   position: absolute;
   top: 0;
   bottom: 0;
-  left: 100%;
+  /* box-sizing: border-box の親では「left: 100%」が padding-box の右端
+     （＝右ボーダーの内側）を指す。そのままだと右ボーダー幅ぶん（1px）
+     ブリッジが内側に寄って 2px ギャップの末尾 1px が埋まらないので、
+     親の右ボーダー幅ぶん（+1px）外側にシフトしてからギャップ全幅を覆う。 */
+  left: calc(100% + 1px);
   width: 2px;
   background: linear-gradient(180deg, rgba(90, 209, 196, 0.55) 0%, rgba(90, 209, 196, 0.35) 100%);
   border-top: 1px solid rgba(90, 209, 196, 0.7);
   border-bottom: 1px solid rgba(90, 209, 196, 0.7);
-  box-sizing: border-box;
   pointer-events: none;
 }
 /* 再生ヘッドが tied-next 側に乗ったときはブリッジも明るく（playhead に追従）。 */
