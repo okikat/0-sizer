@@ -24,6 +24,8 @@ const SEQ_BPM_KEY = '0sizer.seqBpm'
 const SEQ_SWING_KEY = '0sizer.seqSwing'
 const TRACKS_KEY = '0sizer.tracks' // トラック毎の音色（SoundState 配列）
 const ACTIVE_TRACK_KEY = '0sizer.activeTrack'
+const SEQ_AUTOMATIONS_KEY = '0sizer.seqAutomations'      // [トラック][ステップ] = 0〜1（CUTOFF 0〜1 つまみ量に等価）
+const SEQ_AUTOMATION_ENABLED_KEY = '0sizer.seqAutomationEnabled' // [トラック] = boolean
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -86,6 +88,45 @@ const loadActiveTrack = (): number => {
   return n
 }
 
+// CUTOFF オートメーション：各トラックの SEQ_STEPS 分の値（0〜1）を保持。
+// 既定はちょうど中ほどの 0.5（無効中は使われない）。
+const defaultAutomations = (): number[][] =>
+  Array.from({ length: TRACK_COUNT }, () => Array(SEQ_STEPS).fill(0.5))
+
+const loadAutomations = (): number[][] => {
+  if (typeof localStorage === 'undefined') return defaultAutomations()
+  try {
+    const stored = localStorage.getItem(SEQ_AUTOMATIONS_KEY)
+    if (!stored) return defaultAutomations()
+    const parsed = JSON.parse(stored) as number[][]
+    return defaultAutomations().map((def, i) => {
+      const p = parsed[i] ?? def
+      const arr = Array(SEQ_STEPS).fill(0.5)
+      for (let j = 0; j < Math.min(SEQ_STEPS, p.length); j++) {
+        const v = Number(p[j])
+        arr[j] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5
+      }
+      return arr
+    })
+  } catch {
+    return defaultAutomations()
+  }
+}
+
+const loadAutomationEnabled = (): boolean[] => {
+  if (typeof localStorage === 'undefined') return Array(TRACK_COUNT).fill(false)
+  try {
+    const stored = localStorage.getItem(SEQ_AUTOMATION_ENABLED_KEY)
+    if (!stored) return Array(TRACK_COUNT).fill(false)
+    const parsed = JSON.parse(stored) as boolean[]
+    const out = Array(TRACK_COUNT).fill(false)
+    for (let i = 0; i < Math.min(TRACK_COUNT, parsed.length); i++) out[i] = Boolean(parsed[i])
+    return out
+  } catch {
+    return Array(TRACK_COUNT).fill(false)
+  }
+}
+
 const DEFAULT_SOUND: SoundState = {
   type: 'sine',
   env: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
@@ -137,8 +178,8 @@ export default function App() {
   const engineB = useSynth()
   // useSynth() は毎レンダ新しいオブジェクトを返すが、中身のメソッドは useCallback 済みで参照安定。
   // 後続の useCallback / useEffect の依存配列で扱いやすいよう、必要なメソッドだけ分解しておく。
-  const { noteOn: aNoteOn, noteOff: aNoteOff, getAudioContext: aGetCtx } = engineA
-  const { noteOn: bNoteOn, noteOff: bNoteOff } = engineB
+  const { noteOn: aNoteOn, noteOff: aNoteOff, getAudioContext: aGetCtx, setCutoff: aSetCutoff } = engineA
+  const { noteOn: bNoteOn, noteOff: bNoteOff, setCutoff: bSetCutoff } = engineB
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -213,6 +254,14 @@ export default function App() {
   useEffect(() => { trackMuteRef.current = trackMute }, [trackMute])
   const trackSoloRef = useRef(trackSolo)
   useEffect(() => { trackSoloRef.current = trackSolo }, [trackSolo])
+  // CUTOFF オートメーション：再生ごとに各ステップでフィルター CUTOFF を書き換える。
+  // 値は 0〜1 のつまみ量（cutoffNormToHz で Hz に変換してから engine へ）。永続化あり。
+  const [seqAutomations, setSeqAutomations] = useState<number[][]>(() => loadAutomations())
+  const [seqAutomationEnabled, setSeqAutomationEnabled] = useState<boolean[]>(() => loadAutomationEnabled())
+  const seqAutomationsRef = useRef(seqAutomations)
+  useEffect(() => { seqAutomationsRef.current = seqAutomations }, [seqAutomations])
+  const seqAutomationEnabledRef = useRef(seqAutomationEnabled)
+  useEffect(() => { seqAutomationEnabledRef.current = seqAutomationEnabled }, [seqAutomationEnabled])
   // 再生ループから最新のパターン・スイング量を取るための ref。
   const seqPatternsRef = useRef(seqPatterns)
   useEffect(() => { seqPatternsRef.current = seqPatterns }, [seqPatterns])
@@ -351,6 +400,14 @@ export default function App() {
     try { localStorage.setItem(ACTIVE_TRACK_KEY, String(activeTrack)) } catch { /* */ }
   }, [activeTrack])
 
+  // ===== オートメーションを永続化 =====
+  useEffect(() => {
+    try { localStorage.setItem(SEQ_AUTOMATIONS_KEY, JSON.stringify(seqAutomations)) } catch { /* */ }
+  }, [seqAutomations])
+  useEffect(() => {
+    try { localStorage.setItem(SEQ_AUTOMATION_ENABLED_KEY, JSON.stringify(seqAutomationEnabled)) } catch { /* */ }
+  }, [seqAutomationEnabled])
+
   // マウント時：ロード済みの SoundState を各エンジンへ反映（フィルター・LFO 等の ref を同期）。
   // 以降は sound の各ハンドラが knob 変化ごとに engine.setX を呼ぶので、これは初期化専用。
   useEffect(() => {
@@ -372,6 +429,7 @@ export default function App() {
     if (!seqPlaying) return
     const trackOnFns = [aNoteOn, bNoteOn]
     const trackOffFns = [aNoteOff, bNoteOff]
+    const trackCutoffFns = [aSetCutoff, bSetCutoff]
     const stepMs = 60000 / (seqBpm * 4)
     let curStep = -1
     const releaseTimers: ReturnType<typeof setTimeout>[] = []
@@ -389,10 +447,18 @@ export default function App() {
       const patterns = seqPatternsRef.current
       const mutes = trackMuteRef.current
       const solos = trackSoloRef.current
+      const automations = seqAutomationsRef.current
+      const automationOn = seqAutomationEnabledRef.current
       const anySolo = solos.some((s) => s)
       for (let trk = 0; trk < TRACK_COUNT; trk++) {
         const pattern = patterns[trk]
         if (!pattern) continue
+        // CUTOFF オートメーション：このステップの値で engine の CUTOFF を上書き。
+        // MUTE/SOLO に関係なく毎ステップ反映する（無音中でも次回鳴った時の値を揃えるため）。
+        if (automationOn[trk]) {
+          const v = automations[trk]?.[curStep] ?? 0.5
+          trackCutoffFns[trk](cutoffNormToHz(v))
+        }
         // MUTE が ON、または「誰かが SOLO」なのに自分が SOLO ではない → このトラックは無音。
         if (mutes[trk]) continue
         if (anySolo && !solos[trk]) continue
@@ -427,7 +493,7 @@ export default function App() {
       }
       setSeqCurrentStep(-1)
     }
-  }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff])
+  }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff, aSetCutoff, bSetCutoff])
 
   // ===== MUTE / SOLO 切替で「いま鳴ってる音」を即時 release =====
   // 「無音化された瞬間」を検知して、そのトラックの全ピッチに noteOff を投げる。
@@ -451,6 +517,27 @@ export default function App() {
   }
   const toggleSolo = (track: number) => {
     setTrackSolo((prev) => prev.map((v, i) => (i === track ? !v : v)))
+  }
+
+  const setAutomationValue = (track: number, step: number, val: number) => {
+    const clamped = Math.max(0, Math.min(1, val))
+    setSeqAutomations((prev) => prev.map((arr, i) => {
+      if (i !== track) return arr
+      const next = [...arr]
+      next[step] = clamped
+      return next
+    }))
+  }
+
+  const toggleAutomation = (track: number) => {
+    const wasEnabled = seqAutomationEnabled[track]
+    setSeqAutomationEnabled((prev) => prev.map((v, i) => (i === track ? !v : v)))
+    // OFF に切り替えた瞬間：エンジンの CUTOFF を「パネルの CUTOFF つまみ」値に戻す。
+    // 直前のステップ位置で値が止まっていると、無効化後の音が想定とズレるため。
+    if (wasEnabled) {
+      const fn = track === 0 ? aSetCutoff : bSetCutoff
+      fn(cutoffNormToHz(tracks[track].cutoff))
+    }
   }
 
   // ===== ☰ メニュー：外側タップで閉じる =====
@@ -803,6 +890,10 @@ export default function App() {
             onToggleMute={toggleMute}
             onToggleSolo={toggleSolo}
             pattern={seqPatterns[activeTrack] ?? new Set()}
+            automation={seqAutomations[activeTrack] ?? Array(SEQ_STEPS).fill(0.5)}
+            automationEnabled={seqAutomationEnabled[activeTrack] ?? false}
+            onSetAutomation={(step, val) => setAutomationValue(activeTrack, step, val)}
+            onToggleAutomation={() => toggleAutomation(activeTrack)}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}

@@ -867,6 +867,92 @@ b {
   text-shadow: 0 0 6px rgba(255, 211, 102, 0.55);
 }
 
+/* ===== オートメーションレーン（CUTOFF） =====
+   グリッド下に置かれる 16 ステップの縦バー帯。AUTO トグルを ON にしている間
+   各ステップで engine.setCutoff() を発火 → フィルターを開閉してスイープになる。 */
+.seq-automation {
+  flex: 0 0 auto;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  padding: 0 4px;
+  margin-top: 4px;
+}
+.seq-automation-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+.seq-automation-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--sub);
+}
+.seq-automation-toggle {
+  min-width: 50px;
+  height: 26px;
+  padding: 0 8px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1.5px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+.seq-automation-toggle.on {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.55);
+}
+/* レーン本体：グリッドと同じ --seq-cell 幅で 16 ステップ並べる。 */
+.seq-automation-lane {
+  display: flex;
+  align-items: stretch;
+  height: 60px;
+  padding: 4px;
+  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
+}
+.seq-automation-lane.disabled { opacity: 0.4; }
+.seq-automation-lane .seq-row-label {
+  /* 上のグリッドのラベル列と同じ幅で揃える（中身は空）。 */
+  width: 24px;
+  margin-right: 2px;
+}
+.seq-auto-cell {
+  flex: 0 0 auto;
+  width: var(--seq-cell);
+  margin-right: 2px;
+  position: relative;
+  background: rgba(255, 255, 255, 0.02);
+  border: 1px solid rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  touch-action: none; /* 縦ドラッグでページがスクロールしないように */
+  display: flex;
+  align-items: flex-end;
+}
+.seq-auto-cell:last-child { margin-right: 0; }
+.seq-auto-cell.bar-start { margin-left: 3px; }
+.seq-auto-cell.col-active {
+  background: rgba(90, 209, 196, 0.1);
+  box-shadow: inset 0 0 0 1px rgba(90, 209, 196, 0.3);
+}
+.seq-auto-bar {
+  width: 100%;
+  background: linear-gradient(180deg, rgba(90, 209, 196, 0.65) 0%, rgba(90, 209, 196, 0.3) 100%);
+  border-top: 1px solid rgba(90, 209, 196, 0.85);
+  pointer-events: none; /* ポインタ判定は親セルだけに集約 */
+}
+.seq-automation-lane.disabled .seq-auto-bar {
+  background: linear-gradient(180deg, rgba(140, 150, 160, 0.25) 0%, rgba(140, 150, 160, 0.1) 100%);
+  border-top-color: rgba(140, 150, 160, 0.35);
+}
+
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
 .seq-grid-wrap {
   flex: 1 1 auto;

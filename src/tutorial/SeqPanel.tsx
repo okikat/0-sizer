@@ -22,6 +22,12 @@ interface Props {
   onToggleSolo: (t: number) => void
   /** アクティブトラックのパターン。 */
   pattern: Set<string>
+  /** アクティブトラックの CUTOFF オートメーション値（0〜1、ステップ毎）。 */
+  automation: number[]
+  /** アクティブトラックのオートメーション有効フラグ。 */
+  automationEnabled: boolean
+  onSetAutomation: (step: number, val: number) => void
+  onToggleAutomation: () => void
   /** 現在再生中のステップ番号。停止中は -1。 */
   currentStep: number
   playing: boolean
@@ -44,6 +50,10 @@ export function SeqPanel({
   onToggleMute,
   onToggleSolo,
   pattern,
+  automation,
+  automationEnabled,
+  onSetAutomation,
+  onToggleAutomation,
   currentStep,
   playing,
   bpm,
@@ -166,6 +176,67 @@ export function SeqPanel({
               })}
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* オートメーションレーン：CUTOFF をステップ毎に決め打ち。
+          AUTO を ON にしている間、各ステップでフィルターを開閉する → フィルタースイープ。
+          各セルは下から上に伸びるバー。タップで値を書く、上下ドラッグで連続調整。 */}
+      <div className="seq-automation">
+        <div className="seq-automation-head">
+          <span className="seq-automation-label">CUTOFF</span>
+          <button
+            className={'seq-automation-toggle' + (automationEnabled ? ' on' : '')}
+            onClick={onToggleAutomation}
+            aria-pressed={automationEnabled}
+          >
+            AUTO
+          </button>
+        </div>
+        <div className={'seq-automation-lane' + (automationEnabled ? '' : ' disabled')}>
+          <span className="seq-row-label" aria-hidden />
+          {Array.from({ length: SEQ_STEPS }).map((_, step) => {
+            const v = automation[step] ?? 0.5
+            const inCol = currentStep === step
+            const cls = 'seq-auto-cell'
+              + (inCol ? ' col-active' : '')
+              + (step > 0 && step % 4 === 0 ? ' bar-start' : '')
+            // ポインタダウン／ムーブ：自身のセル内 Y 座標から値を計算して書き戻す。
+            // setPointerCapture でセル外に出ても追従。タップでも値が即反映される。
+            const updateFromPointer = (e: React.PointerEvent<HTMLDivElement>) => {
+              const rect = e.currentTarget.getBoundingClientRect()
+              const y = e.clientY - rect.top
+              const next = Math.max(0, Math.min(1, 1 - y / rect.height))
+              onSetAutomation(step, next)
+            }
+            return (
+              <div
+                key={step}
+                className={cls}
+                role="slider"
+                aria-label={`オートメーション step ${step + 1}`}
+                aria-valuenow={Math.round(v * 100)}
+                aria-valuemin={0}
+                aria-valuemax={100}
+                onPointerDown={(e) => {
+                  e.preventDefault()
+                  e.currentTarget.setPointerCapture(e.pointerId)
+                  updateFromPointer(e)
+                }}
+                onPointerMove={(e) => {
+                  if (e.buttons === 0) return // ボタン押下中だけ追従
+                  updateFromPointer(e)
+                }}
+                onPointerUp={(e) => {
+                  if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                    e.currentTarget.releasePointerCapture(e.pointerId)
+                  }
+                }}
+              >
+                <div className="seq-auto-bar" style={{ height: `${v * 100}%` }} />
+              </div>
+            )
+          })}
         </div>
       </div>
     </div>
