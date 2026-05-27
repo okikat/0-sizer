@@ -14,6 +14,12 @@ interface Props {
   /** 編集中のトラック index（0 始まり）。 */
   activeTrack: number
   onTrack: (t: number) => void
+  /** トラックごとの MUTE 状態。 */
+  trackMute: boolean[]
+  /** トラックごとの SOLO 状態。 */
+  trackSolo: boolean[]
+  onToggleMute: (t: number) => void
+  onToggleSolo: (t: number) => void
   /** アクティブトラックのパターン。 */
   pattern: Set<string>
   /** 現在再生中のステップ番号。停止中は -1。 */
@@ -33,6 +39,10 @@ export function SeqPanel({
   trackCount,
   activeTrack,
   onTrack,
+  trackMute,
+  trackSolo,
+  onToggleMute,
+  onToggleSolo,
   pattern,
   currentStep,
   playing,
@@ -90,20 +100,43 @@ export function SeqPanel({
       </div>
 
       {/* トラックセレクタ：押されているトラックがアクティブ（編集対象＆PANEL の音色源）。
-          切替時は手動押下中のノートを解放してから切り替わる（App 側）。 */}
+          M = MUTE（SEQ で鳴らさない・鍵盤には影響しない）、S = SOLO（ソロ群のみ鳴る）。 */}
       <div className="seq-tracks">
         <span className="seq-tracks-label">TRACK</span>
-        {Array.from({ length: trackCount }).map((_, i) => (
-          <button
-            key={i}
-            className={'seq-track-btn' + (activeTrack === i ? ' sel' : '')}
-            onClick={() => onTrack(i)}
-            aria-pressed={activeTrack === i}
-            aria-label={`トラック ${i + 1} を編集`}
-          >
-            {i + 1}
-          </button>
-        ))}
+        {Array.from({ length: trackCount }).map((_, i) => {
+          const anySolo = trackSolo.some((s) => s)
+          const silenced = trackMute[i] || (anySolo && !trackSolo[i])
+          return (
+            <div key={i} className={'seq-track-strip' + (silenced ? ' silenced' : '')}>
+              <button
+                className={'seq-track-btn' + (activeTrack === i ? ' sel' : '')}
+                onClick={() => onTrack(i)}
+                aria-pressed={activeTrack === i}
+                aria-label={`トラック ${i + 1} を編集`}
+              >
+                {i + 1}
+              </button>
+              <button
+                className={'seq-track-flag seq-track-mute' + (trackMute[i] ? ' on' : '')}
+                onClick={() => onToggleMute(i)}
+                aria-pressed={trackMute[i]}
+                aria-label={`トラック ${i + 1} ミュート`}
+                title="MUTE"
+              >
+                M
+              </button>
+              <button
+                className={'seq-track-flag seq-track-solo' + (trackSolo[i] ? ' on' : '')}
+                onClick={() => onToggleSolo(i)}
+                aria-pressed={trackSolo[i]}
+                aria-label={`トラック ${i + 1} ソロ`}
+                title="SOLO"
+              >
+                S
+              </button>
+            </div>
+          )
+        })}
       </div>
 
       <div className="seq-grid-wrap">

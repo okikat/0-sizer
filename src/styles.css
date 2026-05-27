@@ -800,7 +800,8 @@ b {
   flex: 0 0 auto;
   display: flex;
   align-items: center;
-  gap: 6px;
+  flex-wrap: wrap;
+  gap: 6px 10px;
   padding: 0 4px;
 }
 .seq-tracks-label {
@@ -810,10 +811,18 @@ b {
   color: var(--sub);
   margin-right: 2px;
 }
+/* トラックストリップ：番号 + M + S を 1 つの「チャンネルフェーダ」風にまとめる。 */
+.seq-track-strip {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+}
+/* MUTE 中 or SOLO で除外されている → ストリップ全体をうっすら沈める（鳴ってないサイン）。 */
+.seq-track-strip.silenced .seq-track-btn { opacity: 0.55; }
 .seq-track-btn {
-  min-width: 36px;
+  min-width: 30px;
   height: 30px;
-  padding: 0 10px;
+  padding: 0 8px;
   font-size: 13px;
   font-weight: 700;
   letter-spacing: 1.5px;
@@ -829,6 +838,33 @@ b {
   background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35), 0 0 6px rgba(90, 209, 196, 0.18);
   text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+/* M / S：小さめのフラグボタン。押されると "へこむ" のは PANEL/SEQ と同じ視覚言語。
+   ON 色は MUTE=赤系、SOLO=黄系で機能が即読みできるように分ける。 */
+.seq-track-flag {
+  min-width: 26px;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+.seq-track-mute.on {
+  color: #ff8a8a;
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 122, 122, 0.4);
+  text-shadow: 0 0 6px rgba(255, 122, 122, 0.55);
+}
+.seq-track-solo.on {
+  color: #ffd97a;
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 211, 102, 0.4);
+  text-shadow: 0 0 6px rgba(255, 211, 102, 0.55);
 }
 
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */

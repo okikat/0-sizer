@@ -204,6 +204,15 @@ export default function App() {
   })
   const [seqPlaying, setSeqPlaying] = useState(false)
   const [seqCurrentStep, setSeqCurrentStep] = useState(-1)
+  // トラックの MUTE / SOLO（揮発、永続化しない）。
+  // MUTE：SEQ 再生で鳴らさない。SOLO：いずれかが ON ならソロ群だけが鳴る。
+  // どちらも鍵盤には影響しない（手動演奏は音色オーディション用途として常に通す）。
+  const [trackMute, setTrackMute] = useState<boolean[]>(() => Array(TRACK_COUNT).fill(false))
+  const [trackSolo, setTrackSolo] = useState<boolean[]>(() => Array(TRACK_COUNT).fill(false))
+  const trackMuteRef = useRef(trackMute)
+  useEffect(() => { trackMuteRef.current = trackMute }, [trackMute])
+  const trackSoloRef = useRef(trackSolo)
+  useEffect(() => { trackSoloRef.current = trackSolo }, [trackSolo])
   // 再生ループから最新のパターン・スイング量を取るための ref。
   const seqPatternsRef = useRef(seqPatterns)
   useEffect(() => { seqPatternsRef.current = seqPatterns }, [seqPatterns])
@@ -378,9 +387,15 @@ export default function App() {
       setSeqCurrentStep(curStep)
 
       const patterns = seqPatternsRef.current
+      const mutes = trackMuteRef.current
+      const solos = trackSoloRef.current
+      const anySolo = solos.some((s) => s)
       for (let trk = 0; trk < TRACK_COUNT; trk++) {
         const pattern = patterns[trk]
         if (!pattern) continue
+        // MUTE が ON、または「誰かが SOLO」なのに自分が SOLO ではない → このトラックは無音。
+        if (mutes[trk]) continue
+        if (anySolo && !solos[trk]) continue
         const onFn = trackOnFns[trk]
         const offFn = trackOffFns[trk]
         for (const m of SEQ_PITCHES) {
@@ -413,6 +428,30 @@ export default function App() {
       setSeqCurrentStep(-1)
     }
   }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff])
+
+  // ===== MUTE / SOLO 切替で「いま鳴ってる音」を即時 release =====
+  // 「無音化された瞬間」を検知して、そのトラックの全ピッチに noteOff を投げる。
+  // タイで長く伸ばしてる音もここで止まる（次のステップを待たない）。
+  const lastShouldPlayRef = useRef<boolean[]>(Array(TRACK_COUNT).fill(true))
+  useEffect(() => {
+    const anySolo = trackSolo.some((s) => s)
+    const shouldPlay = trackMute.map((muted, i) => !muted && (!anySolo || trackSolo[i]))
+    const offFns = [aNoteOff, bNoteOff]
+    for (let i = 0; i < TRACK_COUNT; i++) {
+      if (lastShouldPlayRef.current[i] && !shouldPlay[i]) {
+        // 直前は鳴らせていた → いま無音化された：このトラックの全ピッチを離す。
+        SEQ_PITCHES.forEach((m) => offFns[i](m))
+      }
+    }
+    lastShouldPlayRef.current = shouldPlay
+  }, [trackMute, trackSolo, aNoteOff, bNoteOff])
+
+  const toggleMute = (track: number) => {
+    setTrackMute((prev) => prev.map((v, i) => (i === track ? !v : v)))
+  }
+  const toggleSolo = (track: number) => {
+    setTrackSolo((prev) => prev.map((v, i) => (i === track ? !v : v)))
+  }
 
   // ===== ☰ メニュー：外側タップで閉じる =====
   useEffect(() => {
@@ -759,6 +798,10 @@ export default function App() {
             trackCount={TRACK_COUNT}
             activeTrack={activeTrack}
             onTrack={switchTrack}
+            trackMute={trackMute}
+            trackSolo={trackSolo}
+            onToggleMute={toggleMute}
+            onToggleSolo={toggleSolo}
             pattern={seqPatterns[activeTrack] ?? new Set()}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
