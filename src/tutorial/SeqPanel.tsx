@@ -154,6 +154,13 @@ export function SeqPanel({
     if (!g) return
     g.scrollBy({ top: dir * (g.clientHeight * 0.5), behavior: 'smooth' })
   }
+  // ◀ / ▶ ボタン：1 タップで「クライアント幅の半分」だけグリッドを横スクロール。
+  // ラベル列が sticky-left になったので、cells だけが横へ流れる。
+  const scrollGridByX = (dir: 1 | -1) => {
+    const g = gridScrollRef.current
+    if (!g) return
+    g.scrollBy({ left: dir * (g.clientWidth * 0.5), behavior: 'smooth' })
+  }
 
   // グリッドとオートメーションレーンの横スクロールを双方向に同期させる。
   // syncing フラグで「スクロール書き換え→相手の onScroll が発火→自分を書き換え返す」のループを防ぐ。
@@ -394,6 +401,21 @@ export function SeqPanel({
           onClick={() => scrollGridBy(1)}
           aria-label="グリッドを下へスクロール"
         >▼</button>
+      </div>
+
+      {/* 横スクロールバー：編集画面下の薄い帯。◀ / ▶ で半画面ぶん横スクロール。
+          ラベル列は sticky で動かないので、流れるのは cells だけ。 */}
+      <div className="seq-grid-hscroll">
+        <button
+          className="seq-grid-scroll-x seq-grid-scroll-x-left"
+          onClick={() => scrollGridByX(-1)}
+          aria-label="グリッドを左へスクロール"
+        >◀</button>
+        <button
+          className="seq-grid-scroll-x seq-grid-scroll-x-right"
+          onClick={() => scrollGridByX(1)}
+          aria-label="グリッドを右へスクロール"
+        >▶</button>
       </div>
 
       {/* オートメーションレーン：CUTOFF をステップ毎に決め打ち。
