@@ -749,6 +749,8 @@ export default function App() {
         onTab={setActiveTab}
         onOpenPresets={() => setPresetModalOpen(true)}
         seqPlaying={seqPlaying}
+        activeTrack={activeTrack}
+        trackCount={TRACK_COUNT}
         menuOpen={menuOpen && phase === 'panel'}
         onMenuToggle={() => setMenuOpen((o) => !o)}
         menuChildren={menuItems}

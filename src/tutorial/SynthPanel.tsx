@@ -51,6 +51,9 @@ interface Props {
   onOpenPresets: () => void
   /** SEQ 再生中なら SEQ タブにティールのドットを灯す（緩和策：裏で鳴ってる合図）。 */
   seqPlaying: boolean
+  /** PANEL 編集中のトラック（0 始まり）。PANEL ボタンに番号バッジを出すために使う。 */
+  activeTrack: number
+  trackCount: number
   /** ハンバーガーメニュー（折り畳み中身は親が決める）。 */
   menuOpen: boolean
   onMenuToggle: () => void
@@ -71,6 +74,8 @@ export function SynthPanel({
   onTab,
   onOpenPresets,
   seqPlaying,
+  activeTrack,
+  trackCount,
   menuOpen,
   onMenuToggle,
   menuChildren,
@@ -153,6 +158,9 @@ export function SynthPanel({
               aria-pressed={activeTab === 'panel'}
             >
               PANEL
+              {/* マルチトラック時のみ「いま編集中はどっちか」を小さく出す。
+                  1 トラックしかない構成（将来）なら表示しない。 */}
+              {trackCount > 1 && <span className="tab-track-num">{activeTrack + 1}</span>}
             </button>
             <button
               className={'tab-btn' + (activeTab === 'seq' ? ' sel' : '')}
