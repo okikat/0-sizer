@@ -43,6 +43,8 @@ interface Props {
   pattern: { on: Set<string>; tied: Set<string> }
   /** スライドでのタイ塗り：from→to の方向で隣り合うセル間にタイを引く。 */
   onPaintTie: (from: { step: number; midi: number }, to: { step: number; midi: number }) => void
+  /** タイ描画中の "戻り消し"：1 セルを off にして、前後の tied フラグも整理する。 */
+  onEraseSeqCell: (step: number, midi: number) => void
   /** 同上の CUTOFF オートメーション値（0〜1、ステップ毎）。 */
   automation: number[]
   /** アクティブトラックのオートメーション有効フラグ（トラック単位、スロット横断）。 */
@@ -97,6 +99,7 @@ export function SeqPanel({
   onToggleSolo,
   pattern,
   onPaintTie,
+  onEraseSeqCell,
   automation,
   automationEnabled,
   onSetAutomation,
@@ -148,6 +151,11 @@ export function SeqPanel({
     rowCenterY: number
     painted: boolean
     lastStep: number
+    /** タイ突入時点で「すでに ON だったセルキー」のスナップショット。
+     *  paintedSteps の判定（このジェスチャで足したのか、最初から ON だったのか）に使う。 */
+    initialOn: Set<string>
+    /** このジェスチャで「OFF→ON にした」step の集合。戻り消しの対象はこれだけ。 */
+    paintedSteps: Set<number>
   } | null>(null)
   const longPressTimerRef = useRef<number | null>(null)
   // 行全体を光らせるため、セルキーではなく開始 row の midi だけ保持する。
@@ -178,6 +186,8 @@ export function SeqPanel({
       rowCenterY: 0,
       painted: false,
       lastStep: step,
+      initialOn: new Set(pattern.on),
+      paintedSteps: new Set(),
     }
     cancelLongPressTimer()
     longPressTimerRef.current = window.setTimeout(() => {
@@ -228,16 +238,39 @@ export function SeqPanel({
       const step = Number(stepStr)
       const midi = Number(midiStr)
       if (midi !== s.startMidi) return
-      if (step === s.lastStep) return
-      if (!s.painted) {
-        onEditStart()
-        s.painted = true
+
+      // 開始セルより手前は何もしない（戻りすぎ無視）。
+      const clampedStep = Math.max(step, s.startStep)
+      if (clampedStep === s.lastStep) return
+
+      if (clampedStep > s.lastStep) {
+        // 前進：lastStep+1 から clampedStep まで 1 つずつタイで結ぶ。
+        // ここで初めて履歴 push（前進が「実際に塗りが発生する」唯一の経路）。
+        if (!s.painted) {
+          onEditStart()
+          s.painted = true
+        }
+        for (let st = s.lastStep + 1; st <= clampedStep; st++) {
+          onPaintTie(
+            { step: st - 1, midi: s.startMidi },
+            { step: st, midi: s.startMidi },
+          )
+          // 「もともと OFF だった」セルだけ paintedSteps に積む。
+          // 元から ON だったセルや、開始セル（手前は erase しない）は触らない。
+          const k = cellKey(st, s.startMidi)
+          if (!s.initialOn.has(k)) s.paintedSteps.add(st)
+        }
+      } else {
+        // 後退：lastStep から clampedStep+1 までを順に erase。
+        // ただし「このジェスチャで塗った」step だけ消す（initial ON は残す）。
+        for (let st = s.lastStep; st > clampedStep; st--) {
+          if (s.paintedSteps.has(st)) {
+            onEraseSeqCell(st, s.startMidi)
+            s.paintedSteps.delete(st)
+          }
+        }
       }
-      onPaintTie(
-        { step: s.lastStep, midi: s.startMidi },
-        { step, midi: s.startMidi },
-      )
-      s.lastStep = step
+      s.lastStep = clampedStep
     }
   }
 

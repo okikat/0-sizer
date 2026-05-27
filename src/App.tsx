@@ -767,6 +767,29 @@ export default function App() {
     }))
   }
 
+  // タイ描画中の "戻り消し"：指定セルを off にし、このセルに繋がるタイも整理する。
+  //   - on.delete(k)
+  //   - tied.delete(k)（このセル発の tied = k→k+1 の繋ぎ）
+  //   - tied.delete(k-1)（前セル発の tied = k-1→k の繋ぎ。k が消えるのでこれも宙ぶらりん）
+  // 履歴 push は呼び出し側で onEditStart（前進塗り時に 1 回だけ）行う。
+  const eraseSeqCell = (step: number, midi: number) => {
+    const slotIdx = editSlotFor(activeTrack)
+    setSeqPatterns((prev) => prev.map((slots, t) => {
+      if (t !== activeTrack) return slots
+      return slots.map((p, s) => {
+        if (s !== slotIdx) return p
+        const k = seqCellKey(step, midi)
+        if (!p.on.has(k)) return p
+        const newOn = new Set(p.on)
+        const newTied = new Set(p.tied)
+        newOn.delete(k)
+        newTied.delete(k)
+        if (step > 0) newTied.delete(seqCellKey(step - 1, midi))
+        return { on: newOn, tied: newTied }
+      })
+    }))
+  }
+
   // クリア：アクティブトラックの「編集中スロット」のみを空に（他のスロットは残す）。
   const clearActiveTrackPattern = () => {
     pushHistory()
@@ -1107,6 +1130,7 @@ export default function App() {
             onToggleSolo={toggleSolo}
             pattern={seqPatterns[activeTrack]?.[editSlotFor(activeTrack)] ?? emptyPattern()}
             onPaintTie={paintTie}
+            onEraseSeqCell={eraseSeqCell}
             automation={seqAutomations[activeTrack]?.[editSlotFor(activeTrack)] ?? Array(SEQ_STEPS).fill(0.5)}
             automationEnabled={seqAutomationEnabled[activeTrack] ?? false}
             onSetAutomation={(step, val) => setAutomationValue(activeTrack, step, val)}
