@@ -38,8 +38,11 @@ interface Props {
   onCycleSongPosition: (positionIdx: number) => void
   onAddSongPosition: () => void
   onRemoveSongPosition: () => void
-  /** アクティブトラック × 編集中スロットのパターン。 */
-  pattern: Set<string>
+  /** アクティブトラック × 編集中スロットのパターン。
+   *  on = 点灯セルキー、tied = 「次のステップへ繋ぐ」フラグ付きセルキー。 */
+  pattern: { on: Set<string>; tied: Set<string> }
+  /** スライドでのタイ塗り：from→to の方向で隣り合うセル間にタイを引く。 */
+  onPaintTie: (from: { step: number; midi: number }, to: { step: number; midi: number }) => void
   /** 同上の CUTOFF オートメーション値（0〜1、ステップ毎）。 */
   automation: number[]
   /** アクティブトラックのオートメーション有効フラグ（トラック単位、スロット横断）。 */
@@ -79,6 +82,7 @@ export function SeqPanel({
   onToggleMute,
   onToggleSolo,
   pattern,
+  onPaintTie,
   automation,
   automationEnabled,
   onSetAutomation,
@@ -96,6 +100,51 @@ export function SeqPanel({
 }: Props) {
   const bumpBpm = (d: number) => onBpm(Math.max(SEQ_BPM_MIN, Math.min(SEQ_BPM_MAX, bpm + d)))
   const bumpSwing = (d: number) => onSwing(Math.max(SEQ_SWING_MIN, Math.min(SEQ_SWING_MAX, swing + d)))
+
+  // スライドジェスチャ用の状態。
+  //   - startCell / startX：開始セルと座標
+  //   - inSlide：水平 12px 以上動いたら true（タイ塗りモードに突入）
+  //   - lastStep：直近に visit したステップ（同じセルを何度も処理しないため）
+  // タップ判定：pointerup 時点で inSlide === false なら toggle。
+  // touch-action: pan-y で縦スクロールは browser に任せる → 垂直ドラッグでは pointercancel が来る。
+  const slideRef = useRef<{
+    startStep: number
+    startMidi: number
+    startX: number
+    startY: number
+    inSlide: boolean
+    lastStep: number
+  } | null>(null)
+
+  const updateSlideFromPoint = (clientX: number, clientY: number) => {
+    const s = slideRef.current
+    if (!s) return
+    if (!s.inSlide) {
+      // しきい値判定：水平 12px 以上なら slide モード ON。垂直方向だけの動きでは ON にしない。
+      const dx = clientX - s.startX
+      const dy = clientY - s.startY
+      if (Math.abs(dx) < 12) return
+      if (Math.abs(dy) > Math.abs(dx) + 6) return // 垂直優位の動きはスクロール意図とみなして無視
+      s.inSlide = true
+    }
+    // 指の下のセルを特定。setPointerCapture 中でも document.elementFromPoint なら他のセルが取れる。
+    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+    const cell = el?.closest('.seq-cell') as HTMLElement | null
+    if (!cell) return
+    const stepStr = cell.dataset.step
+    const midiStr = cell.dataset.midi
+    if (stepStr === undefined || midiStr === undefined) return
+    const step = Number(stepStr)
+    const midi = Number(midiStr)
+    // 同じ row 限定。違う row に逸れたら無視（戻ってきたら再開）。
+    if (midi !== s.startMidi) return
+    if (step === s.lastStep) return
+    onPaintTie(
+      { step: s.lastStep, midi: s.startMidi },
+      { step, midi: s.startMidi },
+    )
+    s.lastStep = step
+  }
 
   // グリッドとオートメーションレーンの横スクロールを双方向に同期させる。
   // syncing フラグで「スクロール書き換え→相手の onScroll が発火→自分を書き換え返す」のループを防ぐ。
@@ -268,10 +317,12 @@ export function SeqPanel({
             <div className="seq-row" key={midi}>
               <span className="seq-row-label">{SEQ_NOTE_LABEL[midi]}</span>
               {Array.from({ length: SEQ_STEPS }).map((_, step) => {
-                const on = pattern.has(cellKey(step, midi))
+                const key = cellKey(step, midi)
+                const on = pattern.on.has(key)
                 const inCol = currentStep === step
-                const tiedPrev = on && step > 0 && pattern.has(cellKey(step - 1, midi))
-                const tiedNext = on && step < SEQ_STEPS - 1 && pattern.has(cellKey(step + 1, midi))
+                // tied 表示は「次セルへの繋ぎ」を持っているかどうか。前セル側の tied フラグも見て tied-prev を描く。
+                const tiedNext = on && pattern.tied.has(key) && step < SEQ_STEPS - 1 && pattern.on.has(cellKey(step + 1, midi))
+                const tiedPrev = on && step > 0 && pattern.tied.has(cellKey(step - 1, midi)) && pattern.on.has(cellKey(step - 1, midi))
                 const cls = 'seq-cell'
                   + (on ? ' on' : '')
                   + (inCol ? ' col-active' : '')
@@ -281,9 +332,39 @@ export function SeqPanel({
                 return (
                   <button
                     key={step}
+                    data-step={step}
+                    data-midi={midi}
                     className={cls}
-                    onClick={() => onToggleCell(step, midi)}
                     aria-label={`step ${step + 1} ${SEQ_NOTE_LABEL[midi]}`}
+                    onPointerDown={(e) => {
+                      // タップ vs スライド判定を始める。pointer capture でセル外に出ても event 来るが、
+                      // どのセルかは elementFromPoint で都度判定する。
+                      e.currentTarget.setPointerCapture(e.pointerId)
+                      slideRef.current = {
+                        startStep: step,
+                        startMidi: midi,
+                        startX: e.clientX,
+                        startY: e.clientY,
+                        inSlide: false,
+                        lastStep: step,
+                      }
+                    }}
+                    onPointerMove={(e) => updateSlideFromPoint(e.clientX, e.clientY)}
+                    onPointerUp={(e) => {
+                      const s = slideRef.current
+                      slideRef.current = null
+                      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                        e.currentTarget.releasePointerCapture(e.pointerId)
+                      }
+                      // スライドが始まっていなければ普通のタップとして toggle。
+                      if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
+                        onToggleCell(step, midi)
+                      }
+                    }}
+                    onPointerCancel={() => {
+                      // touch-action: pan-y による垂直スクロール開始など → タイ塗りも tap も取りやめ。
+                      slideRef.current = null
+                    }}
                   />
                 )
               })}

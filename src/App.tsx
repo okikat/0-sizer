@@ -38,6 +38,31 @@ const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
 const TRACK_COUNT = 2
 
+/** 1 スロット分のパターン。`on` = 点灯セル、`tied` = 「次のステップへ繋ぐ」フラグ付きセル。
+ *  tied は on の部分集合という前提（tied セルが off になる場合は tied からも消す）。 */
+interface TrackSlotPattern {
+  on: Set<string>
+  tied: Set<string>
+}
+
+const emptyPattern = (): TrackSlotPattern => ({ on: new Set(), tied: new Set() })
+
+/** 旧 v0.1〜v0.3 形式の Set<string> から「隣接 ON → tied」を導出して新フォーマットへ。 */
+const migrateOldSet = (oldOnArr: string[]): TrackSlotPattern => {
+  const on = new Set(oldOnArr)
+  const tied = new Set<string>()
+  for (const key of on) {
+    const idx = key.indexOf('_')
+    if (idx < 0) continue
+    const step = Number(key.slice(0, idx))
+    const midi = key.slice(idx + 1)
+    if (Number.isFinite(step) && step < SEQ_STEPS - 1) {
+      if (on.has(`${step + 1}_${midi}`)) tied.add(key)
+    }
+  }
+  return { on, tied }
+}
+
 /** 1 トラック分の「音作り」全パラメータ。マルチトラックでこれをトラック数ぶん持つ。 */
 interface SoundState {
   type: OscillatorType
@@ -260,14 +285,16 @@ export default function App() {
   }, [activeTrack])
 
   // ===== Eternal シーケンサーの状態 =====
-  // パターン：[トラック][スロット] の 2 次元（中身は Set<string>）。
+  // パターン：[トラック][スロット] の 2 次元（中身は { on, tied }）。
   // 旧スキーマからは以下の順で救出：
-  //   v0.2（[トラック]=Set）→ 各トラックのスロット 0 に詰める
-  //   v0.1（単トラック=Set） → トラック 1 のスロット 0 に詰める
-  const [seqPatterns, setSeqPatterns] = useState<Set<string>[][]>(() => {
-    const empty = (): Set<string>[][] =>
+  //   v0.4（[トラック][スロット]={on, tied}）→ そのまま
+  //   v0.3（[トラック][スロット]=string[]） → 隣接判定で tied 導出
+  //   v0.2（[トラック]=string[]）           → 各トラックのスロット 0 に詰める＋ tied 導出
+  //   v0.1（単トラック=string[]）           → トラック 1 のスロット 0 に詰める＋ tied 導出
+  const [seqPatterns, setSeqPatterns] = useState<TrackSlotPattern[][]>(() => {
+    const empty = (): TrackSlotPattern[][] =>
       Array.from({ length: TRACK_COUNT }, () =>
-        Array.from({ length: SLOTS_PER_TRACK }, () => new Set<string>()),
+        Array.from({ length: SLOTS_PER_TRACK }, () => emptyPattern()),
       )
     if (typeof localStorage === 'undefined') return empty()
     try {
@@ -277,32 +304,47 @@ export default function App() {
         const out = empty()
         if (Array.isArray(parsed) && parsed.length > 0) {
           const first = parsed[0]
-          // 3D? = parsed[track][slot] が配列
+          // 形式判定：first[0] が { on, tied } オブジェクトなら v0.4、配列なら v0.3、文字列入りなら v0.2
+          const isObjectSlot = Array.isArray(first) && first.length > 0 &&
+            first[0] !== null && typeof first[0] === 'object' && !Array.isArray(first[0])
           const isThreeD = Array.isArray(first) && first.length > 0 && Array.isArray(first[0])
-          if (isThreeD) {
+          if (isObjectSlot) {
+            // v0.4：そのまま読む
+            for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
+              const slots = parsed[t] as Array<{ on?: string[]; tied?: string[] }>
+              if (!Array.isArray(slots)) continue
+              for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
+                const p = slots[s] ?? {}
+                out[t][s] = {
+                  on: new Set(Array.isArray(p.on) ? p.on : []),
+                  tied: new Set(Array.isArray(p.tied) ? p.tied : []),
+                }
+              }
+            }
+          } else if (isThreeD) {
+            // v0.3：各スロットの string[] を migrate
             for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
               const slots = parsed[t] as unknown[]
               if (!Array.isArray(slots)) continue
               for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
-                out[t][s] = new Set(slots[s] as string[])
+                if (Array.isArray(slots[s])) out[t][s] = migrateOldSet(slots[s] as string[])
               }
             }
           } else {
-            // 2D（v0.2 旧スキーマ）：各トラックのスロット 0 へ
+            // v0.2（[トラック]=string[]）：各トラックのスロット 0 に詰める
             for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
-              const arr = parsed[t] as string[]
-              if (Array.isArray(arr)) out[t][0] = new Set(arr)
+              if (Array.isArray(parsed[t])) out[t][0] = migrateOldSet(parsed[t] as string[])
             }
           }
           return out
         }
       }
-      // v0.1 単トラック → Track 1 / Slot A に詰める
+      // v0.1 単トラック → Track 1 / Slot A
       const legacy = localStorage.getItem(SEQ_PATTERN_LEGACY_KEY)
       if (legacy) {
         const parsed = JSON.parse(legacy) as string[]
         const out = empty()
-        if (Array.isArray(parsed)) out[0][0] = new Set(parsed)
+        if (Array.isArray(parsed)) out[0][0] = migrateOldSet(parsed)
         return out
       }
     } catch {
@@ -476,10 +518,12 @@ export default function App() {
   // ===== SEQ：パターン／BPM／スイングを localStorage に永続化 =====
   useEffect(() => {
     try {
-      // 3D を JSON-serializable な形に：[トラック][スロット] = string[]
+      // [トラック][スロット] = { on: string[], tied: string[] } の形で保存。
       localStorage.setItem(
         SEQ_PATTERNS_KEY,
-        JSON.stringify(seqPatterns.map((slots) => slots.map((s) => Array.from(s)))),
+        JSON.stringify(seqPatterns.map((slots) =>
+          slots.map((p) => ({ on: Array.from(p.on), tied: Array.from(p.tied) })),
+        )),
       )
       // 旧キーが残っていたら掃除（次回ロード時の救出は不要なので消してよい）。
       localStorage.removeItem(SEQ_PATTERN_LEGACY_KEY)
@@ -617,12 +661,20 @@ export default function App() {
         const onFn = trackOnFns[trk]
         const offFn = trackOffFns[trk]
         for (const m of SEQ_PITCHES) {
-          const isOn = pattern.has(seqCellKey(curStep, m))
-          if (!isOn) continue
-          const wasOn = curStep > 0 && pattern.has(seqCellKey(curStep - 1, m))
-          const willContinue = curStep < SEQ_STEPS - 1 && pattern.has(seqCellKey(curStep + 1, m))
-          if (!wasOn) onFn(m)
-          if (!willContinue) {
+          const key = seqCellKey(curStep, m)
+          if (!pattern.on.has(key)) continue
+          // 「前セルが ON かつ tied フラグ持ち」なら、これは前の音の継続。noteOn を打ち直さない。
+          const prevKey = curStep > 0 ? seqCellKey(curStep - 1, m) : null
+          const isContinuation = prevKey !== null
+            && pattern.on.has(prevKey)
+            && pattern.tied.has(prevKey)
+          if (!isContinuation) onFn(m)
+          // 「このセルが tied かつ次セルも ON」なら release を仕込まない（次セルへ伸ばす）。
+          const nextKey = curStep < SEQ_STEPS - 1 ? seqCellKey(curStep + 1, m) : null
+          const continuesToNext = pattern.tied.has(key)
+            && nextKey !== null
+            && pattern.on.has(nextKey)
+          if (!continuesToNext) {
             const gateMs = intervalFromStep(curStep) * 0.85
             const t = setTimeout(() => offFn(m), gateMs)
             releaseTimers.push(t)
@@ -768,18 +820,48 @@ export default function App() {
     }
   }, [menuOpen])
 
-  // セル On/Off。アクティブトラックの「編集中スロット」のパターンを編集。
+  // セル On/Off トグル（タップ）：アクティブトラックの編集中スロット。
+  // OFF にする時は tied フラグも一緒に消す（孤立した tied フラグを残さない）。
   const toggleSeqCell = (step: number, midi: number) => {
     const slotIdx = editSlotFor(activeTrack)
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
       return slots.map((p, s) => {
         if (s !== slotIdx) return p
-        const next = new Set(p)
         const k = seqCellKey(step, midi)
-        if (next.has(k)) next.delete(k)
-        else next.add(k)
-        return next
+        const newOn = new Set(p.on)
+        const newTied = new Set(p.tied)
+        if (newOn.has(k)) {
+          newOn.delete(k)
+          newTied.delete(k)
+        } else {
+          newOn.add(k)
+        }
+        return { on: newOn, tied: newTied }
+      })
+    }))
+  }
+
+  // スライドでのタイ塗り：from セルから to セルへ「→」方向にタイチェーンを足す（同じ row 前提）。
+  //   - from / to の両セルを ON
+  //   - 左側のセル（step が小さい方）に tied フラグを立てる
+  // 連続呼び出しで自然にチェーンが伸びる。
+  const paintTie = (from: { step: number; midi: number }, to: { step: number; midi: number }) => {
+    if (from.midi !== to.midi) return // 別の row 跨ぎはここでは扱わない
+    if (from.step === to.step) return
+    const left = from.step < to.step ? from : to
+    const right = from.step < to.step ? to : from
+    const slotIdx = editSlotFor(activeTrack)
+    setSeqPatterns((prev) => prev.map((slots, t) => {
+      if (t !== activeTrack) return slots
+      return slots.map((p, s) => {
+        if (s !== slotIdx) return p
+        const newOn = new Set(p.on)
+        const newTied = new Set(p.tied)
+        newOn.add(seqCellKey(left.step, left.midi))
+        newOn.add(seqCellKey(right.step, right.midi))
+        newTied.add(seqCellKey(left.step, left.midi))
+        return { on: newOn, tied: newTied }
       })
     }))
   }
@@ -789,7 +871,7 @@ export default function App() {
     const slotIdx = editSlotFor(activeTrack)
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
-      return slots.map((p, s) => (s === slotIdx ? new Set<string>() : p))
+      return slots.map((p, s) => (s === slotIdx ? emptyPattern() : p))
     }))
   }
 
@@ -1119,7 +1201,8 @@ export default function App() {
             trackSolo={trackSolo}
             onToggleMute={toggleMute}
             onToggleSolo={toggleSolo}
-            pattern={seqPatterns[activeTrack]?.[editSlotFor(activeTrack)] ?? new Set()}
+            pattern={seqPatterns[activeTrack]?.[editSlotFor(activeTrack)] ?? emptyPattern()}
+            onPaintTie={paintTie}
             automation={seqAutomations[activeTrack]?.[editSlotFor(activeTrack)] ?? Array(SEQ_STEPS).fill(0.5)}
             automationEnabled={seqAutomationEnabled[activeTrack] ?? false}
             onSetAutomation={(step, val) => setAutomationValue(activeTrack, step, val)}
