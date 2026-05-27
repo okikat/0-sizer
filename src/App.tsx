@@ -30,6 +30,7 @@ const SONG_SEQUENCE_KEY = '0sizer.songSequence'           // SONG モードの�
 const SONG_MODE_KEY = '0sizer.songMode'                   // SONG モード有効か（'1' / null）
 const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'      // CUTOFF レーンを表示しているか（既定 ON）
 const KEYBOARD_VISIBLE_KEY = '0sizer.keyboardVisible'    // 鍵盤を表示しているか（既定 ON）
+const SEQ_ZOOM_KEY = '0sizer.seqZoom'                    // SEQ セルのズーム倍率（0.6〜2.0、既定 1.0）
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -468,6 +469,16 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(KEYBOARD_VISIBLE_KEY, keyboardVisible ? '1' : '0') } catch { /* */ }
   }, [keyboardVisible])
+  // SEQ セルのズーム倍率（2 指ピンチで変更、0.6〜2.0、既定 1.0）。
+  const [seqZoom, setSeqZoom] = useState<number>(() => {
+    if (typeof localStorage === 'undefined') return 1
+    const n = Number(localStorage.getItem(SEQ_ZOOM_KEY))
+    if (!Number.isFinite(n) || n < 0.6 || n > 2.0) return 1
+    return n
+  })
+  useEffect(() => {
+    try { localStorage.setItem(SEQ_ZOOM_KEY, String(seqZoom)) } catch { /* */ }
+  }, [seqZoom])
   const songSequenceRef = useRef(songSequence)
   useEffect(() => { songSequenceRef.current = songSequence }, [songSequence])
   const songModeRef = useRef(songMode)
@@ -1290,6 +1301,8 @@ export default function App() {
             onUndo={undo}
             onRedo={redo}
             onEditStart={pushHistory}
+            zoom={seqZoom}
+            onZoomChange={setSeqZoom}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}

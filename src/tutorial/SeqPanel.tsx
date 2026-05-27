@@ -60,6 +60,9 @@ interface Props {
   /** ユーザー編集ジェスチャの「開始」を 1 度だけ通知（スライド初回、オートメーションドラッグ初回）。
    *  App は履歴スナップショットを 1 つ push する。 */
   onEditStart: () => void
+  /** セルズーム倍率（0.6〜2.0）。2 指ピンチで App 側で更新する。 */
+  zoom: number
+  onZoomChange: (z: number) => void
   /** 現在再生中のステップ番号。停止中は -1。 */
   currentStep: number
   playing: boolean
@@ -105,6 +108,8 @@ export function SeqPanel({
   onUndo,
   onRedo,
   onEditStart,
+  zoom,
+  onZoomChange,
   currentStep,
   playing,
   bpm,
@@ -133,6 +138,70 @@ export function SeqPanel({
     inSlide: boolean
     lastStep: number
   } | null>(null)
+  // 2 指ピンチでズーム：すべてのアクティブポインタを共有 Map に集めて、
+  // 2 つ以上になったら "ピンチモード" に切替（スライド塗りは無効化）。
+  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
+  const pinchRef = useRef<{ initialDist: number; initialZoom: number } | null>(null)
+
+  const handleCellPointerDown = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    e.currentTarget.setPointerCapture(e.pointerId)
+    if (pointersRef.current.size >= 2) {
+      // 2 本目の指が落ちた瞬間：スライド塗りを中断してピンチへ。
+      slideRef.current = null
+      const pts = Array.from(pointersRef.current.values()).slice(0, 2)
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      pinchRef.current = { initialDist: dist > 0 ? dist : 1, initialZoom: zoom }
+    } else {
+      // 1 本目：通常のスライド／タップ判定を開始。
+      slideRef.current = {
+        startStep: step,
+        startMidi: midi,
+        startX: e.clientX,
+        startY: e.clientY,
+        inSlide: false,
+        lastStep: step,
+      }
+    }
+  }
+
+  const handleCellPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    if (pointersRef.current.has(e.pointerId)) {
+      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
+    }
+    if (pointersRef.current.size >= 2 && pinchRef.current) {
+      const pts = Array.from(pointersRef.current.values()).slice(0, 2)
+      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
+      const factor = dist / pinchRef.current.initialDist
+      const newZoom = Math.max(0.6, Math.min(2.0, pinchRef.current.initialZoom * factor))
+      onZoomChange(newZoom)
+    } else if (pointersRef.current.size === 1) {
+      updateSlideFromPoint(e.clientX, e.clientY)
+    }
+  }
+
+  const handleCellPointerUp = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    pointersRef.current.delete(e.pointerId)
+    if (pointersRef.current.size < 2) {
+      pinchRef.current = null
+    }
+    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+      e.currentTarget.releasePointerCapture(e.pointerId)
+    }
+    const s = slideRef.current
+    if (pointersRef.current.size === 0) {
+      slideRef.current = null
+      if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
+        onToggleCell(step, midi)
+      }
+    }
+  }
+
+  const handleCellPointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
+    pointersRef.current.delete(e.pointerId)
+    if (pointersRef.current.size < 2) pinchRef.current = null
+    if (pointersRef.current.size === 0) slideRef.current = null
+  }
 
   const updateSlideFromPoint = (clientX: number, clientY: number) => {
     const s = slideRef.current
@@ -247,7 +316,7 @@ export function SeqPanel({
   }, [])
 
   return (
-    <div className="seq-panel">
+    <div className="seq-panel" style={{ ['--seq-zoom' as string]: zoom } as React.CSSProperties}>
       <div className="seq-transport">
         <div className="seq-transport-cluster">
           <button
@@ -418,32 +487,10 @@ export function SeqPanel({
                         data-midi={midi}
                         className={cls}
                         aria-label={`step ${step + 1} ${SEQ_NOTE_LABEL[midi]}`}
-                        onPointerDown={(e) => {
-                          e.currentTarget.setPointerCapture(e.pointerId)
-                          slideRef.current = {
-                            startStep: step,
-                            startMidi: midi,
-                            startX: e.clientX,
-                            startY: e.clientY,
-                            inSlide: false,
-                            lastStep: step,
-                          }
-                        }}
-                        onPointerMove={(e) => updateSlideFromPoint(e.clientX, e.clientY)}
-                        onPointerUp={(e) => {
-                          const s = slideRef.current
-                          slideRef.current = null
-                          if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                            e.currentTarget.releasePointerCapture(e.pointerId)
-                          }
-                          // スライドが始まっていなければ普通のタップとして toggle。
-                          if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
-                            onToggleCell(step, midi)
-                          }
-                        }}
-                        onPointerCancel={() => {
-                          slideRef.current = null
-                        }}
+                        onPointerDown={(e) => handleCellPointerDown(step, midi, e)}
+                        onPointerMove={handleCellPointerMove}
+                        onPointerUp={(e) => handleCellPointerUp(step, midi, e)}
+                        onPointerCancel={handleCellPointerCancel}
                       />
                     )
                   })}

@@ -732,17 +732,19 @@ b {
   padding: 10px 6px;
   min-height: 0;
   color: var(--txt);
-  /* セルサイズ：画面幅に応じて 18〜32px。グリッドの行とオートメーションレーン両方で共有。
-     引く量はセル以外の横方向占有を全部足したもの：
+  /* セルサイズ：画面幅に応じてベース 18〜32px。それに 2 指ピンチのズーム倍率（既定 1.0、範囲 0.6〜2.0）を掛ける。
+     ベースの計算で引く量はセル以外の横方向占有：
        24 = .app-root padding 左右 (12px*2)
        12 = .seq-panel padding 左右 (6px*2)
         8 = グリッド／レーン本体の padding (4px*2)
-       26 = ラベル列 (24px + margin-right 2px)
+       30 = ラベル列 (.seq-labels-col 30px、cells-area の前を埋める)
        30 = セル間 margin-right (2px × 15)
         9 = 4 拍区切り（bar-start margin-left 3px × 3）
        約 2 = スクロールバー予備
-     合計 ≒ 111px。これを 100vw から引いて 16 等分。 */
-  --seq-cell: clamp(18px, calc((100vw - 111px) / 16), 32px);
+     合計 ≒ 115px。これを 100vw から引いて 16 等分。 */
+  --seq-cell-base: clamp(18px, calc((100vw - 115px) / 16), 32px);
+  --seq-zoom: 1;
+  --seq-cell: calc(var(--seq-cell-base) * var(--seq-zoom));
 }
 
 /* トランスポート行：▶/⏹、BPM ±、TAP、SWING ±、クリア。
