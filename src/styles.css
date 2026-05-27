@@ -1107,9 +1107,8 @@ b {
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35);
   text-shadow: 0 0 6px rgba(90, 209, 196, 0.55);
 }
-/* CUTOFF レーンの折り畳みトグル：head 行の右側に置く。▲＝開、▼＝閉じてる（タップで開く）。 */
+/* CUTOFF レーンの折り畳みトグル：AUTO の直右。▲＝開、▼＝閉じてる（タップで開く）。 */
 .seq-automation-fold {
-  margin-left: auto; /* head 行の右端へ寄せる */
   width: 32px;
   height: 26px;
   padding: 0;
@@ -1121,6 +1120,30 @@ b {
   cursor: pointer;
 }
 .seq-automation-fold:active { color: var(--accent); }
+/* fold と undo/redo を左右に押し分けるスペーサ。 */
+.seq-automation-spacer { flex: 1 1 auto; }
+/* Undo / Redo：1×1 ボタン。disabled 時はぐっと暗く。 */
+.seq-history-btn {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  font-size: 16px;
+  line-height: 1;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+.seq-history-btn:not(:disabled):active {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+}
+.seq-history-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 /* レーン本体：グリッドと同じ --seq-cell 幅で 16 ステップ並べる。 */
 .seq-automation-lane {
   display: flex;

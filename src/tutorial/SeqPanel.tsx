@@ -52,6 +52,14 @@ interface Props {
   /** CUTOFF レーンの表示折り畳み。閉じている間はバー部分が消えて head 行だけ残る。 */
   cutoffLaneOpen: boolean
   onToggleCutoffLane: () => void
+  /** Undo / Redo。canUndo/canRedo はボタンの活性制御。 */
+  canUndo: boolean
+  canRedo: boolean
+  onUndo: () => void
+  onRedo: () => void
+  /** ユーザー編集ジェスチャの「開始」を 1 度だけ通知（スライド初回、オートメーションドラッグ初回）。
+   *  App は履歴スナップショットを 1 つ push する。 */
+  onEditStart: () => void
   /** 現在再生中のステップ番号。停止中は -1。 */
   currentStep: number
   playing: boolean
@@ -92,6 +100,11 @@ export function SeqPanel({
   onToggleAutomation,
   cutoffLaneOpen,
   onToggleCutoffLane,
+  canUndo,
+  canRedo,
+  onUndo,
+  onRedo,
+  onEditStart,
   currentStep,
   playing,
   bpm,
@@ -132,6 +145,8 @@ export function SeqPanel({
       if (Math.abs(dx) < 24) return
       if (Math.abs(dy) > Math.abs(dx) - 4) return // 縦が同程度以上ならスクロール意図とみなす
       s.inSlide = true
+      // スライド塗りが「始まった」瞬間に 1 度だけ履歴を push。連続塗りで履歴が暴れない。
+      onEditStart()
     }
     // 指の下のセルを特定。setPointerCapture 中でも document.elementFromPoint なら他のセルが取れる。
     const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
@@ -499,6 +514,24 @@ export function SeqPanel({
           >
             {cutoffLaneOpen ? '▲' : '▼'}
           </button>
+          {/* 伸び縮みするスペーサ：fold と undo/redo を左右に押し分ける。 */}
+          <span className="seq-automation-spacer" />
+          {/* Undo / Redo：CUTOFF 行の右端に 1×1 サイズの 2 ボタン。
+              パターン編集とオートメーション編集の履歴のみが対象。 */}
+          <button
+            className="seq-history-btn"
+            onClick={onUndo}
+            disabled={!canUndo}
+            aria-label="元に戻す"
+            title="元に戻す"
+          >↶</button>
+          <button
+            className="seq-history-btn"
+            onClick={onRedo}
+            disabled={!canRedo}
+            aria-label="やり直す"
+            title="やり直す"
+          >↷</button>
         </div>
         {cutoffLaneOpen && (
         <div className="seq-automation-lane-wrap" ref={laneScrollRef}>
@@ -530,6 +563,8 @@ export function SeqPanel({
                 onPointerDown={(e) => {
                   e.preventDefault()
                   e.currentTarget.setPointerCapture(e.pointerId)
+                  // ドラッグ 1 回 = 1 履歴。最初の down で push。
+                  onEditStart()
                   updateFromPointer(e)
                 }}
                 onPointerMove={(e) => {

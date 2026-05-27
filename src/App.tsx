@@ -398,6 +398,58 @@ export default function App() {
   const [songSequence, setSongSequence] = useState<number[]>(() => loadSongSequence())
   const [songMode, setSongMode] = useState<boolean>(() => loadSongMode())
   const [songPosition, setSongPosition] = useState(0)
+  // ===== SEQ：Undo / Redo（パターン＋オートメーションのスナップショット履歴） =====
+  // 1 操作 = 1 履歴：タップ、スライド塗り 1 回、オートメーションドラッグ 1 回、クリア。
+  // 各「操作の開始」で push し、その操作中の連続更新では push しない。
+  // SONG 並び・スロット切替・MUTE/SOLO は履歴対象外（曲構造の操作なので別の概念）。
+  interface SeqSnapshot {
+    patterns: TrackSlotPattern[][]
+    automations: number[][][]
+  }
+  const historyRef = useRef<{ past: SeqSnapshot[]; future: SeqSnapshot[] }>({ past: [], future: [] })
+  // 履歴スタックの長さは state で持つ → canUndo/canRedo を render 中に安全に参照できる。
+  // 中身（snapshots）は ref に置いて React 再レンダのコピー対象から外す。
+  const [historyPastLen, setHistoryPastLen] = useState(0)
+  const [historyFutureLen, setHistoryFutureLen] = useState(0)
+
+  const takeSnapshot = useCallback((): SeqSnapshot => ({
+    patterns: seqPatterns.map((slots) => slots.map((p) => ({ on: new Set(p.on), tied: new Set(p.tied) }))),
+    automations: seqAutomations.map((slots) => slots.map((arr) => [...arr])),
+  }), [seqPatterns, seqAutomations])
+
+  const pushHistory = useCallback(() => {
+    const snap = takeSnapshot()
+    const h = historyRef.current
+    h.past.push(snap)
+    h.future = [] // 新編集が入ったら redo スタックは破棄（標準的な挙動）
+    if (h.past.length > 100) h.past.shift() // 古いものから捨てる
+    setHistoryPastLen(h.past.length)
+    setHistoryFutureLen(0)
+  }, [takeSnapshot])
+
+  const undo = () => {
+    const h = historyRef.current
+    if (h.past.length === 0) return
+    const prev = h.past.pop()!
+    h.future.push(takeSnapshot())
+    setSeqPatterns(prev.patterns)
+    setSeqAutomations(prev.automations)
+    setHistoryPastLen(h.past.length)
+    setHistoryFutureLen(h.future.length)
+  }
+  const redo = () => {
+    const h = historyRef.current
+    if (h.future.length === 0) return
+    const next = h.future.pop()!
+    h.past.push(takeSnapshot())
+    setSeqPatterns(next.patterns)
+    setSeqAutomations(next.automations)
+    setHistoryPastLen(h.past.length)
+    setHistoryFutureLen(h.future.length)
+  }
+  const canUndo = historyPastLen > 0
+  const canRedo = historyFutureLen > 0
+
   // CUTOFF レーンの表示/折り畳み（UI preference、トラック横断）。
   const [cutoffLaneOpen, setCutoffLaneOpen] = useState<boolean>(() => {
     if (typeof localStorage === 'undefined') return true
@@ -843,6 +895,7 @@ export default function App() {
   // セル On/Off トグル（タップ）：アクティブトラックの編集中スロット。
   // OFF にする時は tied フラグも一緒に消す（孤立した tied フラグを残さない）。
   const toggleSeqCell = (step: number, midi: number) => {
+    pushHistory()
     const slotIdx = editSlotFor(activeTrack)
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
@@ -888,6 +941,7 @@ export default function App() {
 
   // クリア：アクティブトラックの「編集中スロット」のみを空に（他のスロットは残す）。
   const clearActiveTrackPattern = () => {
+    pushHistory()
     const slotIdx = editSlotFor(activeTrack)
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
@@ -1231,6 +1285,11 @@ export default function App() {
             onToggleAutomation={() => toggleAutomation(activeTrack)}
             cutoffLaneOpen={cutoffLaneOpen}
             onToggleCutoffLane={() => setCutoffLaneOpen((v) => !v)}
+            canUndo={canUndo}
+            canRedo={canRedo}
+            onUndo={undo}
+            onRedo={redo}
+            onEditStart={pushHistory}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}
