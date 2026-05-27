@@ -12,7 +12,7 @@ import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/Lesson
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
 import { SeqPanel } from './tutorial/SeqPanel'
-import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, cellKey as seqCellKey } from './tutorial/seqConst'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOTS_PER_TRACK, cellKey as seqCellKey } from './tutorial/seqConst'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
@@ -88,26 +88,52 @@ const loadActiveTrack = (): number => {
   return n
 }
 
-// CUTOFF オートメーション：各トラックの SEQ_STEPS 分の値（0〜1）を保持。
-// 既定はちょうど中ほどの 0.5（無効中は使われない）。
-const defaultAutomations = (): number[][] =>
-  Array.from({ length: TRACK_COUNT }, () => Array(SEQ_STEPS).fill(0.5))
+// CUTOFF オートメーション：[トラック][スロット][ステップ] の 3 次元。
+// 既定は 0.5（中ほど、無効中は使われない）。
+// 旧スキーマ（[トラック][ステップ] の 2 次元）からは「各トラックのスロット 0 に詰める」形で自動移行。
+const defaultAutomationSlot = (): number[] => Array(SEQ_STEPS).fill(0.5)
+const defaultAutomations = (): number[][][] =>
+  Array.from({ length: TRACK_COUNT }, () =>
+    Array.from({ length: SLOTS_PER_TRACK }, () => defaultAutomationSlot()),
+  )
 
-const loadAutomations = (): number[][] => {
+const normalizeAutomationArr = (raw: unknown): number[] => {
+  const arr = Array(SEQ_STEPS).fill(0.5)
+  if (Array.isArray(raw)) {
+    for (let j = 0; j < Math.min(SEQ_STEPS, raw.length); j++) {
+      const v = Number(raw[j])
+      arr[j] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5
+    }
+  }
+  return arr
+}
+
+const loadAutomations = (): number[][][] => {
   if (typeof localStorage === 'undefined') return defaultAutomations()
   try {
     const stored = localStorage.getItem(SEQ_AUTOMATIONS_KEY)
     if (!stored) return defaultAutomations()
-    const parsed = JSON.parse(stored) as number[][]
-    return defaultAutomations().map((def, i) => {
-      const p = parsed[i] ?? def
-      const arr = Array(SEQ_STEPS).fill(0.5)
-      for (let j = 0; j < Math.min(SEQ_STEPS, p.length); j++) {
-        const v = Number(p[j])
-        arr[j] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed)) return defaultAutomations()
+    // 3D（新スキーマ）かどうかを最初の要素で判定。
+    const first = parsed[0]
+    const isThreeD = Array.isArray(first) && Array.isArray(first[0])
+    const out = defaultAutomations()
+    if (isThreeD) {
+      for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
+        const slots = parsed[t] as unknown[]
+        if (!Array.isArray(slots)) continue
+        for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
+          out[t][s] = normalizeAutomationArr(slots[s])
+        }
       }
-      return arr
-    })
+    } else {
+      // 2D（旧スキーマ）：各トラックのスロット 0 に詰める。
+      for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
+        out[t][0] = normalizeAutomationArr(parsed[t])
+      }
+    }
+    return out
   } catch {
     return defaultAutomations()
   }
@@ -207,29 +233,55 @@ export default function App() {
   }, [activeTrack])
 
   // ===== Eternal シーケンサーの状態 =====
-  // パターン：トラックごと（旧 v0.1 の単トラック保存からの自動移行に対応）。
-  const [seqPatterns, setSeqPatterns] = useState<Set<string>[]>(() => {
-    if (typeof localStorage === 'undefined') return Array.from({ length: TRACK_COUNT }, () => new Set<string>())
+  // パターン：[トラック][スロット] の 2 次元（中身は Set<string>）。
+  // 旧スキーマからは以下の順で救出：
+  //   v0.2（[トラック]=Set）→ 各トラックのスロット 0 に詰める
+  //   v0.1（単トラック=Set） → トラック 1 のスロット 0 に詰める
+  const [seqPatterns, setSeqPatterns] = useState<Set<string>[][]>(() => {
+    const empty = (): Set<string>[][] =>
+      Array.from({ length: TRACK_COUNT }, () =>
+        Array.from({ length: SLOTS_PER_TRACK }, () => new Set<string>()),
+      )
+    if (typeof localStorage === 'undefined') return empty()
     try {
       const stored = localStorage.getItem(SEQ_PATTERNS_KEY)
       if (stored) {
-        const arr = JSON.parse(stored) as string[][]
-        const out: Set<string>[] = Array.from({ length: TRACK_COUNT }, () => new Set<string>())
-        for (let i = 0; i < Math.min(arr.length, TRACK_COUNT); i++) out[i] = new Set(arr[i])
-        return out
+        const parsed = JSON.parse(stored)
+        const out = empty()
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          const first = parsed[0]
+          // 3D? = parsed[track][slot] が配列
+          const isThreeD = Array.isArray(first) && first.length > 0 && Array.isArray(first[0])
+          if (isThreeD) {
+            for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
+              const slots = parsed[t] as unknown[]
+              if (!Array.isArray(slots)) continue
+              for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
+                out[t][s] = new Set(slots[s] as string[])
+              }
+            }
+          } else {
+            // 2D（v0.2 旧スキーマ）：各トラックのスロット 0 へ
+            for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
+              const arr = parsed[t] as string[]
+              if (Array.isArray(arr)) out[t][0] = new Set(arr)
+            }
+          }
+          return out
+        }
       }
-      // 旧キーから救出：v0.1 単トラック → Track 1 に移行、Track 2 は空。
+      // v0.1 単トラック → Track 1 / Slot A に詰める
       const legacy = localStorage.getItem(SEQ_PATTERN_LEGACY_KEY)
       if (legacy) {
         const parsed = JSON.parse(legacy) as string[]
-        const out: Set<string>[] = Array.from({ length: TRACK_COUNT }, () => new Set<string>())
-        out[0] = new Set(parsed)
+        const out = empty()
+        if (Array.isArray(parsed)) out[0][0] = new Set(parsed)
         return out
       }
     } catch {
       // 壊れていれば空で始める
     }
-    return Array.from({ length: TRACK_COUNT }, () => new Set<string>())
+    return empty()
   })
   const [seqBpm, setSeqBpm] = useState<number>(() => {
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_BPM_KEY) : null
@@ -254,14 +306,22 @@ export default function App() {
   useEffect(() => { trackMuteRef.current = trackMute }, [trackMute])
   const trackSoloRef = useRef(trackSolo)
   useEffect(() => { trackSoloRef.current = trackSolo }, [trackSolo])
-  // CUTOFF オートメーション：再生ごとに各ステップでフィルター CUTOFF を書き換える。
-  // 値は 0〜1 のつまみ量（cutoffNormToHz で Hz に変換してから engine へ）。永続化あり。
-  const [seqAutomations, setSeqAutomations] = useState<number[][]>(() => loadAutomations())
+  // CUTOFF オートメーション：[トラック][スロット][ステップ] の 3 次元。永続化あり。
+  const [seqAutomations, setSeqAutomations] = useState<number[][][]>(() => loadAutomations())
   const [seqAutomationEnabled, setSeqAutomationEnabled] = useState<boolean[]>(() => loadAutomationEnabled())
   const seqAutomationsRef = useRef(seqAutomations)
   useEffect(() => { seqAutomationsRef.current = seqAutomations }, [seqAutomations])
   const seqAutomationEnabledRef = useRef(seqAutomationEnabled)
   useEffect(() => { seqAutomationEnabledRef.current = seqAutomationEnabled }, [seqAutomationEnabled])
+  // パターンスロット：currentSlot = 各トラックで「いま鳴ってる」スロット。
+  // pendingSlot = タップで予約された「次ループ頭で切り替わる」スロット（-1 で予約なし）。
+  // 停止中にスロットをタップすると即時 currentSlot が変わる。
+  const [currentSlot, setCurrentSlot] = useState<number[]>(() => Array(TRACK_COUNT).fill(0))
+  const [pendingSlot, setPendingSlot] = useState<number[]>(() => Array(TRACK_COUNT).fill(-1))
+  const currentSlotRef = useRef(currentSlot)
+  useEffect(() => { currentSlotRef.current = currentSlot }, [currentSlot])
+  const pendingSlotRef = useRef(pendingSlot)
+  useEffect(() => { pendingSlotRef.current = pendingSlot }, [pendingSlot])
   // 再生ループから最新のパターン・スイング量を取るための ref。
   const seqPatternsRef = useRef(seqPatterns)
   useEffect(() => { seqPatternsRef.current = seqPatterns }, [seqPatterns])
@@ -378,7 +438,11 @@ export default function App() {
   // ===== SEQ：パターン／BPM／スイングを localStorage に永続化 =====
   useEffect(() => {
     try {
-      localStorage.setItem(SEQ_PATTERNS_KEY, JSON.stringify(seqPatterns.map((s) => Array.from(s))))
+      // 3D を JSON-serializable な形に：[トラック][スロット] = string[]
+      localStorage.setItem(
+        SEQ_PATTERNS_KEY,
+        JSON.stringify(seqPatterns.map((slots) => slots.map((s) => Array.from(s)))),
+      )
       // 旧キーが残っていたら掃除（次回ロード時の救出は不要なので消してよい）。
       localStorage.removeItem(SEQ_PATTERN_LEGACY_KEY)
     } catch {
@@ -444,19 +508,34 @@ export default function App() {
       curStep = (curStep + 1) % SEQ_STEPS
       setSeqCurrentStep(curStep)
 
+      // ループ頭：予約された pending スロットを current に昇格させて反映。
+      if (curStep === 0) {
+        const pending = pendingSlotRef.current
+        if (pending.some((v) => v >= 0)) {
+          const cur = currentSlotRef.current
+          const nextCur = cur.map((v, i) => (pending[i] >= 0 ? pending[i] : v))
+          currentSlotRef.current = nextCur
+          pendingSlotRef.current = Array(TRACK_COUNT).fill(-1)
+          setCurrentSlot(nextCur)
+          setPendingSlot(Array(TRACK_COUNT).fill(-1))
+        }
+      }
+
       const patterns = seqPatternsRef.current
       const mutes = trackMuteRef.current
       const solos = trackSoloRef.current
       const automations = seqAutomationsRef.current
       const automationOn = seqAutomationEnabledRef.current
+      const slots = currentSlotRef.current
       const anySolo = solos.some((s) => s)
       for (let trk = 0; trk < TRACK_COUNT; trk++) {
-        const pattern = patterns[trk]
+        const slotIdx = slots[trk] ?? 0
+        const pattern = patterns[trk]?.[slotIdx]
         if (!pattern) continue
-        // CUTOFF オートメーション：このステップの値で engine の CUTOFF を上書き。
+        // CUTOFF オートメーション：このトラックの現スロット × 現ステップの値で engine の CUTOFF を上書き。
         // MUTE/SOLO に関係なく毎ステップ反映する（無音中でも次回鳴った時の値を揃えるため）。
         if (automationOn[trk]) {
-          const v = automations[trk]?.[curStep] ?? 0.5
+          const v = automations[trk]?.[slotIdx]?.[curStep] ?? 0.5
           trackCutoffFns[trk](cutoffNormToHz(v))
         }
         // MUTE が ON、または「誰かが SOLO」なのに自分が SOLO ではない → このトラックは無音。
@@ -519,13 +598,22 @@ export default function App() {
     setTrackSolo((prev) => prev.map((v, i) => (i === track ? !v : v)))
   }
 
+  // 編集対象スロット：pending（予約中）があればそれを編集、なければ current。
+  // ユーザーの直感に近い：「タップしたスロットを編集している」感覚。
+  const editSlotFor = (track: number) =>
+    pendingSlot[track] >= 0 ? pendingSlot[track] : currentSlot[track]
+
   const setAutomationValue = (track: number, step: number, val: number) => {
     const clamped = Math.max(0, Math.min(1, val))
-    setSeqAutomations((prev) => prev.map((arr, i) => {
-      if (i !== track) return arr
-      const next = [...arr]
-      next[step] = clamped
-      return next
+    const slotIdx = editSlotFor(track)
+    setSeqAutomations((prev) => prev.map((slots, t) => {
+      if (t !== track) return slots
+      return slots.map((arr, s) => {
+        if (s !== slotIdx) return arr
+        const next = [...arr]
+        next[step] = clamped
+        return next
+      })
     }))
   }
 
@@ -537,6 +625,24 @@ export default function App() {
     if (wasEnabled) {
       const fn = track === 0 ? aSetCutoff : bSetCutoff
       fn(cutoffNormToHz(tracks[track].cutoff))
+    }
+  }
+
+  // スロット選択：
+  //   - 停止中：即時 currentSlot を切替（pending は消す）
+  //   - 再生中：pendingSlot に予約。次のループ頭で current に昇格して切替
+  //   - すでに current と同じスロットをタップ：pending（予約）をキャンセル
+  const selectSlot = (track: number, slot: number) => {
+    if (!seqPlaying) {
+      setCurrentSlot((prev) => prev.map((v, i) => (i === track ? slot : v)))
+      setPendingSlot((prev) => prev.map((v, i) => (i === track ? -1 : v)))
+      return
+    }
+    if (currentSlot[track] === slot) {
+      // 現在のスロットを再タップ → 予約取り消し
+      setPendingSlot((prev) => prev.map((v, i) => (i === track ? -1 : v)))
+    } else {
+      setPendingSlot((prev) => prev.map((v, i) => (i === track ? slot : v)))
     }
   }
 
@@ -558,20 +664,29 @@ export default function App() {
     }
   }, [menuOpen])
 
-  // セル On/Off。アクティブトラックのパターンを編集。
+  // セル On/Off。アクティブトラックの「編集中スロット」のパターンを編集。
   const toggleSeqCell = (step: number, midi: number) => {
-    setSeqPatterns((prev) => prev.map((p, i) => {
-      if (i !== activeTrack) return p
-      const next = new Set(p)
-      const k = seqCellKey(step, midi)
-      if (next.has(k)) next.delete(k)
-      else next.add(k)
-      return next
+    const slotIdx = editSlotFor(activeTrack)
+    setSeqPatterns((prev) => prev.map((slots, t) => {
+      if (t !== activeTrack) return slots
+      return slots.map((p, s) => {
+        if (s !== slotIdx) return p
+        const next = new Set(p)
+        const k = seqCellKey(step, midi)
+        if (next.has(k)) next.delete(k)
+        else next.add(k)
+        return next
+      })
     }))
   }
 
+  // クリア：アクティブトラックの「編集中スロット」のみを空に（他のスロットは残す）。
   const clearActiveTrackPattern = () => {
-    setSeqPatterns((prev) => prev.map((p, i) => (i === activeTrack ? new Set<string>() : p)))
+    const slotIdx = editSlotFor(activeTrack)
+    setSeqPatterns((prev) => prev.map((slots, t) => {
+      if (t !== activeTrack) return slots
+      return slots.map((p, s) => (s === slotIdx ? new Set<string>() : p))
+    }))
   }
 
   // タップテンポ：最近 4 タップまでの間隔を平均して BPM を計算する。
@@ -883,14 +998,18 @@ export default function App() {
         seqContent={
           <SeqPanel
             trackCount={TRACK_COUNT}
+            slotsPerTrack={SLOTS_PER_TRACK}
             activeTrack={activeTrack}
             onTrack={switchTrack}
+            currentSlot={currentSlot}
+            pendingSlot={pendingSlot}
+            onSelectSlot={selectSlot}
             trackMute={trackMute}
             trackSolo={trackSolo}
             onToggleMute={toggleMute}
             onToggleSolo={toggleSolo}
-            pattern={seqPatterns[activeTrack] ?? new Set()}
-            automation={seqAutomations[activeTrack] ?? Array(SEQ_STEPS).fill(0.5)}
+            pattern={seqPatterns[activeTrack]?.[editSlotFor(activeTrack)] ?? new Set()}
+            automation={seqAutomations[activeTrack]?.[editSlotFor(activeTrack)] ?? Array(SEQ_STEPS).fill(0.5)}
             automationEnabled={seqAutomationEnabled[activeTrack] ?? false}
             onSetAutomation={(step, val) => setAutomationValue(activeTrack, step, val)}
             onToggleAutomation={() => toggleAutomation(activeTrack)}

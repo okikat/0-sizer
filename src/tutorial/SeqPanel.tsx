@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react'
-import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, cellKey } from './seqConst'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOT_LABELS, cellKey } from './seqConst'
 
 // 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
 // 再生・タイミング・音源との接続は App 側が持つ（このコンポーネントは表示と操作のみ）。
@@ -12,20 +12,27 @@ import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_S
 interface Props {
   /** 全トラック数（現状は 2）。 */
   trackCount: number
+  /** 1 トラックあたりのパターンスロット数（A/B/C/D）。 */
+  slotsPerTrack: number
   /** 編集中のトラック index（0 始まり）。 */
   activeTrack: number
   onTrack: (t: number) => void
+  /** 各トラックの「いま鳴ってるスロット」。 */
+  currentSlot: number[]
+  /** 各トラックの「次ループ頭で切り替わる予約スロット」（-1 なら予約なし）。 */
+  pendingSlot: number[]
+  onSelectSlot: (track: number, slot: number) => void
   /** トラックごとの MUTE 状態。 */
   trackMute: boolean[]
   /** トラックごとの SOLO 状態。 */
   trackSolo: boolean[]
   onToggleMute: (t: number) => void
   onToggleSolo: (t: number) => void
-  /** アクティブトラックのパターン。 */
+  /** アクティブトラック × 編集中スロットのパターン。 */
   pattern: Set<string>
-  /** アクティブトラックの CUTOFF オートメーション値（0〜1、ステップ毎）。 */
+  /** 同上の CUTOFF オートメーション値（0〜1、ステップ毎）。 */
   automation: number[]
-  /** アクティブトラックのオートメーション有効フラグ。 */
+  /** アクティブトラックのオートメーション有効フラグ（トラック単位、スロット横断）。 */
   automationEnabled: boolean
   onSetAutomation: (step: number, val: number) => void
   onToggleAutomation: () => void
@@ -44,8 +51,12 @@ interface Props {
 
 export function SeqPanel({
   trackCount,
+  slotsPerTrack,
   activeTrack,
   onTrack,
+  currentSlot,
+  pendingSlot,
+  onSelectSlot,
   trackMute,
   trackSolo,
   onToggleMute,
@@ -139,15 +150,17 @@ export function SeqPanel({
         </div>
       </div>
 
-      {/* トラックセレクタ：押されているトラックがアクティブ（編集対象＆PANEL の音色源）。
-          M = MUTE（SEQ で鳴らさない・鍵盤には影響しない）、S = SOLO（ソロ群のみ鳴る）。 */}
+      {/* トラックごとの 1 行：[TRACK N] [M] [S] [A B C D] [プレイヘッド先取り] 。
+          - TRACK N：アクティブトラック（PANEL の編集対象）を切替
+          - M / S：MUTE（赤）／ SOLO（黄）。MUTE は SEQ のみ、鍵盤は鳴る
+          - A B C D：パターンスロット。playing は強調、pending（予約）は点滅
+          - クリック動作：停止中=即時切替、再生中=次ループ頭で切替（同じスロットを再タップで予約取消） */}
       <div className="seq-tracks">
-        <span className="seq-tracks-label">TRACK</span>
         {Array.from({ length: trackCount }).map((_, i) => {
           const anySolo = trackSolo.some((s) => s)
           const silenced = trackMute[i] || (anySolo && !trackSolo[i])
           return (
-            <div key={i} className={'seq-track-strip' + (silenced ? ' silenced' : '')}>
+            <div key={i} className={'seq-track-row' + (silenced ? ' silenced' : '') + (activeTrack === i ? ' active' : '')}>
               <button
                 className={'seq-track-btn' + (activeTrack === i ? ' sel' : '')}
                 onClick={() => onTrack(i)}
@@ -174,6 +187,25 @@ export function SeqPanel({
               >
                 S
               </button>
+              <div className="seq-slots">
+                {Array.from({ length: slotsPerTrack }).map((_, s) => {
+                  const isPlaying = currentSlot[i] === s
+                  const isPending = pendingSlot[i] === s
+                  return (
+                    <button
+                      key={s}
+                      className={'seq-slot-btn'
+                        + (isPlaying ? ' playing' : '')
+                        + (isPending ? ' pending' : '')}
+                      onClick={() => onSelectSlot(i, s)}
+                      aria-pressed={isPlaying}
+                      aria-label={`トラック ${i + 1} スロット ${SLOT_LABELS[s]}`}
+                    >
+                      {SLOT_LABELS[s] ?? s}
+                    </button>
+                  )
+                })}
+              </div>
             </div>
           )
         })}

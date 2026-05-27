@@ -810,26 +810,26 @@ b {
 .seq-tracks {
   flex: 0 0 auto;
   display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px 10px;
+  flex-direction: column;
+  gap: 4px;
   padding: 0 4px;
 }
-.seq-tracks-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--sub);
-  margin-right: 2px;
-}
-/* トラックストリップ：番号 + M + S を 1 つの「チャンネルフェーダ」風にまとめる。 */
-.seq-track-strip {
-  display: inline-flex;
+/* トラック行：番号 + M + S + A/B/C/D。アクティブ行は左に薄いティールのラインが入る。 */
+.seq-track-row {
+  display: flex;
   align-items: center;
   gap: 1px;
+  padding: 2px 0 2px 6px;
+  border-left: 2px solid transparent;
+  transition: border-color 0.12s ease, background 0.12s ease;
 }
-/* MUTE 中 or SOLO で除外されている → ストリップ全体をうっすら沈める（鳴ってないサイン）。 */
-.seq-track-strip.silenced .seq-track-btn { opacity: 0.55; }
+.seq-track-row.active {
+  border-left-color: rgba(90, 209, 196, 0.55);
+  background: linear-gradient(90deg, rgba(90, 209, 196, 0.05), transparent 40%);
+}
+/* MUTE 中 or SOLO で除外されている → 行全体をうっすら沈める（鳴ってないサイン）。 */
+.seq-track-row.silenced .seq-track-btn,
+.seq-track-row.silenced .seq-slot-btn { opacity: 0.55; }
 .seq-track-btn {
   min-width: 30px;
   height: 30px;
@@ -876,6 +876,44 @@ b {
   background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
   box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(255, 211, 102, 0.4);
   text-shadow: 0 0 6px rgba(255, 211, 102, 0.55);
+}
+
+/* スロット枠（A/B/C/D）：トラック行の右側にぴったり寄せて、4 ボタンの "セクション選択" 帯にする。 */
+.seq-slots {
+  display: inline-flex;
+  align-items: center;
+  gap: 1px;
+  margin-left: 6px;
+}
+.seq-slot-btn {
+  min-width: 26px;
+  height: 30px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+/* 再生中のスロット：押し込まれたティール。点灯のメイン表現。 */
+.seq-slot-btn.playing {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.4), 0 0 6px rgba(90, 209, 196, 0.18);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.55);
+}
+/* 予約中のスロット（次ループ頭で切り替わる）：枠が点滅。 */
+.seq-slot-btn.pending {
+  color: var(--accent);
+  animation: seq-slot-pending 0.6s ease-in-out infinite alternate;
+}
+@keyframes seq-slot-pending {
+  from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(90, 209, 196, 0.2); }
+  to   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1.5px rgba(90, 209, 196, 0.85), 0 0 8px rgba(90, 209, 196, 0.35); }
 }
 
 /* ===== オートメーションレーン（CUTOFF） =====

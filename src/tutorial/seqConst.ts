@@ -3,6 +3,11 @@
 
 export const SEQ_STEPS = 16
 
+// 1 トラックあたりのパターンスロット数（A/B/C/D）。
+// バース／コーラス／ブリッジ等の「セクション」単位で持てるパターン枠。
+export const SLOTS_PER_TRACK = 4
+export const SLOT_LABELS = ['A', 'B', 'C', 'D'] as const
+
 // 並びは「上＝高音」のピアノロール慣習。白鍵 2 オクターブ（C3〜B4）。
 // 14 行あるので、1 トラックの中に「ベース域（C3〜B3）＋メロディ域（C4〜B4）」を同居させられる。
 export const SEQ_PITCHES: number[] = [
