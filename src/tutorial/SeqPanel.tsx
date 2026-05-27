@@ -49,6 +49,9 @@ interface Props {
   automationEnabled: boolean
   onSetAutomation: (step: number, val: number) => void
   onToggleAutomation: () => void
+  /** CUTOFF レーンの表示折り畳み。閉じている間はバー部分が消えて head 行だけ残る。 */
+  cutoffLaneOpen: boolean
+  onToggleCutoffLane: () => void
   /** 現在再生中のステップ番号。停止中は -1。 */
   currentStep: number
   playing: boolean
@@ -87,6 +90,8 @@ export function SeqPanel({
   automationEnabled,
   onSetAutomation,
   onToggleAutomation,
+  cutoffLaneOpen,
+  onToggleCutoffLane,
   currentStep,
   playing,
   bpm,
@@ -431,7 +436,17 @@ export function SeqPanel({
           >
             AUTO
           </button>
+          <button
+            className="seq-automation-fold"
+            onClick={onToggleCutoffLane}
+            aria-pressed={!cutoffLaneOpen}
+            aria-label={cutoffLaneOpen ? 'CUTOFF レーンを閉じる' : 'CUTOFF レーンを開く'}
+            title={cutoffLaneOpen ? '折りたたむ' : '開く'}
+          >
+            {cutoffLaneOpen ? '▲' : '▼'}
+          </button>
         </div>
+        {cutoffLaneOpen && (
         <div className="seq-automation-lane-wrap" ref={laneScrollRef}>
           <div className={'seq-automation-lane' + (automationEnabled ? '' : ' disabled')}>
             <span className="seq-row-label" aria-hidden />
@@ -479,6 +494,7 @@ export function SeqPanel({
           })}
           </div>
         </div>
+        )}
       </div>
     </div>
   )

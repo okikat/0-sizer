@@ -28,6 +28,7 @@ const SEQ_AUTOMATIONS_KEY = '0sizer.seqAutomations'      // [トラック][ス�
 const SEQ_AUTOMATION_ENABLED_KEY = '0sizer.seqAutomationEnabled' // [トラック] = boolean
 const SONG_SEQUENCE_KEY = '0sizer.songSequence'           // SONG モードの並び（スロット index の配列）
 const SONG_MODE_KEY = '0sizer.songMode'                   // SONG モード有効か（'1' / null）
+const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'      // CUTOFF レーンを表示しているか（既定 ON）
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -396,6 +397,15 @@ export default function App() {
   const [songSequence, setSongSequence] = useState<number[]>(() => loadSongSequence())
   const [songMode, setSongMode] = useState<boolean>(() => loadSongMode())
   const [songPosition, setSongPosition] = useState(0)
+  // CUTOFF レーンの表示/折り畳み（UI preference、トラック横断）。
+  const [cutoffLaneOpen, setCutoffLaneOpen] = useState<boolean>(() => {
+    if (typeof localStorage === 'undefined') return true
+    const v = localStorage.getItem(CUTOFF_LANE_OPEN_KEY)
+    return v === null ? true : v === '1' // 既定は表示
+  })
+  useEffect(() => {
+    try { localStorage.setItem(CUTOFF_LANE_OPEN_KEY, cutoffLaneOpen ? '1' : '0') } catch { /* */ }
+  }, [cutoffLaneOpen])
   const songSequenceRef = useRef(songSequence)
   useEffect(() => { songSequenceRef.current = songSequence }, [songSequence])
   const songModeRef = useRef(songMode)
@@ -1207,6 +1217,8 @@ export default function App() {
             automationEnabled={seqAutomationEnabled[activeTrack] ?? false}
             onSetAutomation={(step, val) => setAutomationValue(activeTrack, step, val)}
             onToggleAutomation={() => toggleAutomation(activeTrack)}
+            cutoffLaneOpen={cutoffLaneOpen}
+            onToggleCutoffLane={() => setCutoffLaneOpen((v) => !v)}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}
