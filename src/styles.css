@@ -1100,44 +1100,49 @@ b {
 }
 
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
-/* グリッドエリア：上下に ▲ / ▼ ボタンを挟んだ縦 flex。本体のスクロールは中の .seq-grid-wrap で。 */
+/* グリッドエリア：grid-wrap を 100% 高さで包む。
+   ▲ / ▼ ボタンを absolute で上下端に重ねるため position: relative を持つ。 */
 .seq-grid-area {
   flex: 1 1 auto;
   min-height: 0;
   display: flex;
   flex-direction: column;
+  position: relative;
 }
 .seq-grid-wrap {
-  /* 14 行のグリッドはスマホ画面より縦に長くなりうる。
-     ラッパーが seq-grid-area の残り高さに収まり、内部で縦スクロールするようにする
-     ことで、上のトランスポート／TRACK と下の CUTOFF レーンが常に見える状態を保つ。 */
+  /* 14 行のグリッドはスマホ画面より縦に長くなりうる。内部スクロールで対応。 */
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto; /* 横（16セル超）も縦（14行超）も両方スクロール可 */
+  overflow: auto;
   display: flex;
   scrollbar-width: none; /* Firefox */
 }
 .seq-grid-wrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
-/* ▲ / ▼ ボタン：細い帯。タップで半画面ぶんスクロール。スライドジェスチャの代替手段。 */
+/* ▲ / ▼ ボタン：ラベル列の最上段／最下段にちょうど重なるサイズで absolute 配置。
+   セル列には被らないので編集の邪魔をしない。grid 本体の縦スペースを奪わないのが最大のポイント。
+   スクロールしても位置は不動、背面でラベルだけが入れ替わって見える。 */
 .seq-grid-scroll {
-  flex: 0 0 auto;
-  width: 100%;
-  height: 22px;
+  position: absolute;
+  left: 4px;      /* グリッドの padding-left（4px）と一致させてラベルにピッタリ重ねる */
+  width: 24px;    /* .seq-row-label と同じ */
+  height: var(--seq-cell);
+  z-index: 5;
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
-  color: var(--sub);
-  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
-  border: 1px solid #000;
+  color: var(--accent);
+  background: rgba(14, 17, 22, 0.92);
+  border: 1px solid rgba(90, 209, 196, 0.4);
   border-radius: 0;
   cursor: pointer;
   user-select: none;
-  letter-spacing: 4px;
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.45);
 }
+.seq-grid-scroll-up   { top: 4px; }     /* grid の padding-top と一致 */
+.seq-grid-scroll-down { bottom: 4px; }  /* grid の padding-bottom と一致 */
 .seq-grid-scroll:active {
-  color: var(--accent);
-  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  background: rgba(90, 209, 196, 0.2);
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
 }
 .seq-grid {

@@ -321,11 +321,6 @@ export function SeqPanel({
       </div>
 
       <div className="seq-grid-area">
-        <button
-          className="seq-grid-scroll seq-grid-scroll-up"
-          onClick={() => scrollGridBy(-1)}
-          aria-label="グリッドを上へスクロール"
-        >▲</button>
       <div className="seq-grid-wrap" ref={gridScrollRef}>
         <div className="seq-grid">
           {SEQ_PITCHES.map((midi) => (
@@ -387,6 +382,13 @@ export function SeqPanel({
           ))}
         </div>
       </div>
+        {/* ▲ / ▼ はラベル列の最上段／最下段にオーバーレイ。グリッド本体のスペースは奪わない。
+            スクロールしてもボタン位置は不動、背面でラベルだけが入れ替わって見える。 */}
+        <button
+          className="seq-grid-scroll seq-grid-scroll-up"
+          onClick={() => scrollGridBy(-1)}
+          aria-label="グリッドを上へスクロール"
+        >▲</button>
         <button
           className="seq-grid-scroll seq-grid-scroll-down"
           onClick={() => scrollGridBy(1)}
