@@ -120,11 +120,12 @@ export function SeqPanel({
     const s = slideRef.current
     if (!s) return
     if (!s.inSlide) {
-      // しきい値判定：水平 12px 以上なら slide モード ON。垂直方向だけの動きでは ON にしない。
+      // しきい値：水平 24px 以上動いて、しかも縦方向が支配的でないなら slide モード。
+      // 12px だと縦スクロール開始時の微小な水平ぶれで誤爆するので、もう少し意図的な動きを要求する。
       const dx = clientX - s.startX
       const dy = clientY - s.startY
-      if (Math.abs(dx) < 12) return
-      if (Math.abs(dy) > Math.abs(dx) + 6) return // 垂直優位の動きはスクロール意図とみなして無視
+      if (Math.abs(dx) < 24) return
+      if (Math.abs(dy) > Math.abs(dx) - 4) return // 縦が同程度以上ならスクロール意図とみなす
       s.inSlide = true
     }
     // 指の下のセルを特定。setPointerCapture 中でも document.elementFromPoint なら他のセルが取れる。
@@ -144,6 +145,14 @@ export function SeqPanel({
       { step, midi: s.startMidi },
     )
     s.lastStep = step
+  }
+
+  // ▲ / ▼ ボタン：1 タップで「クライアント高さの半分」だけグリッドを縦スクロール。
+  // スライドで誤爆する人や、スライドジェスチャを使いたくない人向けの代替手段。
+  const scrollGridBy = (dir: 1 | -1) => {
+    const g = gridScrollRef.current
+    if (!g) return
+    g.scrollBy({ top: dir * (g.clientHeight * 0.5), behavior: 'smooth' })
   }
 
   // グリッドとオートメーションレーンの横スクロールを双方向に同期させる。
@@ -311,6 +320,12 @@ export function SeqPanel({
         <button className="seq-song-bump" onClick={onRemoveSongPosition} aria-label="ポジション削除">−</button>
       </div>
 
+      <div className="seq-grid-area">
+        <button
+          className="seq-grid-scroll seq-grid-scroll-up"
+          onClick={() => scrollGridBy(-1)}
+          aria-label="グリッドを上へスクロール"
+        >▲</button>
       <div className="seq-grid-wrap" ref={gridScrollRef}>
         <div className="seq-grid">
           {SEQ_PITCHES.map((midi) => (
@@ -371,6 +386,12 @@ export function SeqPanel({
             </div>
           ))}
         </div>
+      </div>
+        <button
+          className="seq-grid-scroll seq-grid-scroll-down"
+          onClick={() => scrollGridBy(1)}
+          aria-label="グリッドを下へスクロール"
+        >▼</button>
       </div>
 
       {/* オートメーションレーン：CUTOFF をステップ毎に決め打ち。

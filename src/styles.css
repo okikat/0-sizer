@@ -1100,9 +1100,16 @@ b {
 }
 
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
+/* グリッドエリア：上下に ▲ / ▼ ボタンを挟んだ縦 flex。本体のスクロールは中の .seq-grid-wrap で。 */
+.seq-grid-area {
+  flex: 1 1 auto;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
 .seq-grid-wrap {
   /* 14 行のグリッドはスマホ画面より縦に長くなりうる。
-     ラッパーが seq-panel の残り高さに収まり、内部で縦スクロールするようにする
+     ラッパーが seq-grid-area の残り高さに収まり、内部で縦スクロールするようにする
      ことで、上のトランスポート／TRACK と下の CUTOFF レーンが常に見える状態を保つ。 */
   flex: 1 1 auto;
   min-height: 0;
@@ -1111,6 +1118,28 @@ b {
   scrollbar-width: none; /* Firefox */
 }
 .seq-grid-wrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
+/* ▲ / ▼ ボタン：細い帯。タップで半画面ぶんスクロール。スライドジェスチャの代替手段。 */
+.seq-grid-scroll {
+  flex: 0 0 auto;
+  width: 100%;
+  height: 22px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 11px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+  user-select: none;
+  letter-spacing: 4px;
+}
+.seq-grid-scroll:active {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+}
 .seq-grid {
   display: flex;
   flex-direction: column;
