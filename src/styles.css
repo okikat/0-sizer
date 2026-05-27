@@ -32,6 +32,21 @@ body {
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  /* 内部のスクロール領域が端まで行ってもブラウザの引っ張り（pull-to-refresh, rubber band）に
+     伝播させない。これがないと、グリッド端での上下方向の慣性がブラウザの overscroll を発火させ、
+     アプリ全体や Safari の画面が揺れる現象になる。 */
+  overscroll-behavior: none;
+  overflow: hidden;
+  /* スマホで address bar が出てくる隙間を作らないよう、body 自体は 100% に固定 */
+  position: fixed;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+}
+html {
+  overscroll-behavior: none;
+  overflow: hidden;
+  height: 100%;
 }
 /* このアプリは全面でテキスト選択を無効化（長押しの虫眼鏡/コールアウトを完全に抑止）。
    解説ポップアップも「読む」専用で選択は不要。 */
@@ -1025,6 +1040,7 @@ b {
   flex: 0 0 auto;
   overflow-x: auto;
   overflow-y: hidden;
+  overscroll-behavior: contain;
   display: flex;
   scrollbar-width: none;
 }
@@ -1114,6 +1130,8 @@ b {
   flex: 1 1 auto;
   min-height: 0;
   overflow: auto;
+  /* 端で overscroll してもブラウザ側へ伝えない（アプリが揺れない／引っ張られない） */
+  overscroll-behavior: contain;
   display: flex;
   scrollbar-width: none; /* Firefox */
 }
@@ -1322,6 +1340,7 @@ b {
   gap: 8px;
   padding: 12px 16px 14px 12px; /* 右側にスクロール用の余裕 */
   overflow-y: auto;
+  overscroll-behavior: contain;
 }
 .preset-modal-list::-webkit-scrollbar { width: 4px; }
 .preset-modal-list::-webkit-scrollbar-thumb { background: rgba(90, 209, 196, 0.4); border-radius: 2px; }
@@ -1357,6 +1376,7 @@ b {
 .panel-scroll {
   flex: 1 1 auto;
   min-height: 0;
+  overscroll-behavior: contain;
   overflow-y: auto;
   overflow-x: hidden;
   display: flex;
