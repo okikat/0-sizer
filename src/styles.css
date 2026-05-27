@@ -854,11 +854,12 @@ b {
 .seq-row {
   display: flex;
   align-items: center;
-  gap: 2px;
+  /* セル間の隙間は gap ではなく margin-right で作る。タイ時に隙間を 0 にできるよう。 */
 }
 .seq-row-label {
   flex: 0 0 auto;
   width: 24px;
+  margin-right: 2px;
   font-size: 10px;
   font-weight: 700;
   text-align: center;
@@ -869,6 +870,7 @@ b {
   flex: 0 0 auto;
   width: var(--seq-cell);
   height: var(--seq-cell);
+  margin-right: 2px;
   padding: 0;
   background: #0a0d11;
   border: 1px solid rgba(255, 255, 255, 0.04);
@@ -876,6 +878,7 @@ b {
   cursor: pointer;
   transition: background 0.08s ease, box-shadow 0.08s ease;
 }
+.seq-cell:last-child { margin-right: 0; }
 .seq-cell.bar-start { margin-left: 3px; }
 .seq-cell:active { background: #14181f; }
 .seq-cell.on {
@@ -883,10 +886,16 @@ b {
   border-color: rgba(90, 209, 196, 0.7);
   box-shadow: inset 0 0 6px rgba(90, 209, 196, 0.3), 0 0 4px rgba(90, 209, 196, 0.25);
 }
-/* タイ：隣接する on セルは「1 つの長い音」になる。区切りを薄くして、ひと塊に見せる。
-   小節区切り(bar-start) の手前で繋がる場合は、3px のギャップが入って自然に切れる。 */
-.seq-cell.on.tied-next { border-right-color: rgba(90, 209, 196, 0.18); }
-.seq-cell.on.tied-prev { border-left-color: rgba(90, 209, 196, 0.18); }
+/* タイ：隣接する on セルは「1 つの長い音」。境界の余白とボーダーを消して、
+   背景が継ぎ目なく連続する塊に見せる。小節境界(.bar-start) の 3px は残るので
+   ここで自然に切れる（音は繋がる）。 */
+.seq-cell.on.tied-next {
+  margin-right: 0;
+  border-right-width: 0;
+}
+.seq-cell.on.tied-prev {
+  border-left-width: 0;
+}
 /* 再生ヘッド列：そのステップの全セルを少しブライトに、点灯セルはさらに強調。 */
 .seq-cell.col-active {
   background: #1a2228;
