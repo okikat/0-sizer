@@ -680,6 +680,9 @@ b {
   padding: 10px 6px;
   min-height: 0;
   color: var(--txt);
+  /* セルサイズ：画面幅に応じて 18〜32px。グリッドの行とオートメーションレーン両方で共有。
+     計算式 = (利用可能 − ラベル列 28px − 4 拍区切り計 9px − グリッド外パディング 24px) / 16。 */
+  --seq-cell: clamp(18px, calc((100vw - 28px - 9px - 24px) / 16), 32px);
 }
 
 /* トランスポート行：▶/⏹、BPM ±、TAP、SWING ±、クリア。
@@ -962,9 +965,6 @@ b {
   justify-content: center;
 }
 .seq-grid {
-  /* セルサイズは画面幅に応じて 18px〜32px。
-     幅 = (利用可能 − ラベル列 28px − 4 拍区切り計 9px) / 16。 */
-  --seq-cell: clamp(18px, calc((100vw - 28px - 9px - 24px) / 16), 32px);
   display: flex;
   flex-direction: column;
   gap: 2px;
