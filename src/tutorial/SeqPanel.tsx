@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, cellKey } from './seqConst'
 
 // 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
@@ -67,6 +68,35 @@ export function SeqPanel({
 }: Props) {
   const bumpBpm = (d: number) => onBpm(Math.max(SEQ_BPM_MIN, Math.min(SEQ_BPM_MAX, bpm + d)))
   const bumpSwing = (d: number) => onSwing(Math.max(SEQ_SWING_MIN, Math.min(SEQ_SWING_MAX, swing + d)))
+
+  // グリッドとオートメーションレーンの横スクロールを双方向に同期させる。
+  // syncing フラグで「スクロール書き換え→相手の onScroll が発火→自分を書き換え返す」のループを防ぐ。
+  const gridScrollRef = useRef<HTMLDivElement>(null)
+  const laneScrollRef = useRef<HTMLDivElement>(null)
+  useEffect(() => {
+    const g = gridScrollRef.current
+    const l = laneScrollRef.current
+    if (!g || !l) return
+    let syncing = false
+    const onG = () => {
+      if (syncing) return
+      syncing = true
+      l.scrollLeft = g.scrollLeft
+      syncing = false
+    }
+    const onL = () => {
+      if (syncing) return
+      syncing = true
+      g.scrollLeft = l.scrollLeft
+      syncing = false
+    }
+    g.addEventListener('scroll', onG)
+    l.addEventListener('scroll', onL)
+    return () => {
+      g.removeEventListener('scroll', onG)
+      l.removeEventListener('scroll', onL)
+    }
+  }, [])
 
   return (
     <div className="seq-panel">
@@ -149,7 +179,7 @@ export function SeqPanel({
         })}
       </div>
 
-      <div className="seq-grid-wrap">
+      <div className="seq-grid-wrap" ref={gridScrollRef}>
         <div className="seq-grid">
           {SEQ_PITCHES.map((midi) => (
             <div className="seq-row" key={midi}>
@@ -193,8 +223,9 @@ export function SeqPanel({
             AUTO
           </button>
         </div>
-        <div className={'seq-automation-lane' + (automationEnabled ? '' : ' disabled')}>
-          <span className="seq-row-label" aria-hidden />
+        <div className="seq-automation-lane-wrap" ref={laneScrollRef}>
+          <div className={'seq-automation-lane' + (automationEnabled ? '' : ' disabled')}>
+            <span className="seq-row-label" aria-hidden />
           {Array.from({ length: SEQ_STEPS }).map((_, step) => {
             const v = automation[step] ?? 0.5
             const inCol = currentStep === step
@@ -237,6 +268,7 @@ export function SeqPanel({
               </div>
             )
           })}
+          </div>
         </div>
       </div>
     </div>

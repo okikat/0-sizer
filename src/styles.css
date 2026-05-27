@@ -681,8 +681,16 @@ b {
   min-height: 0;
   color: var(--txt);
   /* セルサイズ：画面幅に応じて 18〜32px。グリッドの行とオートメーションレーン両方で共有。
-     計算式 = (利用可能 − ラベル列 28px − 4 拍区切り計 9px − グリッド外パディング 24px) / 16。 */
-  --seq-cell: clamp(18px, calc((100vw - 28px - 9px - 24px) / 16), 32px);
+     引く量はセル以外の横方向占有を全部足したもの：
+       24 = .app-root padding 左右 (12px*2)
+       12 = .seq-panel padding 左右 (6px*2)
+        8 = グリッド／レーン本体の padding (4px*2)
+       26 = ラベル列 (24px + margin-right 2px)
+       30 = セル間 margin-right (2px × 15)
+        9 = 4 拍区切り（bar-start margin-left 3px × 3）
+       約 2 = スクロールバー予備
+     合計 ≒ 111px。これを 100vw から引いて 16 等分。 */
+  --seq-cell: clamp(18px, calc((100vw - 111px) / 16), 32px);
 }
 
 /* トランスポート行：▶/⏹、BPM ±、TAP、SWING ±、クリア。
@@ -878,14 +886,24 @@ b {
   display: flex;
   flex-direction: column;
   gap: 4px;
-  padding: 0 4px;
+  /* padding はゼロにしてグリッドと同じ起点に揃える（グリッド/レーンの中で個別に padding を持たせる）。 */
   margin-top: 4px;
 }
 .seq-automation-head {
   display: flex;
   align-items: center;
   gap: 8px;
+  padding: 0 4px; /* AUTO ボタン群はスクロール外なので、ここだけ少し内側に寄せる。 */
 }
+/* レーン側のスクロールラッパー。グリッドの scrollLeft と同期する（JS）。 */
+.seq-automation-lane-wrap {
+  flex: 0 0 auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  display: flex;
+  scrollbar-width: none;
+}
+.seq-automation-lane-wrap::-webkit-scrollbar { height: 0; display: none; }
 .seq-automation-label {
   font-size: 10px;
   font-weight: 700;
@@ -960,10 +978,14 @@ b {
 .seq-grid-wrap {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
+  overflow-x: auto;
+  overflow-y: hidden;
+  /* 16 セルが画面幅に入りきらない端末では横スクロール。レーンと scrollLeft を JS で同期させる。
+     justify-content: center だと「センター起点でオーバーフロー」になりレーンと位置がズレるので左寄せ。 */
   display: flex;
-  justify-content: center;
+  scrollbar-width: none; /* Firefox */
 }
+.seq-grid-wrap::-webkit-scrollbar { height: 0; display: none; }
 .seq-grid {
   display: flex;
   flex-direction: column;
