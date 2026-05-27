@@ -28,6 +28,16 @@ interface Props {
   trackSolo: boolean[]
   onToggleMute: (t: number) => void
   onToggleSolo: (t: number) => void
+  /** SONG モード：ON の間 songSequence をループ頭ごとに進めて全トラックのスロットを切替。 */
+  songMode: boolean
+  /** SONG のポジション列（各要素は 0..SLOTS_PER_TRACK-1）。 */
+  songSequence: number[]
+  /** 現在再生中の SONG ポジション。停止中は 0。 */
+  songPosition: number
+  onToggleSongMode: () => void
+  onCycleSongPosition: (positionIdx: number) => void
+  onAddSongPosition: () => void
+  onRemoveSongPosition: () => void
   /** アクティブトラック × 編集中スロットのパターン。 */
   pattern: Set<string>
   /** 同上の CUTOFF オートメーション値（0〜1、ステップ毎）。 */
@@ -57,6 +67,13 @@ export function SeqPanel({
   currentSlot,
   pendingSlot,
   onSelectSlot,
+  songMode,
+  songSequence,
+  songPosition,
+  onToggleSongMode,
+  onCycleSongPosition,
+  onAddSongPosition,
+  onRemoveSongPosition,
   trackMute,
   trackSolo,
   onToggleMute,
@@ -196,8 +213,10 @@ export function SeqPanel({
                       key={s}
                       className={'seq-slot-btn'
                         + (isPlaying ? ' playing' : '')
-                        + (isPending ? ' pending' : '')}
+                        + (isPending ? ' pending' : '')
+                        + (songMode ? ' song-driven' : '')}
                       onClick={() => onSelectSlot(i, s)}
+                      disabled={songMode}
                       aria-pressed={isPlaying}
                       aria-label={`トラック ${i + 1} スロット ${SLOT_LABELS[s]}`}
                     >
@@ -209,6 +228,38 @@ export function SeqPanel({
             </div>
           )
         })}
+      </div>
+
+      {/* SONG モード行：スロットの並び（position 列）と ⏵ トグルで「曲が自動で進む」体験を作る。
+          - ⏵ が ON：再生中、ループ頭ごとに次 position へ進み、その position のスロットを全トラックに適用
+          - 各 position をタップで A→B→C→D→A と循環。+/− で長さを変更（1〜16）
+          - 再生中は songPosition の cell が強調される。SONG ON 中、トラック行のスロットボタンは無効化 */}
+      <div className="seq-song">
+        <span className="seq-song-label">SONG</span>
+        <button
+          className={'seq-song-toggle' + (songMode ? ' on' : '')}
+          onClick={onToggleSongMode}
+          aria-pressed={songMode}
+          aria-label="SONG モード"
+          title="SONG モード"
+        >
+          {songMode ? '⏵' : '○'}
+        </button>
+        <div className="seq-song-positions">
+          {songSequence.map((slot, i) => (
+            <button
+              key={i}
+              className={'seq-song-pos'
+                + (songMode && playing && songPosition === i ? ' playing' : '')}
+              onClick={() => onCycleSongPosition(i)}
+              aria-label={`SONG ポジション ${i + 1}：スロット ${SLOT_LABELS[slot] ?? slot}`}
+            >
+              {SLOT_LABELS[slot] ?? slot}
+            </button>
+          ))}
+        </div>
+        <button className="seq-song-bump" onClick={onAddSongPosition} aria-label="ポジション追加">＋</button>
+        <button className="seq-song-bump" onClick={onRemoveSongPosition} aria-label="ポジション削除">−</button>
       </div>
 
       <div className="seq-grid-wrap" ref={gridScrollRef}>

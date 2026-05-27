@@ -915,6 +915,93 @@ b {
   from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(90, 209, 196, 0.2); }
   to   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1.5px rgba(90, 209, 196, 0.85), 0 0 8px rgba(90, 209, 196, 0.35); }
 }
+/* SONG モード中：スロットボタンはアプリ側で disabled。
+   タップ不能を見た目でも示すため、明るさを少し落として「自動運転中」感を出す。 */
+.seq-slot-btn.song-driven { opacity: 0.7; cursor: not-allowed; }
+.seq-slot-btn:disabled { cursor: not-allowed; }
+
+/* ===== SONG モード行（スロットの並べ替え再生） =====
+   トラック行の下に置かれる position 列。タップで A→B→C→D を循環、+/- で長さ変更。 */
+.seq-song {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 4px 0;
+  border-top: 1px dashed rgba(255, 255, 255, 0.06);
+}
+.seq-song-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--sub);
+  flex: 0 0 auto;
+}
+.seq-song-toggle {
+  min-width: 32px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.seq-song-toggle.on {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+/* position 列：横スクロール可能（最大 16 個に対応）、スクロールバー非表示。 */
+.seq-song-positions {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  gap: 2px;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.seq-song-positions::-webkit-scrollbar { height: 0; display: none; }
+.seq-song-pos {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 28px;
+  padding: 0 6px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+/* 再生中ポジション：current step のセルと似た「光って動いている」感を持たせる。 */
+.seq-song-pos.playing {
+  color: var(--accent);
+  background: linear-gradient(180deg, rgba(120, 230, 218, 0.5) 0%, rgba(90, 209, 196, 0.3) 100%);
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.2), 0 0 8px rgba(90, 209, 196, 0.45);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+.seq-song-bump {
+  flex: 0 0 auto;
+  min-width: 28px;
+  height: 28px;
+  padding: 0;
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.seq-song-bump:active { color: var(--accent); background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%); }
 
 /* ===== オートメーションレーン（CUTOFF） =====
    グリッド下に置かれる 16 ステップの縦バー帯。AUTO トグルを ON にしている間

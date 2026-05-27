@@ -12,7 +12,7 @@ import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/Lesson
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
 import { SeqPanel } from './tutorial/SeqPanel'
-import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOTS_PER_TRACK, cellKey as seqCellKey } from './tutorial/seqConst'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOTS_PER_TRACK, SONG_MIN_LENGTH, SONG_MAX_LENGTH, cellKey as seqCellKey } from './tutorial/seqConst'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
@@ -24,8 +24,10 @@ const SEQ_BPM_KEY = '0sizer.seqBpm'
 const SEQ_SWING_KEY = '0sizer.seqSwing'
 const TRACKS_KEY = '0sizer.tracks' // トラック毎の音色（SoundState 配列）
 const ACTIVE_TRACK_KEY = '0sizer.activeTrack'
-const SEQ_AUTOMATIONS_KEY = '0sizer.seqAutomations'      // [トラック][ステップ] = 0〜1（CUTOFF 0〜1 つまみ量に等価）
+const SEQ_AUTOMATIONS_KEY = '0sizer.seqAutomations'      // [トラック][スロット][ステップ] = 0〜1（CUTOFF つまみ量）
 const SEQ_AUTOMATION_ENABLED_KEY = '0sizer.seqAutomationEnabled' // [トラック] = boolean
+const SONG_SEQUENCE_KEY = '0sizer.songSequence'           // SONG モードの並び（スロット index の配列）
+const SONG_MODE_KEY = '0sizer.songMode'                   // SONG モード有効か（'1' / null）
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -151,6 +153,31 @@ const loadAutomationEnabled = (): boolean[] => {
   } catch {
     return Array(TRACK_COUNT).fill(false)
   }
+}
+
+const DEFAULT_SONG_SEQUENCE: number[] = [0, 0, 1, 1] // A A B B（4 position の "曲っぽい" 初期値）
+
+const loadSongSequence = (): number[] => {
+  if (typeof localStorage === 'undefined') return [...DEFAULT_SONG_SEQUENCE]
+  try {
+    const stored = localStorage.getItem(SONG_SEQUENCE_KEY)
+    if (!stored) return [...DEFAULT_SONG_SEQUENCE]
+    const parsed = JSON.parse(stored)
+    if (!Array.isArray(parsed) || parsed.length === 0) return [...DEFAULT_SONG_SEQUENCE]
+    const out = parsed.slice(0, SONG_MAX_LENGTH).map((v) => {
+      const n = Number(v)
+      return Number.isFinite(n) && n >= 0 && n < SLOTS_PER_TRACK ? Math.floor(n) : 0
+    })
+    if (out.length < SONG_MIN_LENGTH) return [...DEFAULT_SONG_SEQUENCE]
+    return out
+  } catch {
+    return [...DEFAULT_SONG_SEQUENCE]
+  }
+}
+
+const loadSongMode = (): boolean => {
+  if (typeof localStorage === 'undefined') return false
+  return localStorage.getItem(SONG_MODE_KEY) === '1'
 }
 
 const DEFAULT_SOUND: SoundState = {
@@ -322,6 +349,17 @@ export default function App() {
   useEffect(() => { currentSlotRef.current = currentSlot }, [currentSlot])
   const pendingSlotRef = useRef(pendingSlot)
   useEffect(() => { pendingSlotRef.current = pendingSlot }, [pendingSlot])
+  // SONG モード：オンの間、ループ頭ごとに songSequence を進めて全トラックのスロットを切り替える。
+  // songPosition は再生位置（揮発）。再生開始時に 0 にリセット。
+  const [songSequence, setSongSequence] = useState<number[]>(() => loadSongSequence())
+  const [songMode, setSongMode] = useState<boolean>(() => loadSongMode())
+  const [songPosition, setSongPosition] = useState(0)
+  const songSequenceRef = useRef(songSequence)
+  useEffect(() => { songSequenceRef.current = songSequence }, [songSequence])
+  const songModeRef = useRef(songMode)
+  useEffect(() => { songModeRef.current = songMode }, [songMode])
+  const songPositionRef = useRef(songPosition)
+  useEffect(() => { songPositionRef.current = songPosition }, [songPosition])
   // 再生ループから最新のパターン・スイング量を取るための ref。
   const seqPatternsRef = useRef(seqPatterns)
   useEffect(() => { seqPatternsRef.current = seqPatterns }, [seqPatterns])
@@ -472,6 +510,14 @@ export default function App() {
     try { localStorage.setItem(SEQ_AUTOMATION_ENABLED_KEY, JSON.stringify(seqAutomationEnabled)) } catch { /* */ }
   }, [seqAutomationEnabled])
 
+  // ===== SONG モードを永続化 =====
+  useEffect(() => {
+    try { localStorage.setItem(SONG_SEQUENCE_KEY, JSON.stringify(songSequence)) } catch { /* */ }
+  }, [songSequence])
+  useEffect(() => {
+    try { localStorage.setItem(SONG_MODE_KEY, songMode ? '1' : '0') } catch { /* */ }
+  }, [songMode])
+
   // マウント時：ロード済みの SoundState を各エンジンへ反映（フィルター・LFO 等の ref を同期）。
   // 以降は sound の各ハンドラが knob 変化ごとに engine.setX を呼ぶので、これは初期化専用。
   useEffect(() => {
@@ -499,6 +545,18 @@ export default function App() {
     const releaseTimers: ReturnType<typeof setTimeout>[] = []
     let nextTimer: ReturnType<typeof setTimeout> | null = null
 
+    // SONG モードで再生開始：position 0 にリセットして、最初のスロットを全トラックに反映。
+    if (songModeRef.current && songSequenceRef.current.length > 0) {
+      const startSlot = songSequenceRef.current[0]
+      songPositionRef.current = 0
+      setSongPosition(0)
+      const startCur = Array(TRACK_COUNT).fill(startSlot)
+      currentSlotRef.current = startCur
+      setCurrentSlot(startCur)
+      pendingSlotRef.current = Array(TRACK_COUNT).fill(-1)
+      setPendingSlot(Array(TRACK_COUNT).fill(-1))
+    }
+
     const intervalFromStep = (step: number) => {
       const sw = seqSwingRef.current / 100
       return stepMs * (step % 2 === 0 ? 1 + sw : 1 - sw)
@@ -508,16 +566,31 @@ export default function App() {
       curStep = (curStep + 1) % SEQ_STEPS
       setSeqCurrentStep(curStep)
 
-      // ループ頭：予約された pending スロットを current に昇格させて反映。
+      // ループ頭：SONG モードなら position を進めて全トラックを次スロットへ。
+      // 通常モードなら予約された pending スロットを current に昇格。
       if (curStep === 0) {
-        const pending = pendingSlotRef.current
-        if (pending.some((v) => v >= 0)) {
-          const cur = currentSlotRef.current
-          const nextCur = cur.map((v, i) => (pending[i] >= 0 ? pending[i] : v))
-          currentSlotRef.current = nextCur
+        if (songModeRef.current && songSequenceRef.current.length > 0) {
+          const seq = songSequenceRef.current
+          const nextPos = (songPositionRef.current + 1) % seq.length
+          const slot = seq[nextPos] ?? 0
+          songPositionRef.current = nextPos
+          setSongPosition(nextPos)
+          const newCur = Array(TRACK_COUNT).fill(slot)
+          currentSlotRef.current = newCur
+          setCurrentSlot(newCur)
+          // SONG が運転中、ユーザー側の予約はあっても無視（クリアしておく）。
           pendingSlotRef.current = Array(TRACK_COUNT).fill(-1)
-          setCurrentSlot(nextCur)
           setPendingSlot(Array(TRACK_COUNT).fill(-1))
+        } else {
+          const pending = pendingSlotRef.current
+          if (pending.some((v) => v >= 0)) {
+            const cur = currentSlotRef.current
+            const nextCur = cur.map((v, i) => (pending[i] >= 0 ? pending[i] : v))
+            currentSlotRef.current = nextCur
+            pendingSlotRef.current = Array(TRACK_COUNT).fill(-1)
+            setCurrentSlot(nextCur)
+            setPendingSlot(Array(TRACK_COUNT).fill(-1))
+          }
         }
       }
 
@@ -629,21 +702,52 @@ export default function App() {
   }
 
   // スロット選択：
+  //   - SONG モード ON 中はマニュアル選択を無効化（タップは UI 側で disabled に）
   //   - 停止中：即時 currentSlot を切替（pending は消す）
   //   - 再生中：pendingSlot に予約。次のループ頭で current に昇格して切替
   //   - すでに current と同じスロットをタップ：pending（予約）をキャンセル
   const selectSlot = (track: number, slot: number) => {
+    if (songMode) return
     if (!seqPlaying) {
       setCurrentSlot((prev) => prev.map((v, i) => (i === track ? slot : v)))
       setPendingSlot((prev) => prev.map((v, i) => (i === track ? -1 : v)))
       return
     }
     if (currentSlot[track] === slot) {
-      // 現在のスロットを再タップ → 予約取り消し
       setPendingSlot((prev) => prev.map((v, i) => (i === track ? -1 : v)))
     } else {
       setPendingSlot((prev) => prev.map((v, i) => (i === track ? slot : v)))
     }
+  }
+
+  // SONG モードのトグル。OFF にした瞬間は songPosition は据え置き、ユーザーが
+  // 次に何を聴かせたいかは現状のスロットに任せる。
+  const toggleSongMode = () => {
+    setSongMode((v) => !v)
+  }
+  // SONG ポジションのスロット循環：A → B → C → D → A …。
+  const cycleSongPosition = (positionIdx: number) => {
+    setSongSequence((prev) => prev.map((v, i) => (i === positionIdx ? (v + 1) % SLOTS_PER_TRACK : v)))
+  }
+  // ポジション追加（最大 SONG_MAX_LENGTH まで）。新ポジションは最終ポジションのスロットをコピー。
+  const addSongPosition = () => {
+    setSongSequence((prev) => {
+      if (prev.length >= SONG_MAX_LENGTH) return prev
+      const last = prev[prev.length - 1] ?? 0
+      return [...prev, last]
+    })
+  }
+  // ポジション削除（最低 SONG_MIN_LENGTH を維持）。再生位置がはみ出たら 0 に戻す。
+  const removeSongPosition = () => {
+    setSongSequence((prev) => {
+      if (prev.length <= SONG_MIN_LENGTH) return prev
+      const next = prev.slice(0, -1)
+      if (songPositionRef.current >= next.length) {
+        songPositionRef.current = 0
+        setSongPosition(0)
+      }
+      return next
+    })
   }
 
   // ===== ☰ メニュー：外側タップで閉じる =====
@@ -1004,6 +1108,13 @@ export default function App() {
             currentSlot={currentSlot}
             pendingSlot={pendingSlot}
             onSelectSlot={selectSlot}
+            songMode={songMode}
+            songSequence={songSequence}
+            songPosition={songPosition}
+            onToggleSongMode={toggleSongMode}
+            onCycleSongPosition={cycleSongPosition}
+            onAddSongPosition={addSongPosition}
+            onRemoveSongPosition={removeSongPosition}
             trackMute={trackMute}
             trackSolo={trackSolo}
             onToggleMute={toggleMute}
