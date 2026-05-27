@@ -976,16 +976,16 @@ b {
 
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
 .seq-grid-wrap {
-  /* グリッド本体の縦サイズに合わせる。ピッチ拡張で 14 行になると画面より高くなりうるが、
-     その場合は親の .panel-scroll が縦スクロールを受け持つ。 */
-  flex: 0 0 auto;
-  overflow-x: auto;
-  overflow-y: hidden;
-  /* 16 セルが画面幅に入りきらない端末では横スクロール。レーンと scrollLeft を JS で同期させる。 */
+  /* 14 行のグリッドはスマホ画面より縦に長くなりうる。
+     ラッパーが seq-panel の残り高さに収まり、内部で縦スクロールするようにする
+     ことで、上のトランスポート／TRACK と下の CUTOFF レーンが常に見える状態を保つ。 */
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: auto; /* 横（16セル超）も縦（14行超）も両方スクロール可 */
   display: flex;
   scrollbar-width: none; /* Firefox */
 }
-.seq-grid-wrap::-webkit-scrollbar { height: 0; display: none; }
+.seq-grid-wrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
 .seq-grid {
   display: flex;
   flex-direction: column;
