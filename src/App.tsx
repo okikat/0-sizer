@@ -29,6 +29,7 @@ const SEQ_AUTOMATION_ENABLED_KEY = '0sizer.seqAutomationEnabled' // [トラッ�
 const SONG_SEQUENCE_KEY = '0sizer.songSequence'           // SONG モードの並び（スロット index の配列）
 const SONG_MODE_KEY = '0sizer.songMode'                   // SONG モード有効か（'1' / null）
 const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'      // CUTOFF レーンを表示しているか（既定 ON）
+const KEYBOARD_VISIBLE_KEY = '0sizer.keyboardVisible'    // 鍵盤を表示しているか（既定 ON）
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -406,6 +407,15 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(CUTOFF_LANE_OPEN_KEY, cutoffLaneOpen ? '1' : '0') } catch { /* */ }
   }, [cutoffLaneOpen])
+  // 鍵盤の表示/非表示（UI preference）。
+  const [keyboardVisible, setKeyboardVisible] = useState<boolean>(() => {
+    if (typeof localStorage === 'undefined') return true
+    const v = localStorage.getItem(KEYBOARD_VISIBLE_KEY)
+    return v === null ? true : v === '1' // 既定は表示
+  })
+  useEffect(() => {
+    try { localStorage.setItem(KEYBOARD_VISIBLE_KEY, keyboardVisible ? '1' : '0') } catch { /* */ }
+  }, [keyboardVisible])
   const songSequenceRef = useRef(songSequence)
   useEffect(() => { songSequenceRef.current = songSequence }, [songSequence])
   const songModeRef = useRef(songMode)
@@ -1191,6 +1201,8 @@ export default function App() {
         menuOpen={menuOpen && phase === 'panel'}
         onMenuToggle={() => setMenuOpen((o) => !o)}
         menuChildren={menuItems}
+        keyboardVisible={keyboardVisible}
+        onToggleKeyboard={() => setKeyboardVisible((v) => !v)}
         seqContent={
           <SeqPanel
             trackCount={TRACK_COUNT}

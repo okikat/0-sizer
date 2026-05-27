@@ -58,6 +58,9 @@ interface Props {
   menuOpen: boolean
   onMenuToggle: () => void
   menuChildren: ReactNode
+  /** 鍵盤の表示/非表示トグル。OFF にすると下部の鍵盤エリアが消えて編集スペースが広がる。 */
+  keyboardVisible: boolean
+  onToggleKeyboard: () => void
   /** SEQ タブのとき表示する中身（App が SeqPanel を渡す）。 */
   seqContent: ReactNode
 }
@@ -79,6 +82,8 @@ export function SynthPanel({
   menuOpen,
   onMenuToggle,
   menuChildren,
+  keyboardVisible,
+  onToggleKeyboard,
   seqContent,
 }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
@@ -171,9 +176,19 @@ export function SynthPanel({
               {seqPlaying && <span className="tab-dot" aria-hidden />}
             </button>
           </div>
-          {/* PRESET：ホログラム風モーダルを開く。 */}
+          {/* PRESET：ホログラム風モーダルを開く（2 列に縮小、隣に鍵盤トグル）。 */}
           <button className="tab-preset" onClick={onOpenPresets}>
             PRESET
+          </button>
+          {/* 鍵盤表示トグル：🎹（表示中）／🎹に斜線（非表示）。SEQ 編集中などに鍵盤エリアを畳める。 */}
+          <button
+            className={'tab-keyboard' + (keyboardVisible ? '' : ' off')}
+            onClick={onToggleKeyboard}
+            aria-pressed={keyboardVisible}
+            aria-label={keyboardVisible ? '鍵盤を非表示' : '鍵盤を表示'}
+            title={keyboardVisible ? '鍵盤を隠す' : '鍵盤を出す'}
+          >
+            🎹
           </button>
           {/* ハンバーガーメニュー：解説表示・チュートリアル等。 */}
           <div className="menu-wrap tab-menu-wrap">
@@ -187,11 +202,17 @@ export function SynthPanel({
         </div>
       )}
 
+      {/* キーボード表示：
+          - 未習得（チュートリアル中）：空きベイを出す
+          - パネル時 + トグル OFF：完全に消す（編集スペースを稼ぐ）
+          - それ以外：通常の鍵盤を出す */}
+      {(!realized.has('keys') || !showTabRow || keyboardVisible) && (
       <Slot {...slotProps('keys')}>
         {realized.has('keys') ? (
           <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
         ) : null}
       </Slot>
+      )}
     </div>
   )
 }
