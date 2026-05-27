@@ -1122,8 +1122,32 @@ b {
   cursor: pointer;
 }
 .seq-automation-fold:active { color: var(--accent); }
-/* fold と undo/redo を左右に押し分けるスペーサ。 */
+/* fold と zoom/undo/redo を左右に押し分けるスペーサ。 */
 .seq-automation-spacer { flex: 1 1 auto; }
+/* 虫眼鏡 3 ボタン（縮小／リセット／拡大）。Undo/Redo の直左に並ぶ。
+   サイズ・配色は history-btn と揃えて、CUTOFF 行のリズムを保つ。 */
+.seq-zoom-btn {
+  width: 28px;
+  height: 26px;
+  padding: 0;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  cursor: pointer;
+}
+.seq-zoom-btn:not(:disabled):active {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+}
+.seq-zoom-btn:disabled {
+  opacity: 0.35;
+  cursor: not-allowed;
+}
 /* Undo / Redo：1×1 ボタン。disabled 時はぐっと暗く。 */
 .seq-history-btn {
   width: 28px;

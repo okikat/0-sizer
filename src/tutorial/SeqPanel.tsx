@@ -126,10 +126,10 @@ export function SeqPanel({
 
   // スライドジェスチャ用の状態。
   //   - startCell / startX：開始セルと座標
-  //   - inSlide：水平 12px 以上動いたら true（タイ塗りモードに突入）
+  //   - inSlide：水平 24px 以上動いたら true（タイ塗りモードに突入）
   //   - lastStep：直近に visit したステップ（同じセルを何度も処理しないため）
   // タップ判定：pointerup 時点で inSlide === false なら toggle。
-  // touch-action: pan-y で縦スクロールは browser に任せる → 垂直ドラッグでは pointercancel が来る。
+  // 2 指ピンチは無し（ぎこちなさ／単指操作との競合のため撤去）。代わりに虫眼鏡ボタンで拡縮。
   const slideRef = useRef<{
     startStep: number
     startMidi: number
@@ -138,69 +138,37 @@ export function SeqPanel({
     inSlide: boolean
     lastStep: number
   } | null>(null)
-  // 2 指ピンチでズーム：すべてのアクティブポインタを共有 Map に集めて、
-  // 2 つ以上になったら "ピンチモード" に切替（スライド塗りは無効化）。
-  const pointersRef = useRef<Map<number, { x: number; y: number }>>(new Map())
-  const pinchRef = useRef<{ initialDist: number; initialZoom: number } | null>(null)
 
   const handleCellPointerDown = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
     e.currentTarget.setPointerCapture(e.pointerId)
-    if (pointersRef.current.size >= 2) {
-      // 2 本目の指が落ちた瞬間：スライド塗りを中断してピンチへ。
-      slideRef.current = null
-      const pts = Array.from(pointersRef.current.values()).slice(0, 2)
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
-      pinchRef.current = { initialDist: dist > 0 ? dist : 1, initialZoom: zoom }
-    } else {
-      // 1 本目：通常のスライド／タップ判定を開始。
-      slideRef.current = {
-        startStep: step,
-        startMidi: midi,
-        startX: e.clientX,
-        startY: e.clientY,
-        inSlide: false,
-        lastStep: step,
-      }
+    slideRef.current = {
+      startStep: step,
+      startMidi: midi,
+      startX: e.clientX,
+      startY: e.clientY,
+      inSlide: false,
+      lastStep: step,
     }
   }
 
   const handleCellPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (pointersRef.current.has(e.pointerId)) {
-      pointersRef.current.set(e.pointerId, { x: e.clientX, y: e.clientY })
-    }
-    if (pointersRef.current.size >= 2 && pinchRef.current) {
-      const pts = Array.from(pointersRef.current.values()).slice(0, 2)
-      const dist = Math.hypot(pts[0].x - pts[1].x, pts[0].y - pts[1].y)
-      const factor = dist / pinchRef.current.initialDist
-      const newZoom = Math.max(0.6, Math.min(2.0, pinchRef.current.initialZoom * factor))
-      onZoomChange(newZoom)
-    } else if (pointersRef.current.size === 1) {
-      updateSlideFromPoint(e.clientX, e.clientY)
-    }
+    if (!slideRef.current) return
+    updateSlideFromPoint(e.clientX, e.clientY)
   }
 
   const handleCellPointerUp = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    pointersRef.current.delete(e.pointerId)
-    if (pointersRef.current.size < 2) {
-      pinchRef.current = null
-    }
     if (e.currentTarget.hasPointerCapture(e.pointerId)) {
       e.currentTarget.releasePointerCapture(e.pointerId)
     }
     const s = slideRef.current
-    if (pointersRef.current.size === 0) {
-      slideRef.current = null
-      if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
-        onToggleCell(step, midi)
-      }
+    slideRef.current = null
+    if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
+      onToggleCell(step, midi)
     }
   }
 
-  const handleCellPointerCancel = (e: React.PointerEvent<HTMLButtonElement>) => {
-    pointersRef.current.delete(e.pointerId)
-    if (pointersRef.current.size < 2) pinchRef.current = null
-    if (pointersRef.current.size === 0) slideRef.current = null
+  const handleCellPointerCancel = () => {
+    slideRef.current = null
   }
 
   const updateSlideFromPoint = (clientX: number, clientY: number) => {
@@ -242,6 +210,11 @@ export function SeqPanel({
     if (!g) return
     g.scrollBy({ top: dir * (g.clientHeight * 0.5), behavior: 'smooth' })
   }
+
+  // 虫眼鏡 3 ボタン：×1.15 / リセット / ÷1.15。下限 0.6、上限 2.0 でクランプ。
+  const zoomIn = () => onZoomChange(Math.min(2.0, zoom * 1.15))
+  const zoomOut = () => onZoomChange(Math.max(0.6, zoom / 1.15))
+  const zoomReset = () => onZoomChange(1.0)
 
   // 横スクロールバー（kbd-bar 風）。cellsAreaRef の scrollLeft / scrollWidth から
   // ウィンドウ位置・幅を計算してティールのつまみで可視化。タップ／ドラッグで scrollLeft 制御。
@@ -561,8 +534,37 @@ export function SeqPanel({
           >
             {cutoffLaneOpen ? '▲' : '▼'}
           </button>
-          {/* 伸び縮みするスペーサ：fold と undo/redo を左右に押し分ける。 */}
+          {/* 伸び縮みするスペーサ：fold と zoom/undo/redo を左右に押し分ける。 */}
           <span className="seq-automation-spacer" />
+          {/* 虫眼鏡 3 ボタン：縮小 / リセット / 拡大。二本指ピンチの代わり。
+              真ん中（記号なし）は「デフォルト倍率に戻す」の意。 */}
+          <button
+            className="seq-zoom-btn"
+            onClick={zoomOut}
+            disabled={zoom <= 0.6 + 1e-6}
+            aria-label="ズームアウト"
+            title="ズームアウト"
+          >
+            <ZoomIcon kind="out" />
+          </button>
+          <button
+            className="seq-zoom-btn"
+            onClick={zoomReset}
+            disabled={Math.abs(zoom - 1.0) < 1e-3}
+            aria-label="ズームをデフォルトに戻す"
+            title="デフォルトサイズ"
+          >
+            <ZoomIcon kind="reset" />
+          </button>
+          <button
+            className="seq-zoom-btn"
+            onClick={zoomIn}
+            disabled={zoom >= 2.0 - 1e-6}
+            aria-label="ズームイン"
+            title="ズームイン"
+          >
+            <ZoomIcon kind="in" />
+          </button>
           {/* Undo / Redo：CUTOFF 行の右端に 1×1 サイズの 2 ボタン。
               パターン編集とオートメーション編集の履歴のみが対象。 */}
           <button
@@ -633,5 +635,36 @@ export function SeqPanel({
         )}
       </div>
     </div>
+  )
+}
+
+// 虫眼鏡アイコン。レンズの中に + / 何もなし / − を入れた 3 種類。
+// kind="reset" だけはレンズの中身が空（＝デフォルト倍率に戻す）。
+function ZoomIcon({ kind }: { kind: 'in' | 'out' | 'reset' }) {
+  return (
+    <svg
+      viewBox="0 0 24 24"
+      width="18"
+      height="18"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {/* レンズ */}
+      <circle cx="10" cy="10" r="6" />
+      {/* グリップ */}
+      <line x1="14.5" y1="14.5" x2="20" y2="20" />
+      {/* レンズの中の記号 */}
+      {kind === 'in' && (
+        <>
+          <line x1="10" y1="7" x2="10" y2="13" />
+          <line x1="7" y1="10" x2="13" y2="10" />
+        </>
+      )}
+      {kind === 'out' && <line x1="7" y1="10" x2="13" y2="10" />}
+    </svg>
   )
 }
