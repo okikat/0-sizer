@@ -1367,9 +1367,11 @@ b {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 0;
   cursor: pointer;
-  /* 縦・横ともパンは browser に任せる（長押し中だけ setPointerCapture でこちらが奪う）。
-     ピンチによるページズームは pan-x pan-y で無効化される。 */
-  touch-action: pan-x pan-y;
+  /* native スクロールは完全に止める（タイモード中の意図しない横スクロール対策）。
+     iOS Safari は setPointerCapture 中でも touch-action: pan-x が効くと
+     native スクロールを開始してしまう。スクロールは pending→pan モードの
+     自前 scrollLeft/scrollTop 更新で代替する。 */
+  touch-action: none;
   -webkit-touch-callout: none;
   -webkit-user-select: none;
   user-select: none;
