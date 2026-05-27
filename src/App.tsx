@@ -12,7 +12,7 @@ import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/Lesson
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
 import { SeqPanel } from './tutorial/SeqPanel'
-import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, cellKey as seqCellKey } from './tutorial/seqConst'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, cellKey as seqCellKey } from './tutorial/seqConst'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
@@ -20,6 +20,7 @@ type Stage = 'blink' | 'active' | 'exit'
 const DONE_KEY = '0sizer.tutorialDone'
 const SEQ_PATTERN_KEY = '0sizer.seqPattern'
 const SEQ_BPM_KEY = '0sizer.seqBpm'
+const SEQ_SWING_KEY = '0sizer.seqSwing'
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -61,12 +62,22 @@ export default function App() {
     if (!Number.isFinite(n) || n < SEQ_BPM_MIN || n > SEQ_BPM_MAX) return 120
     return n
   })
+  const [seqSwing, setSeqSwing] = useState<number>(() => {
+    const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_SWING_KEY) : null
+    const n = stored ? Number(stored) : 0
+    if (!Number.isFinite(n) || n < SEQ_SWING_MIN || n > SEQ_SWING_MAX) return 0
+    return n
+  })
   const [seqPlaying, setSeqPlaying] = useState(false)
   const [seqCurrentStep, setSeqCurrentStep] = useState(-1)
-  // 再生ループから最新のパターン／音源を取るための ref。
-  // パターンを依存配列に入れると編集のたびに再生がリセットされてしまう。
+  // 再生ループから最新のパターン・スイング量を取るための ref。
+  // パターン／スイングを依存配列に入れると編集のたびに再生がリセットされてしまう。
   const seqPatternRef = useRef(seqPattern)
   useEffect(() => { seqPatternRef.current = seqPattern }, [seqPattern])
+  const seqSwingRef = useRef(seqSwing)
+  useEffect(() => { seqSwingRef.current = seqSwing }, [seqSwing])
+  // タップテンポ：最近のタップ時刻を保持。間隔の平均から BPM を計算する。
+  const seqTapTimesRef = useRef<number[]>([])
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [flights, setFlights] = useState<Record<string, FrameFlight>>({})
   const [installing, setInstalling] = useState<Set<FrameId>>(new Set())
@@ -182,35 +193,64 @@ export default function App() {
       // 同上
     }
   }, [seqBpm])
+  useEffect(() => {
+    try {
+      localStorage.setItem(SEQ_SWING_KEY, String(seqSwing))
+    } catch {
+      // 同上
+    }
+  }, [seqSwing])
 
-  // ===== SEQ：再生ループ =====
-  // 16 分音符単位で setInterval を回す。各ステップで音を「ゲート 85%」で打って離す。
-  // パターンは ref から都度読むので、再生中に編集してもループが止まらない。
-  // BPM 変更は effect 再起動として反映（簡素化のため、その時点で先頭に戻る挙動）。
+  // ===== SEQ：再生ループ（スイング + タイ対応）=====
+  // ・スイング：偶数 16 分→奇数 16 分の間隔を伸ばし、奇数→偶数を縮める。
+  //   0%=ストレート、50%=3 連符フィール（2:1）。合計は変わらないので BPM は維持。
+  // ・タイ：同じ行で隣接するセルが連続オンなら、後続セルでは noteOn を打ち直さず、
+  //   その連続区間の最後のセルでだけ release を仕込む。1 つの長い音として鳴る。
+  // ・パターン／スイングは ref から都度読むので、再生中に編集してもループが切れない。
+  // ・BPM 変更は effect 再起動で反映（その時点で先頭に戻る挙動）。
   useEffect(() => {
     if (!seqPlaying) return
     const stepMs = 60000 / (seqBpm * 4)
     let curStep = -1
     const releaseTimers: ReturnType<typeof setTimeout>[] = []
+    let nextTimer: ReturnType<typeof setTimeout> | null = null
+
+    // step → step+1 の実時間。偶数ステップ＝長、奇数ステップ＝短（スイング）。
+    const intervalFromStep = (step: number) => {
+      const sw = seqSwingRef.current / 100
+      return stepMs * (step % 2 === 0 ? 1 + sw : 1 - sw)
+    }
 
     const advance = () => {
       curStep = (curStep + 1) % SEQ_STEPS
       setSeqCurrentStep(curStep)
-      const midis: number[] = []
+
+      const pattern = seqPatternRef.current
+      // ループ境界でタイを繋げると挙動が読みづらいので、ステップ 0 では「前のステップは存在しない」、
+      // ステップ 15 では「次のステップは存在しない」として扱う（パターン内に閉じたタイのみ）。
       for (const m of SEQ_PITCHES) {
-        if (seqPatternRef.current.has(seqCellKey(curStep, m))) midis.push(m)
+        const isOn = pattern.has(seqCellKey(curStep, m))
+        if (!isOn) continue
+        const wasOn = curStep > 0 && pattern.has(seqCellKey(curStep - 1, m))
+        const willContinue = curStep < SEQ_STEPS - 1 && pattern.has(seqCellKey(curStep + 1, m))
+        // 前のセルから繋がっているなら、新しく noteOn は打たない（前の音を伸ばす）。
+        if (!wasOn) noteOn(m)
+        // タイ区間の最後のセルで release を仕込む。連続している間は何もしない。
+        if (!willContinue) {
+          const gateMs = intervalFromStep(curStep) * 0.85
+          const t = setTimeout(() => noteOff(m), gateMs)
+          releaseTimers.push(t)
+        }
       }
-      midis.forEach((m) => noteOn(m))
-      const t = setTimeout(() => {
-        midis.forEach((m) => noteOff(m))
-      }, stepMs * 0.85)
-      releaseTimers.push(t)
+
+      // 次の advance をスケジュール。間隔は現在ステップの parity でスイング適用。
+      nextTimer = setTimeout(advance, intervalFromStep(curStep))
     }
+
     advance()
-    const id = setInterval(advance, stepMs)
 
     return () => {
-      clearInterval(id)
+      if (nextTimer) clearTimeout(nextTimer)
       releaseTimers.forEach((t) => clearTimeout(t))
       // SEQ が打った可能性のある全ピッチを念のため離す（停止後の長い尾を防ぐ）。
       SEQ_PITCHES.forEach((m) => noteOff(m))
@@ -253,6 +293,28 @@ export default function App() {
       else next.add(k)
       return next
     })
+  }
+
+  // タップテンポ：最近 4 タップまでの間隔を平均して BPM を計算する。
+  // 2 秒以上空いたら「セッション切れ」と見なしてリセット。
+  const handleSeqTap = () => {
+    const now = performance.now()
+    const arr = seqTapTimesRef.current
+    const last = arr[arr.length - 1]
+    if (last !== undefined && now - last > 2000) {
+      seqTapTimesRef.current = [now]
+      return
+    }
+    arr.push(now)
+    while (arr.length > 4) arr.shift()
+    if (arr.length >= 2) {
+      let sum = 0
+      for (let i = 1; i < arr.length; i++) sum += arr[i] - arr[i - 1]
+      const avg = sum / (arr.length - 1)
+      // タップ＝1 拍。msPerBeat → BPM = 60000 / msPerBeat。
+      const bpm = Math.round(60000 / avg)
+      setSeqBpm(Math.max(SEQ_BPM_MIN, Math.min(SEQ_BPM_MAX, bpm)))
+    }
   }
 
   const commitExit = useCallback(() => {
@@ -537,10 +599,13 @@ export default function App() {
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}
+            swing={seqSwing}
             onToggleCell={toggleSeqCell}
             onClear={() => setSeqPattern(new Set())}
             onTogglePlay={() => setSeqPlaying((p) => !p)}
             onBpm={setSeqBpm}
+            onSwing={setSeqSwing}
+            onTap={handleSeqTap}
           />
         }
       />
