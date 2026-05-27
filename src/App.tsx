@@ -1,7 +1,23 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { useSynth, type EnvParams, type LfoDest } from './audio/useSynth'
+import { useSynth } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, reverbMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec, volAmtToGain, panAmtToPos } from './audio/params'
+import {
+  cutoffNormToHz,
+  resAmtToQ,
+  lfoRateToHz,
+  detuneAmtToCents,
+  mixAmtToBalance,
+  noiseAmtToLevel,
+  delayTimeAmtToSec,
+  delayMixAmtToLevel,
+  reverbMixAmtToLevel,
+  glideAmtToTau,
+  fenvAmtToOctaves,
+  fenvDecayAmtToSec,
+  volAmtToGain,
+  panAmtToPos,
+} from './audio/params'
+import { pushSoundToEngine } from './audio/pushSound'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -13,24 +29,37 @@ import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
 import { SeqPanel } from './tutorial/SeqPanel'
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOTS_PER_TRACK, SONG_MIN_LENGTH, SONG_MAX_LENGTH, cellKey as seqCellKey } from './tutorial/seqConst'
+import {
+  DONE_KEY,
+  SEQ_PATTERNS_KEY,
+  SEQ_PATTERN_LEGACY_KEY,
+  SEQ_BPM_KEY,
+  SEQ_SWING_KEY,
+  TRACKS_KEY,
+  ACTIVE_TRACK_KEY,
+  SEQ_AUTOMATIONS_KEY,
+  SEQ_AUTOMATION_ENABLED_KEY,
+  SONG_SEQUENCE_KEY,
+  SONG_MODE_KEY,
+  CUTOFF_LANE_OPEN_KEY,
+  KEYBOARD_VISIBLE_KEY,
+  SEQ_ZOOM_KEY,
+  TRACK_COUNT,
+  type TrackSlotPattern,
+  type SoundState,
+  emptyPattern,
+  migrateOldSet,
+  loadTracks,
+  loadActiveTrack,
+  loadAutomations,
+  loadAutomationEnabled,
+  loadSongSequence,
+  loadSongMode,
+} from './lib/seqStorage'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
 
-const DONE_KEY = '0sizer.tutorialDone'
-const SEQ_PATTERNS_KEY = '0sizer.seqPatterns' // 配列：[Track1, Track2]
-const SEQ_PATTERN_LEGACY_KEY = '0sizer.seqPattern' // v0.1 単トラック時代の救出用
-const SEQ_BPM_KEY = '0sizer.seqBpm'
-const SEQ_SWING_KEY = '0sizer.seqSwing'
-const TRACKS_KEY = '0sizer.tracks' // トラック毎の音色（SoundState 配列）
-const ACTIVE_TRACK_KEY = '0sizer.activeTrack'
-const SEQ_AUTOMATIONS_KEY = '0sizer.seqAutomations'      // [トラック][スロット][ステップ] = 0〜1（CUTOFF つまみ量）
-const SEQ_AUTOMATION_ENABLED_KEY = '0sizer.seqAutomationEnabled' // [トラック] = boolean
-const SONG_SEQUENCE_KEY = '0sizer.songSequence'           // SONG モードの並び（スロット index の配列）
-const SONG_MODE_KEY = '0sizer.songMode'                   // SONG モード有効か（'1' / null）
-const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'      // CUTOFF レーンを表示しているか（既定 ON）
-const KEYBOARD_VISIBLE_KEY = '0sizer.keyboardVisible'    // 鍵盤を表示しているか（既定 ON）
-const SEQ_ZOOM_KEY = '0sizer.seqZoom'                    // SEQ セルのズーム倍率（0.6〜2.0、既定 1.0）
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -38,218 +67,6 @@ const HOVER_MS = 340 // 定位置の少し上で浮く
 const GLIDE_MS = 760 // ゆっくり定位置へ
 const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
-
-const TRACK_COUNT = 2
-
-/** 1 スロット分のパターン。`on` = 点灯セル、`tied` = 「次のステップへ繋ぐ」フラグ付きセル。
- *  tied は on の部分集合という前提（tied セルが off になる場合は tied からも消す）。 */
-interface TrackSlotPattern {
-  on: Set<string>
-  tied: Set<string>
-}
-
-const emptyPattern = (): TrackSlotPattern => ({ on: new Set(), tied: new Set() })
-
-/** 旧 v0.1〜v0.3 形式の Set<string> から「隣接 ON → tied」を導出して新フォーマットへ。 */
-const migrateOldSet = (oldOnArr: string[]): TrackSlotPattern => {
-  const on = new Set(oldOnArr)
-  const tied = new Set<string>()
-  for (const key of on) {
-    const idx = key.indexOf('_')
-    if (idx < 0) continue
-    const step = Number(key.slice(0, idx))
-    const midi = key.slice(idx + 1)
-    if (Number.isFinite(step) && step < SEQ_STEPS - 1) {
-      if (on.has(`${step + 1}_${midi}`)) tied.add(key)
-    }
-  }
-  return { on, tied }
-}
-
-/** 1 トラック分の「音作り」全パラメータ。マルチトラックでこれをトラック数ぶん持つ。 */
-interface SoundState {
-  type: OscillatorType
-  env: EnvParams
-  cutoff: number     // 0〜1
-  res: number        // 0〜10
-  lfoRate: number    // 0〜10
-  lfoDepth: number   // 0〜10
-  lfoDest: LfoDest
-  detune: number     // 0〜10
-  mix: number        // 0〜10（OSC2 ミックスバランス）
-  noise: number      // 0〜10
-  delayTime: number  // 0〜10
-  delayMix: number   // 0〜10
-  glide: number      // 0〜10
-  fenvAmt: number    // 0〜10
-  fenvDecay: number  // 0〜10
-  reverb: number     // 0〜10
-  vol: number        // 0〜10（マスター音量）
-  pan: number        // -5〜5（定位）
-}
-
-const defaultTracks = (): SoundState[] =>
-  Array.from({ length: TRACK_COUNT }, () => ({ ...DEFAULT_SOUND, env: { ...DEFAULT_SOUND.env } }))
-
-const loadTracks = (): SoundState[] => {
-  if (typeof localStorage === 'undefined') return defaultTracks()
-  try {
-    const stored = localStorage.getItem(TRACKS_KEY)
-    if (!stored) return defaultTracks()
-    const parsed = JSON.parse(stored) as Partial<SoundState>[]
-    // 旧スキーマでフィールドが欠けていたら DEFAULT で埋める（env はネストしているので個別 merge）。
-    return defaultTracks().map((def, i) => {
-      const p = parsed[i] ?? {}
-      return {
-        ...def,
-        ...p,
-        env: { ...def.env, ...(p.env ?? {}) },
-      }
-    })
-  } catch {
-    return defaultTracks()
-  }
-}
-
-const loadActiveTrack = (): number => {
-  if (typeof localStorage === 'undefined') return 0
-  const n = Number(localStorage.getItem(ACTIVE_TRACK_KEY))
-  if (!Number.isFinite(n) || n < 0 || n >= TRACK_COUNT) return 0
-  return n
-}
-
-// CUTOFF オートメーション：[トラック][スロット][ステップ] の 3 次元。
-// 既定は 0.5（中ほど、無効中は使われない）。
-// 旧スキーマ（[トラック][ステップ] の 2 次元）からは「各トラックのスロット 0 に詰める」形で自動移行。
-const defaultAutomationSlot = (): number[] => Array(SEQ_STEPS).fill(0.5)
-const defaultAutomations = (): number[][][] =>
-  Array.from({ length: TRACK_COUNT }, () =>
-    Array.from({ length: SLOTS_PER_TRACK }, () => defaultAutomationSlot()),
-  )
-
-const normalizeAutomationArr = (raw: unknown): number[] => {
-  const arr = Array(SEQ_STEPS).fill(0.5)
-  if (Array.isArray(raw)) {
-    for (let j = 0; j < Math.min(SEQ_STEPS, raw.length); j++) {
-      const v = Number(raw[j])
-      arr[j] = Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 0.5
-    }
-  }
-  return arr
-}
-
-const loadAutomations = (): number[][][] => {
-  if (typeof localStorage === 'undefined') return defaultAutomations()
-  try {
-    const stored = localStorage.getItem(SEQ_AUTOMATIONS_KEY)
-    if (!stored) return defaultAutomations()
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed)) return defaultAutomations()
-    // 3D（新スキーマ）かどうかを最初の要素で判定。
-    const first = parsed[0]
-    const isThreeD = Array.isArray(first) && Array.isArray(first[0])
-    const out = defaultAutomations()
-    if (isThreeD) {
-      for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
-        const slots = parsed[t] as unknown[]
-        if (!Array.isArray(slots)) continue
-        for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
-          out[t][s] = normalizeAutomationArr(slots[s])
-        }
-      }
-    } else {
-      // 2D（旧スキーマ）：各トラックのスロット 0 に詰める。
-      for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
-        out[t][0] = normalizeAutomationArr(parsed[t])
-      }
-    }
-    return out
-  } catch {
-    return defaultAutomations()
-  }
-}
-
-const loadAutomationEnabled = (): boolean[] => {
-  if (typeof localStorage === 'undefined') return Array(TRACK_COUNT).fill(false)
-  try {
-    const stored = localStorage.getItem(SEQ_AUTOMATION_ENABLED_KEY)
-    if (!stored) return Array(TRACK_COUNT).fill(false)
-    const parsed = JSON.parse(stored) as boolean[]
-    const out = Array(TRACK_COUNT).fill(false)
-    for (let i = 0; i < Math.min(TRACK_COUNT, parsed.length); i++) out[i] = Boolean(parsed[i])
-    return out
-  } catch {
-    return Array(TRACK_COUNT).fill(false)
-  }
-}
-
-const DEFAULT_SONG_SEQUENCE: number[] = [0, 0, 1, 1] // A A B B（4 position の "曲っぽい" 初期値）
-
-const loadSongSequence = (): number[] => {
-  if (typeof localStorage === 'undefined') return [...DEFAULT_SONG_SEQUENCE]
-  try {
-    const stored = localStorage.getItem(SONG_SEQUENCE_KEY)
-    if (!stored) return [...DEFAULT_SONG_SEQUENCE]
-    const parsed = JSON.parse(stored)
-    if (!Array.isArray(parsed) || parsed.length === 0) return [...DEFAULT_SONG_SEQUENCE]
-    const out = parsed.slice(0, SONG_MAX_LENGTH).map((v) => {
-      const n = Number(v)
-      return Number.isFinite(n) && n >= 0 && n < SLOTS_PER_TRACK ? Math.floor(n) : 0
-    })
-    if (out.length < SONG_MIN_LENGTH) return [...DEFAULT_SONG_SEQUENCE]
-    return out
-  } catch {
-    return [...DEFAULT_SONG_SEQUENCE]
-  }
-}
-
-const loadSongMode = (): boolean => {
-  if (typeof localStorage === 'undefined') return false
-  return localStorage.getItem(SONG_MODE_KEY) === '1'
-}
-
-const DEFAULT_SOUND: SoundState = {
-  type: 'sine',
-  env: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
-  cutoff: 1,
-  res: 0,
-  lfoRate: 3,
-  lfoDepth: 0,
-  lfoDest: 'pitch',
-  detune: 0,
-  mix: 5,
-  noise: 0,
-  delayTime: 3,
-  delayMix: 0,
-  glide: 0,
-  fenvAmt: 0,
-  fenvDecay: 3,
-  reverb: 3,
-  vol: 10,
-  pan: 0,
-}
-
-/** トラック毎の音色をエンジンに反映する（保存値→実パラメータ変換）。
- *  トラック切替時とプリセット適用時に呼ぶ。SEQ 再生中でも安全。 */
-function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundState) {
-  engine.setWaveform(s.type)
-  engine.setEnv(s.env)
-  engine.setCutoff(cutoffNormToHz(s.cutoff))
-  engine.setResonance(resAmtToQ(s.res))
-  engine.setLfoRate(lfoRateToHz(s.lfoRate))
-  engine.setLfoDepth(s.lfoDepth)
-  engine.setLfoDest(s.lfoDest)
-  engine.setDetune(detuneAmtToCents(s.detune))
-  engine.setMix(mixAmtToBalance(s.mix))
-  engine.setNoise(noiseAmtToLevel(s.noise))
-  engine.setDelayTime(delayTimeAmtToSec(s.delayTime))
-  engine.setDelayMix(delayMixAmtToLevel(s.delayMix))
-  engine.setGlideTime(glideAmtToTau(s.glide))
-  engine.setFilterEnv(fenvAmtToOctaves(s.fenvAmt), fenvDecayAmtToSec(s.fenvDecay))
-  engine.setReverbMix(reverbMixAmtToLevel(s.reverb))
-  engine.setMasterVol(volAmtToGain(s.vol))
-  engine.setPan(panAmtToPos(s.pan))
-}
 
 export default function App() {
   // ===== 2 トラック分の独立エンジン =====
