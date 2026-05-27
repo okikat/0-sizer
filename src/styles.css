@@ -1375,11 +1375,19 @@ b {
   user-select: none;
   transition: background 0.08s ease, box-shadow 0.08s ease;
 }
-/* 長押し成立後の "タイモード" 表示：開始セルを薄くティールに発光。
-   .on と排他ではなく重ねて出してよい（点灯中のセルからの長押しも光る）。 */
-.seq-cell.tie-active {
-  box-shadow: 0 0 0 2px rgba(90, 209, 196, 0.55), 0 0 10px rgba(90, 209, 196, 0.45), inset 0 0 8px rgba(90, 209, 196, 0.35);
-  z-index: 2;
+/* 長押し成立後の "タイモード" 表示：開始 row 全体をティールに発光させて、
+   指でセルが隠れても「いまこの行を編集中」が常に視認できるようにする。
+   セル背景には触れず、行コンテナと対応ラベルに上下のティールラインを引く。 */
+.seq-cells-row.tie-active {
+  box-shadow:
+    inset 0 1px 0 rgba(90, 209, 196, 0.55),
+    inset 0 -1px 0 rgba(90, 209, 196, 0.55),
+    0 0 12px rgba(90, 209, 196, 0.25);
+  background: rgba(90, 209, 196, 0.06);
+}
+.seq-label.tie-active {
+  color: var(--accent);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.7);
 }
 .seq-cell:last-child { margin-right: 0; }
 .seq-cell.bar-start { margin-left: 3px; }
