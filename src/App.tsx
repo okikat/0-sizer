@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useSynth, type EnvParams, type LfoDest } from './audio/useSynth'
 import { playSeatClick } from './audio/gachan'
-import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, reverbMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec } from './audio/params'
+import { cutoffNormToHz, resAmtToQ, lfoRateToHz, detuneAmtToCents, mixAmtToBalance, noiseAmtToLevel, delayTimeAmtToSec, delayMixAmtToLevel, reverbMixAmtToLevel, glideAmtToTau, fenvAmtToOctaves, fenvDecayAmtToSec, volAmtToGain, panAmtToPos } from './audio/params'
 import { LESSONS, ALL_FRAMES, FRAME_HELP, FRAME_TITLE, type FrameId } from './tutorial/lessons'
 import { PRESETS, type Preset } from './tutorial/presets'
 import type { SoundCtl } from './tutorial/modules'
@@ -18,7 +18,8 @@ type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
 type Stage = 'blink' | 'active' | 'exit'
 
 const DONE_KEY = '0sizer.tutorialDone'
-const SEQ_PATTERN_KEY = '0sizer.seqPattern'
+const SEQ_PATTERNS_KEY = '0sizer.seqPatterns' // 配列：[Track1, Track2]
+const SEQ_PATTERN_LEGACY_KEY = '0sizer.seqPattern' // v0.1 単トラック時代の救出用
 const SEQ_BPM_KEY = '0sizer.seqBpm'
 const SEQ_SWING_KEY = '0sizer.seqSwing'
 const BLINK_MS = 1150
@@ -29,8 +30,83 @@ const GLIDE_MS = 760 // ゆっくり定位置へ
 const SEAT_MS = 420 // 着座（カチャ＋ごく薄い光）
 const EXIT_MS = MORPH_MS + HOVER_MS + GLIDE_MS + SEAT_MS
 
+const TRACK_COUNT = 2
+
+/** 1 トラック分の「音作り」全パラメータ。マルチトラックでこれをトラック数ぶん持つ。 */
+interface SoundState {
+  type: OscillatorType
+  env: EnvParams
+  cutoff: number     // 0〜1
+  res: number        // 0〜10
+  lfoRate: number    // 0〜10
+  lfoDepth: number   // 0〜10
+  lfoDest: LfoDest
+  detune: number     // 0〜10
+  mix: number        // 0〜10（OSC2 ミックスバランス）
+  noise: number      // 0〜10
+  delayTime: number  // 0〜10
+  delayMix: number   // 0〜10
+  glide: number      // 0〜10
+  fenvAmt: number    // 0〜10
+  fenvDecay: number  // 0〜10
+  reverb: number     // 0〜10
+  vol: number        // 0〜10（マスター音量）
+  pan: number        // -5〜5（定位）
+}
+
+const DEFAULT_SOUND: SoundState = {
+  type: 'sine',
+  env: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
+  cutoff: 1,
+  res: 0,
+  lfoRate: 3,
+  lfoDepth: 0,
+  lfoDest: 'pitch',
+  detune: 0,
+  mix: 5,
+  noise: 0,
+  delayTime: 3,
+  delayMix: 0,
+  glide: 0,
+  fenvAmt: 0,
+  fenvDecay: 3,
+  reverb: 3,
+  vol: 10,
+  pan: 0,
+}
+
+/** トラック毎の音色をエンジンに反映する（保存値→実パラメータ変換）。
+ *  トラック切替時とプリセット適用時に呼ぶ。SEQ 再生中でも安全。 */
+function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundState) {
+  engine.setWaveform(s.type)
+  engine.setEnv(s.env)
+  engine.setCutoff(cutoffNormToHz(s.cutoff))
+  engine.setResonance(resAmtToQ(s.res))
+  engine.setLfoRate(lfoRateToHz(s.lfoRate))
+  engine.setLfoDepth(s.lfoDepth)
+  engine.setLfoDest(s.lfoDest)
+  engine.setDetune(detuneAmtToCents(s.detune))
+  engine.setMix(mixAmtToBalance(s.mix))
+  engine.setNoise(noiseAmtToLevel(s.noise))
+  engine.setDelayTime(delayTimeAmtToSec(s.delayTime))
+  engine.setDelayMix(delayMixAmtToLevel(s.delayMix))
+  engine.setGlideTime(glideAmtToTau(s.glide))
+  engine.setFilterEnv(fenvAmtToOctaves(s.fenvAmt), fenvDecayAmtToSec(s.fenvDecay))
+  engine.setReverbMix(reverbMixAmtToLevel(s.reverb))
+  engine.setMasterVol(volAmtToGain(s.vol))
+  engine.setPan(panAmtToPos(s.pan))
+}
+
 export default function App() {
-  const { noteOn, noteOff, setWaveform, setTune, setEnv, setCutoff, setResonance, setDetune, setMix, setNoise, setFilterEnv, setLfoRate, setLfoDepth, setLfoDest, setMasterVol, setPan, setDelayTime, setDelayMix, setReverbMix, setGlideTime, getAudioContext } = useSynth()
+  // ===== 2 トラック分の独立エンジン =====
+  // useSynth() ごとに別 AudioContext / 別 voice pool / 別 FX チェーンを持つ。
+  // どちらも同じ destination に流れるので、ブラウザがミックスしてくれる。
+  const engineA = useSynth()
+  const engineB = useSynth()
+  // useSynth() は毎レンダ新しいオブジェクトを返すが、中身のメソッドは useCallback 済みで参照安定。
+  // 後続の useCallback / useEffect の依存配列で扱いやすいよう、必要なメソッドだけ分解しておく。
+  const { noteOn: aNoteOn, noteOff: aNoteOff, getAudioContext: aGetCtx } = engineA
+  const { noteOn: bNoteOn, noteOff: bNoteOff } = engineB
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -45,16 +121,44 @@ export default function App() {
   const [activeTab, setActiveTab] = useState<PanelTab>('panel')
   const [presetModalOpen, setPresetModalOpen] = useState(false)
 
+  // ===== マルチトラック：音作り状態と「いま編集中のトラック」 =====
+  const [tracks, setTracks] = useState<SoundState[]>(() =>
+    Array.from({ length: TRACK_COUNT }, () => ({ ...DEFAULT_SOUND, env: { ...DEFAULT_SOUND.env } })),
+  )
+  const [activeTrack, setActiveTrack] = useState(0)
+  const currentSound = tracks[activeTrack]
+  const currentEngine = activeTrack === 0 ? engineA : engineB
+
+  // アクティブトラックの SoundState に部分パッチを当てる。
+  // engine への反映は呼び出し側で行う（パラメータごとに変換式が違うため）。
+  const patchActive = useCallback((patch: Partial<SoundState>) => {
+    setTracks((prev) => prev.map((s, i) => (i === activeTrack ? { ...s, ...patch } : s)))
+  }, [activeTrack])
+
   // ===== Eternal シーケンサーの状態 =====
-  // パターンと BPM は localStorage に保存。再生位置とフラグは揮発で OK。
-  const [seqPattern, setSeqPattern] = useState<Set<string>>(() => {
+  // パターン：トラックごと（旧 v0.1 の単トラック保存からの自動移行に対応）。
+  const [seqPatterns, setSeqPatterns] = useState<Set<string>[]>(() => {
+    if (typeof localStorage === 'undefined') return Array.from({ length: TRACK_COUNT }, () => new Set<string>())
     try {
-      const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_PATTERN_KEY) : null
-      if (stored) return new Set(JSON.parse(stored) as string[])
+      const stored = localStorage.getItem(SEQ_PATTERNS_KEY)
+      if (stored) {
+        const arr = JSON.parse(stored) as string[][]
+        const out: Set<string>[] = Array.from({ length: TRACK_COUNT }, () => new Set<string>())
+        for (let i = 0; i < Math.min(arr.length, TRACK_COUNT); i++) out[i] = new Set(arr[i])
+        return out
+      }
+      // 旧キーから救出：v0.1 単トラック → Track 1 に移行、Track 2 は空。
+      const legacy = localStorage.getItem(SEQ_PATTERN_LEGACY_KEY)
+      if (legacy) {
+        const parsed = JSON.parse(legacy) as string[]
+        const out: Set<string>[] = Array.from({ length: TRACK_COUNT }, () => new Set<string>())
+        out[0] = new Set(parsed)
+        return out
+      }
     } catch {
       // 壊れていれば空で始める
     }
-    return new Set()
+    return Array.from({ length: TRACK_COUNT }, () => new Set<string>())
   })
   const [seqBpm, setSeqBpm] = useState<number>(() => {
     const stored = typeof localStorage !== 'undefined' ? localStorage.getItem(SEQ_BPM_KEY) : null
@@ -71,9 +175,8 @@ export default function App() {
   const [seqPlaying, setSeqPlaying] = useState(false)
   const [seqCurrentStep, setSeqCurrentStep] = useState(-1)
   // 再生ループから最新のパターン・スイング量を取るための ref。
-  // パターン／スイングを依存配列に入れると編集のたびに再生がリセットされてしまう。
-  const seqPatternRef = useRef(seqPattern)
-  useEffect(() => { seqPatternRef.current = seqPattern }, [seqPattern])
+  const seqPatternsRef = useRef(seqPatterns)
+  useEffect(() => { seqPatternsRef.current = seqPatterns }, [seqPatterns])
   const seqSwingRef = useRef(seqSwing)
   useEffect(() => { seqSwingRef.current = seqSwing }, [seqSwing])
   // タップテンポ：最近のタップ時刻を保持。間隔の平均から BPM を計算する。
@@ -81,141 +184,143 @@ export default function App() {
   const [exitPhase, setExitPhase] = useState<ExitPhase | null>(null)
   const [flights, setFlights] = useState<Record<string, FrameFlight>>({})
   const [installing, setInstalling] = useState<Set<FrameId>>(new Set())
-  // 飛翔データ（最新値を timer 内で参照・更新するための実体）と取付先スロットの中心。
   const flightDataRef = useRef<Record<string, FrameFlight>>({})
   const destCenterRef = useRef<Record<string, { cx: number; cy: number }>>({})
-  // 「◀チュートリアル」から1レッスンだけ再生するプレビュー中か。
   const previewRef = useRef(false)
 
-  // --- 音まわりの状態 ---
-  const [type, setType] = useState<OscillatorType>('sine')
+  // --- 鍵盤側の状態 ---
   const [fine, setFine] = useState(false)
   const [snap, setSnap] = useState(false)
   const [keyHeld, setKeyHeld] = useState(false)
-  // ポリフォニー：現在押されている鍵盤の集合（複数同時 OK）。
-  // keyHeld（スコープ表示用）の同期と stopAll のために保持する。
-  const heldNotesRef = useRef<Set<number>>(new Set())
-  const [env, setEnvState] = useState<EnvParams>({ attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 })
-  // FILTER / LFO は controlled（プリセットで動かすため、つまみ量を保持）。
-  const [cutoffAmt, setCutoffAmt] = useState(1)
-  const [resAmt, setResAmt] = useState(0)
-  const [lfoRateAmt, setLfoRateAmt] = useState(3)
-  const [lfoDepthAmt, setLfoDepthAmt] = useState(0)
-  const [lfoDestState, setLfoDestState] = useState<LfoDest>('pitch')
-  const [detuneAmt, setDetuneAmt] = useState(0)
-  const [mixAmt, setMixAmt] = useState(5)
-  const [noiseAmt, setNoiseAmt] = useState(0)
-  const [delayTimeAmt, setDelayTimeAmt] = useState(3)
-  const [delayMixAmt, setDelayMixAmt] = useState(0)
-  const [glideAmt, setGlideAmt] = useState(0)
-  const [fenvAmtState, setFenvAmtState] = useState(0)
-  const [fenvDecayState, setFenvDecayState] = useState(3)
-  const [reverbAmt, setReverbAmt] = useState(3)
+  // ポリフォニー：手動鍵盤で押されている (track, midi) の集合。
+  // トラック切替や stopAll で必要なエンジンに正しく noteOff を投げ分けるために保持する。
+  const heldNotesRef = useRef<Set<string>>(new Set())
+  const heldKey = (track: number, midi: number) => `${track}:${midi}`
+
   const tweenRef = useRef<number | null>(null)
 
+  // stopAll：保持中の手動ノートを全エンジン分解放し、SEQ も止める。
   const stopAll = useCallback(() => {
-    heldNotesRef.current.forEach((m) => noteOff(m))
+    heldNotesRef.current.forEach((k) => {
+      const [t, m] = k.split(':')
+      const fn = t === '0' ? aNoteOff : bNoteOff
+      fn(Number(m))
+    })
     heldNotesRef.current.clear()
     setKeyHeld(false)
-    // レッスン突入や画面遷移時に SEQ も止める。音と動線をクリーンに。
     setSeqPlaying(false)
-  }, [noteOff])
+  }, [aNoteOff, bNoteOff])
 
+  // トラック切替：その時点で手動押下中のノートはアクティブ側エンジンで離す
+  // （切替後に「同じ鍵盤の指を離した」つもりが別エンジンに行って release し損ねるのを防ぐ）。
+  const switchTrack = (next: number) => {
+    if (next === activeTrack) return
+    heldNotesRef.current.forEach((k) => {
+      const [t, m] = k.split(':')
+      const fn = t === '0' ? aNoteOff : bNoteOff
+      fn(Number(m))
+    })
+    heldNotesRef.current.clear()
+    setKeyHeld(false)
+    setActiveTrack(next)
+  }
+
+  // sound: SoundCtl は「アクティブトラック」の状態を表示し、
+  //         つまみ操作はアクティブトラックの SoundState と engine 両方を更新する。
   const sound: SoundCtl = {
-    type,
-    onType: (t) => { setType(t); setWaveform(t) },
-    playing: keyHeld,
-    onTune: (v) => setTune(v),
+    type: currentSound.type,
+    onType: (t) => { patchActive({ type: t }); currentEngine.setWaveform(t) },
+    playing: keyHeld || seqPlaying,
+    onTune: (v) => currentEngine.setTune(v),
     fine,
     onToggleFine: () => setFine((v) => !v),
     snap,
     onToggleSnap: () => setSnap((v) => !v),
-    env,
+    env: currentSound.env,
     onEnvChange: (key, value) => {
-      const next = { ...env, [key]: value }
-      setEnvState(next)
-      setEnv(next)
+      const next = { ...currentSound.env, [key]: value }
+      patchActive({ env: next })
+      currentEngine.setEnv(next)
     },
-    cutoff: cutoffAmt,
-    onCutoff: (amt) => { setCutoffAmt(amt); setCutoff(cutoffNormToHz(amt)) },
-    res: resAmt,
-    onRes: (amt) => { setResAmt(amt); setResonance(resAmtToQ(amt)) },
-    lfoRate: lfoRateAmt,
-    onLfoRate: (amt) => { setLfoRateAmt(amt); setLfoRate(lfoRateToHz(amt)) },
-    lfoDepth: lfoDepthAmt,
-    onLfoDepth: (amt) => { setLfoDepthAmt(amt); setLfoDepth(amt) },
-    lfoDest: lfoDestState,
-    onLfoDest: (d) => { setLfoDestState(d); setLfoDest(d) },
-    detune: detuneAmt,
-    onDetune: (amt) => { setDetuneAmt(amt); setDetune(detuneAmtToCents(amt)) },
-    mix: mixAmt,
-    onMix: (amt) => { setMixAmt(amt); setMix(mixAmtToBalance(amt)) },
-    noise: noiseAmt,
-    onNoise: (amt) => { setNoiseAmt(amt); setNoise(noiseAmtToLevel(amt)) },
-    delayTime: delayTimeAmt,
-    onDelayTime: (amt) => { setDelayTimeAmt(amt); setDelayTime(delayTimeAmtToSec(amt)) },
-    delayMix: delayMixAmt,
-    onDelayMix: (amt) => { setDelayMixAmt(amt); setDelayMix(delayMixAmtToLevel(amt)) },
-    glide: glideAmt,
-    onGlide: (amt) => { setGlideAmt(amt); setGlideTime(glideAmtToTau(amt)) },
-    fenvAmt: fenvAmtState,
-    onFenvAmt: (amt) => { setFenvAmtState(amt); setFilterEnv(fenvAmtToOctaves(amt), fenvDecayAmtToSec(fenvDecayState)) },
-    fenvDecay: fenvDecayState,
-    onFenvDecay: (amt) => { setFenvDecayState(amt); setFilterEnv(fenvAmtToOctaves(fenvAmtState), fenvDecayAmtToSec(amt)) },
-    reverb: reverbAmt,
-    onReverb: (amt) => { setReverbAmt(amt); setReverbMix(reverbMixAmtToLevel(amt)) },
-    onVol: (v) => setMasterVol(v),
-    onPan: (p) => setPan(p),
+    cutoff: currentSound.cutoff,
+    onCutoff: (amt) => { patchActive({ cutoff: amt }); currentEngine.setCutoff(cutoffNormToHz(amt)) },
+    res: currentSound.res,
+    onRes: (amt) => { patchActive({ res: amt }); currentEngine.setResonance(resAmtToQ(amt)) },
+    lfoRate: currentSound.lfoRate,
+    onLfoRate: (amt) => { patchActive({ lfoRate: amt }); currentEngine.setLfoRate(lfoRateToHz(amt)) },
+    lfoDepth: currentSound.lfoDepth,
+    onLfoDepth: (amt) => { patchActive({ lfoDepth: amt }); currentEngine.setLfoDepth(amt) },
+    lfoDest: currentSound.lfoDest,
+    onLfoDest: (d) => { patchActive({ lfoDest: d }); currentEngine.setLfoDest(d) },
+    detune: currentSound.detune,
+    onDetune: (amt) => { patchActive({ detune: amt }); currentEngine.setDetune(detuneAmtToCents(amt)) },
+    mix: currentSound.mix,
+    onMix: (amt) => { patchActive({ mix: amt }); currentEngine.setMix(mixAmtToBalance(amt)) },
+    noise: currentSound.noise,
+    onNoise: (amt) => { patchActive({ noise: amt }); currentEngine.setNoise(noiseAmtToLevel(amt)) },
+    delayTime: currentSound.delayTime,
+    onDelayTime: (amt) => { patchActive({ delayTime: amt }); currentEngine.setDelayTime(delayTimeAmtToSec(amt)) },
+    delayMix: currentSound.delayMix,
+    onDelayMix: (amt) => { patchActive({ delayMix: amt }); currentEngine.setDelayMix(delayMixAmtToLevel(amt)) },
+    glide: currentSound.glide,
+    onGlide: (amt) => { patchActive({ glide: amt }); currentEngine.setGlideTime(glideAmtToTau(amt)) },
+    fenvAmt: currentSound.fenvAmt,
+    onFenvAmt: (amt) => { patchActive({ fenvAmt: amt }); currentEngine.setFilterEnv(fenvAmtToOctaves(amt), fenvDecayAmtToSec(currentSound.fenvDecay)) },
+    fenvDecay: currentSound.fenvDecay,
+    onFenvDecay: (amt) => { patchActive({ fenvDecay: amt }); currentEngine.setFilterEnv(fenvAmtToOctaves(currentSound.fenvAmt), fenvDecayAmtToSec(amt)) },
+    reverb: currentSound.reverb,
+    onReverb: (amt) => { patchActive({ reverb: amt }); currentEngine.setReverbMix(reverbMixAmtToLevel(amt)) },
+    vol: currentSound.vol,
+    onVol: (amt) => { patchActive({ vol: amt }); currentEngine.setMasterVol(volAmtToGain(amt)) },
+    pan: currentSound.pan,
+    onPan: (amt) => { patchActive({ pan: amt }); currentEngine.setPan(panAmtToPos(amt)) },
     onNoteOn: (m) => {
-      heldNotesRef.current.add(m)
+      const k = heldKey(activeTrack, m)
+      heldNotesRef.current.add(k)
       setKeyHeld(true)
-      noteOn(m)
+      currentEngine.noteOn(m)
     },
     onNoteOff: (m) => {
-      heldNotesRef.current.delete(m)
+      heldNotesRef.current.delete(heldKey(activeTrack, m))
       setKeyHeld(heldNotesRef.current.size > 0)
-      noteOff(m)
+      currentEngine.noteOff(m)
     },
   }
 
-  // ===== SEQ：パターンと BPM を localStorage に永続化 =====
+  // ===== SEQ：パターン／BPM／スイングを localStorage に永続化 =====
   useEffect(() => {
     try {
-      localStorage.setItem(SEQ_PATTERN_KEY, JSON.stringify(Array.from(seqPattern)))
+      localStorage.setItem(SEQ_PATTERNS_KEY, JSON.stringify(seqPatterns.map((s) => Array.from(s))))
+      // 旧キーが残っていたら掃除（次回ロード時の救出は不要なので消してよい）。
+      localStorage.removeItem(SEQ_PATTERN_LEGACY_KEY)
     } catch {
       // 容量上限や private モード等。失敗しても再生には影響しない。
     }
-  }, [seqPattern])
+  }, [seqPatterns])
   useEffect(() => {
-    try {
-      localStorage.setItem(SEQ_BPM_KEY, String(seqBpm))
-    } catch {
-      // 同上
-    }
+    try { localStorage.setItem(SEQ_BPM_KEY, String(seqBpm)) } catch { /* */ }
   }, [seqBpm])
   useEffect(() => {
-    try {
-      localStorage.setItem(SEQ_SWING_KEY, String(seqSwing))
-    } catch {
-      // 同上
-    }
+    try { localStorage.setItem(SEQ_SWING_KEY, String(seqSwing)) } catch { /* */ }
   }, [seqSwing])
 
-  // ===== SEQ：再生ループ（スイング + タイ対応）=====
+  // ===== SEQ：再生ループ（マルチトラック + スイング + タイ）=====
+  // ・トラック数ぶんループして、それぞれのエンジンへ noteOn/noteOff を投げる。
   // ・スイング：偶数 16 分→奇数 16 分の間隔を伸ばし、奇数→偶数を縮める。
-  //   0%=ストレート、50%=3 連符フィール（2:1）。合計は変わらないので BPM は維持。
   // ・タイ：同じ行で隣接するセルが連続オンなら、後続セルでは noteOn を打ち直さず、
-  //   その連続区間の最後のセルでだけ release を仕込む。1 つの長い音として鳴る。
+  //   その連続区間の最後のセルでだけ release を仕込む（1 つの長い音）。
   // ・パターン／スイングは ref から都度読むので、再生中に編集してもループが切れない。
   // ・BPM 変更は effect 再起動で反映（その時点で先頭に戻る挙動）。
+  // ・aNoteOn / aNoteOff / bNoteOn / bNoteOff の参照は安定（useCallback 済み）なので依存に入れて OK。
   useEffect(() => {
     if (!seqPlaying) return
+    const trackOnFns = [aNoteOn, bNoteOn]
+    const trackOffFns = [aNoteOff, bNoteOff]
     const stepMs = 60000 / (seqBpm * 4)
     let curStep = -1
     const releaseTimers: ReturnType<typeof setTimeout>[] = []
     let nextTimer: ReturnType<typeof setTimeout> | null = null
 
-    // step → step+1 の実時間。偶数ステップ＝長、奇数ステップ＝短（スイング）。
     const intervalFromStep = (step: number) => {
       const sw = seqSwingRef.current / 100
       return stepMs * (step % 2 === 0 ? 1 + sw : 1 - sw)
@@ -225,25 +330,26 @@ export default function App() {
       curStep = (curStep + 1) % SEQ_STEPS
       setSeqCurrentStep(curStep)
 
-      const pattern = seqPatternRef.current
-      // ループ境界でタイを繋げると挙動が読みづらいので、ステップ 0 では「前のステップは存在しない」、
-      // ステップ 15 では「次のステップは存在しない」として扱う（パターン内に閉じたタイのみ）。
-      for (const m of SEQ_PITCHES) {
-        const isOn = pattern.has(seqCellKey(curStep, m))
-        if (!isOn) continue
-        const wasOn = curStep > 0 && pattern.has(seqCellKey(curStep - 1, m))
-        const willContinue = curStep < SEQ_STEPS - 1 && pattern.has(seqCellKey(curStep + 1, m))
-        // 前のセルから繋がっているなら、新しく noteOn は打たない（前の音を伸ばす）。
-        if (!wasOn) noteOn(m)
-        // タイ区間の最後のセルで release を仕込む。連続している間は何もしない。
-        if (!willContinue) {
-          const gateMs = intervalFromStep(curStep) * 0.85
-          const t = setTimeout(() => noteOff(m), gateMs)
-          releaseTimers.push(t)
+      const patterns = seqPatternsRef.current
+      for (let trk = 0; trk < TRACK_COUNT; trk++) {
+        const pattern = patterns[trk]
+        if (!pattern) continue
+        const onFn = trackOnFns[trk]
+        const offFn = trackOffFns[trk]
+        for (const m of SEQ_PITCHES) {
+          const isOn = pattern.has(seqCellKey(curStep, m))
+          if (!isOn) continue
+          const wasOn = curStep > 0 && pattern.has(seqCellKey(curStep - 1, m))
+          const willContinue = curStep < SEQ_STEPS - 1 && pattern.has(seqCellKey(curStep + 1, m))
+          if (!wasOn) onFn(m)
+          if (!willContinue) {
+            const gateMs = intervalFromStep(curStep) * 0.85
+            const t = setTimeout(() => offFn(m), gateMs)
+            releaseTimers.push(t)
+          }
         }
       }
 
-      // 次の advance をスケジュール。間隔は現在ステップの parity でスイング適用。
       nextTimer = setTimeout(advance, intervalFromStep(curStep))
     }
 
@@ -252,20 +358,16 @@ export default function App() {
     return () => {
       if (nextTimer) clearTimeout(nextTimer)
       releaseTimers.forEach((t) => clearTimeout(t))
-      // SEQ が打った可能性のある全ピッチを念のため離す（停止後の長い尾を防ぐ）。
-      SEQ_PITCHES.forEach((m) => noteOff(m))
-      // 再生ヘッドを消す（停止 or BPM 変更でループ再起動する瞬間）。
+      // SEQ が打った可能性のある全ピッチを念のため、全トラックで離す。
+      for (let trk = 0; trk < TRACK_COUNT; trk++) {
+        const offFn = trackOffFns[trk]
+        SEQ_PITCHES.forEach((m) => offFn(m))
+      }
       setSeqCurrentStep(-1)
     }
-  }, [seqPlaying, seqBpm, noteOn, noteOff])
+  }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff])
 
   // ===== ☰ メニュー：外側タップで閉じる =====
-  // 以前は透明な .menu-backdrop（position: fixed）で受けていたが、
-  // panel-wrap の祖先スタッキングや DOM 配置の関係でメニュー自身（z-index 60）より
-  // backdrop（z-index 55）が上に乗ってしまい、メニュー項目のタップを横取りしていた。
-  // document レベルで pointerdown を見て、`.menu-wrap` の外側なら閉じる方式に切り替える。
-  // `.menu-wrap` はハンバーガーボタン本体とメニュー両方を含むので、自身のトグルや
-  // 項目タップは「内側」と判定される。
   useEffect(() => {
     if (!menuOpen) return
     const handler = (e: PointerEvent) => {
@@ -274,7 +376,6 @@ export default function App() {
       setMenuOpen(false)
       setTutorialMenuOpen(false)
     }
-    // 「メニューを開いた瞬間のクリック」自体は除外（同イベントで閉じてしまう挙動の回避）。
     const id = window.setTimeout(() => {
       document.addEventListener('pointerdown', handler, true)
     }, 0)
@@ -284,19 +385,23 @@ export default function App() {
     }
   }, [menuOpen])
 
-  // セル On/Off。再生は止めずに編集できる。
+  // セル On/Off。アクティブトラックのパターンを編集。
   const toggleSeqCell = (step: number, midi: number) => {
-    setSeqPattern((prev) => {
-      const next = new Set(prev)
+    setSeqPatterns((prev) => prev.map((p, i) => {
+      if (i !== activeTrack) return p
+      const next = new Set(p)
       const k = seqCellKey(step, midi)
       if (next.has(k)) next.delete(k)
       else next.add(k)
       return next
-    })
+    }))
+  }
+
+  const clearActiveTrackPattern = () => {
+    setSeqPatterns((prev) => prev.map((p, i) => (i === activeTrack ? new Set<string>() : p)))
   }
 
   // タップテンポ：最近 4 タップまでの間隔を平均して BPM を計算する。
-  // 2 秒以上空いたら「セッション切れ」と見なしてリセット。
   const handleSeqTap = () => {
     const now = performance.now()
     const arr = seqTapTimesRef.current
@@ -311,7 +416,6 @@ export default function App() {
       let sum = 0
       for (let i = 1; i < arr.length; i++) sum += arr[i] - arr[i - 1]
       const avg = sum / (arr.length - 1)
-      // タップ＝1 拍。msPerBeat → BPM = 60000 / msPerBeat。
       const bpm = Math.round(60000 / avg)
       setSeqBpm(Math.max(SEQ_BPM_MIN, Math.min(SEQ_BPM_MAX, bpm)))
     }
@@ -323,7 +427,6 @@ export default function App() {
     flightDataRef.current = {}
     setInstalling(new Set())
     setExitPhase(null)
-    // プレビュー（1レッスンだけ）の時は、続けず全モジュールを戻してパネルへ。
     if (previewRef.current) {
       previewRef.current = false
       setRealized(new Set(ALL_FRAMES))
@@ -342,7 +445,6 @@ export default function App() {
     }
   }, [lessonIndex, stopAll])
 
-  // blink → active の制御
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'blink') return
     const t = setTimeout(() => {
@@ -352,13 +454,14 @@ export default function App() {
     return () => clearTimeout(t)
   }, [phase, stage])
 
-  // インストール演出：morph →（現在位置を実測して移動量確定）→ hover → glide → seat → commit
+  // 着座時の「カチャ」音は engineA の context を使う（どちらでもよい）。
+  const getAudioContext = aGetCtx
+
   useEffect(() => {
     if (phase !== 'lesson' || stage !== 'exit') return
     const frames = LESSONS[lessonIndex].realizes
     const timers: ReturnType<typeof setTimeout>[] = []
 
-    // モーフ完了：縮小・畳み終えた“いまの位置”を測って定位置への移動量を確定。
     timers.push(setTimeout(() => {
       const fl = flightDataRef.current
       const dc = destCenterRef.current
@@ -376,7 +479,6 @@ export default function App() {
 
     timers.push(setTimeout(() => setExitPhase('glide'), MORPH_MS + HOVER_MS))
 
-    // 着座：このタイミングで実体化＋「カチャ」＋ごく薄い光
     timers.push(setTimeout(() => {
       setExitPhase('seat')
       setRealized((prev) => {
@@ -398,7 +500,6 @@ export default function App() {
     return () => timers.forEach(clearTimeout)
   }, [phase, stage, lessonIndex, commitExit, getAudioContext])
 
-  // 取付先（空きベイ）を画面内に出す。グリッドが縦に伸びても、着弾点が画面外に行かない。
   const scrollToBay = (id: FrameId) => {
     requestAnimationFrame(() => {
       const el = document.querySelector(`[data-slot="${id}"]`)
@@ -419,7 +520,6 @@ export default function App() {
   }
 
   const onOK = () => {
-    // OK で「その場で最終形へモーフ」開始。各フレームの現在位置と取付先を実測して縮小率を決める。
     const frames = LESSONS[lessonIndex].realizes
     const fl: Record<string, FrameFlight> = {}
     const dc: Record<string, { cx: number; cy: number }> = {}
@@ -441,7 +541,6 @@ export default function App() {
     setExitPhase('morph')
   }
 
-  // 「◀チュートリアル」から1レッスンだけ再生。前のレッスンのモジュールは付いた状態で開始。
   const previewLesson = (i: number) => {
     stopAll()
     setMenuOpen(false)
@@ -479,61 +578,75 @@ export default function App() {
     setPhase('intro')
   }
 
-  // プリセット選択：波形と内部パラメータ（フィルターEnv）を即セット。
-  // 表示のあるツマミ系（ENV・FILTER・LFO・OSC2 の MIX/DETUNE）は 0.6 秒かけてアニメで目標値へ。
+  // プリセット選択：アクティブトラックの SoundState と engine を 0.6 秒かけて目標値へ。
+  // 波形・LFO 行き先は離散切替で即時。
   const applyPreset = (p: Preset) => {
-    setType(p.type)
-    setWaveform(p.type)
-    setLfoDestState(p.lfoDest)
-    setLfoDest(p.lfoDest)
-    const setAll = (cutoff: number, res: number, lr: number, ld: number, mix: number, det: number, noise: number, dt: number, dm: number, gl: number, fa: number, fd: number, rv: number, e: EnvParams) => {
-      setCutoffAmt(cutoff); setCutoff(cutoffNormToHz(cutoff))
-      setResAmt(res); setResonance(resAmtToQ(res))
-      setLfoRateAmt(lr); setLfoRate(lfoRateToHz(lr))
-      setLfoDepthAmt(ld); setLfoDepth(ld)
-      setMixAmt(mix); setMix(mixAmtToBalance(mix))
-      setDetuneAmt(det); setDetune(detuneAmtToCents(det))
-      setNoiseAmt(noise); setNoise(noiseAmtToLevel(noise))
-      setDelayTimeAmt(dt); setDelayTime(delayTimeAmtToSec(dt))
-      setDelayMixAmt(dm); setDelayMix(delayMixAmtToLevel(dm))
-      setGlideAmt(gl); setGlideTime(glideAmtToTau(gl))
-      setFenvAmtState(fa); setFenvDecayState(fd); setFilterEnv(fenvAmtToOctaves(fa), fenvDecayAmtToSec(fd))
-      setReverbAmt(rv); setReverbMix(reverbMixAmtToLevel(rv))
-      setEnvState(e); setEnv(e)
+    const engine = currentEngine
+    const trackIdx = activeTrack
+    const setAllRaw = (s: SoundState) => {
+      // React state（アクティブトラック）と engine の両方を一括更新。
+      setTracks((prev) => prev.map((cur, i) => (i === trackIdx ? s : cur)))
+      pushSoundToEngine(engine, s)
+    }
+    // 離散値（波形・LFO 行き先）は即セット。連続値は下のループで補間。
+    const target: SoundState = {
+      type: p.type,
+      env: { ...p.env },
+      cutoff: p.cutoff,
+      res: p.res,
+      lfoRate: p.lfoRate,
+      lfoDepth: p.lfoDepth,
+      lfoDest: p.lfoDest,
+      detune: p.detuneAmt,
+      mix: p.mixAmt,
+      noise: p.noiseAmt,
+      delayTime: p.delayTimeAmt,
+      delayMix: p.delayMixAmt,
+      glide: p.glideAmt,
+      fenvAmt: p.filterEnvAmt,
+      fenvDecay: p.filterEnvDecay,
+      reverb: p.reverbMixAmt,
+      vol: currentSound.vol, // プリセットは VOL/PAN を持たない（マスター側）
+      pan: currentSound.pan,
     }
     if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
     if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
-      setAll(p.cutoff, p.res, p.lfoRate, p.lfoDepth, p.mixAmt, p.detuneAmt, p.noiseAmt, p.delayTimeAmt, p.delayMixAmt, p.glideAmt, p.filterEnvAmt, p.filterEnvDecay, p.reverbMixAmt, p.env)
+      setAllRaw(target)
       return
     }
-    const s = { cutoff: cutoffAmt, res: resAmt, lr: lfoRateAmt, ld: lfoDepthAmt, mix: mixAmt, det: detuneAmt, noise: noiseAmt, dt: delayTimeAmt, dm: delayMixAmt, gl: glideAmt, fa: fenvAmtState, fd: fenvDecayState, rv: reverbAmt, ...env }
+    const start: SoundState = { ...currentSound, env: { ...currentSound.env } }
     const DUR = 600
     const t0 = performance.now()
+    const lp = (a: number, b: number, k: number) => a + (b - a) * k
     const step = (now: number) => {
       const k = Math.min(1, (now - t0) / DUR)
       const e = 1 - Math.pow(1 - k, 3) // easeOutCubic
-      const lp = (a: number, b: number) => a + (b - a) * e
-      setAll(
-        lp(s.cutoff, p.cutoff),
-        lp(s.res, p.res),
-        lp(s.lr, p.lfoRate),
-        lp(s.ld, p.lfoDepth),
-        lp(s.mix, p.mixAmt),
-        lp(s.det, p.detuneAmt),
-        lp(s.noise, p.noiseAmt),
-        lp(s.dt, p.delayTimeAmt),
-        lp(s.dm, p.delayMixAmt),
-        lp(s.gl, p.glideAmt),
-        lp(s.fa, p.filterEnvAmt),
-        lp(s.fd, p.filterEnvDecay),
-        lp(s.rv, p.reverbMixAmt),
-        {
-          attack: lp(s.attack, p.env.attack),
-          decay: lp(s.decay, p.env.decay),
-          sustain: lp(s.sustain, p.env.sustain),
-          release: lp(s.release, p.env.release),
+      const interpolated: SoundState = {
+        type: target.type,     // 離散：即
+        lfoDest: target.lfoDest, // 離散：即
+        cutoff: lp(start.cutoff, target.cutoff, e),
+        res: lp(start.res, target.res, e),
+        lfoRate: lp(start.lfoRate, target.lfoRate, e),
+        lfoDepth: lp(start.lfoDepth, target.lfoDepth, e),
+        detune: lp(start.detune, target.detune, e),
+        mix: lp(start.mix, target.mix, e),
+        noise: lp(start.noise, target.noise, e),
+        delayTime: lp(start.delayTime, target.delayTime, e),
+        delayMix: lp(start.delayMix, target.delayMix, e),
+        glide: lp(start.glide, target.glide, e),
+        fenvAmt: lp(start.fenvAmt, target.fenvAmt, e),
+        fenvDecay: lp(start.fenvDecay, target.fenvDecay, e),
+        reverb: lp(start.reverb, target.reverb, e),
+        vol: target.vol,
+        pan: target.pan,
+        env: {
+          attack: lp(start.env.attack, target.env.attack, e),
+          decay: lp(start.env.decay, target.env.decay, e),
+          sustain: lp(start.env.sustain, target.env.sustain, e),
+          release: lp(start.env.release, target.env.release, e),
         },
-      )
+      }
+      setAllRaw(interpolated)
       tweenRef.current = k < 1 ? requestAnimationFrame(step) : null
     }
     tweenRef.current = requestAnimationFrame(step)
@@ -545,7 +658,6 @@ export default function App() {
   const popupHelp = panelPopup ? FRAME_HELP[panelPopup] : null
   const closeMenu = () => { setMenuOpen(false); setTutorialMenuOpen(false) }
 
-  // メニューの中身。タブ行のハンバーガー（panel 時）と、レッスン中の右上ボタン（lesson/ghost 時）で共有する。
   const menuItems = phase === 'panel' ? (
     <>
       <label className="menu-item menu-check">
@@ -595,13 +707,16 @@ export default function App() {
         menuChildren={menuItems}
         seqContent={
           <SeqPanel
-            pattern={seqPattern}
+            trackCount={TRACK_COUNT}
+            activeTrack={activeTrack}
+            onTrack={switchTrack}
+            pattern={seqPatterns[activeTrack] ?? new Set()}
             currentStep={seqCurrentStep}
             playing={seqPlaying}
             bpm={seqBpm}
             swing={seqSwing}
             onToggleCell={toggleSeqCell}
-            onClear={() => setSeqPattern(new Set())}
+            onClear={clearActiveTrackPattern}
             onTogglePlay={() => setSeqPlaying((p) => !p)}
             onBpm={setSeqBpm}
             onSwing={setSeqSwing}
@@ -634,8 +749,6 @@ export default function App() {
 
       {/* メニューの外側タップ検知は document.pointerdown で行う（.menu-backdrop は廃止） */}
 
-      {/* レッスン中・ghost 中はパネルがオーバーレイで隠れるため、メニューは右上に出す。
-          パネル時はタブ行のハンバーガーが担当するので不要。 */}
       {phase !== 'panel' && (
         <div className="topbar">
           <div className="menu-wrap">

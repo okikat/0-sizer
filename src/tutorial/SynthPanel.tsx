@@ -116,7 +116,7 @@ export function SynthPanel({
                 <LfoFrame compact showText={showHelp} lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} lfoDest={sound.lfoDest} onLfoDest={sound.onLfoDest} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('mix')}>
-                <MixFrame compact showText={showHelp} onVol={sound.onVol} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />
+                <MixFrame compact showText={showHelp} vol={sound.vol} onVol={sound.onVol} pan={sound.pan} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('osc2')}>
                 <Osc2Frame compact showText={showHelp} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />

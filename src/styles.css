@@ -771,6 +771,43 @@ b {
 }
 .seq-clear:active { color: var(--accent); }
 
+/* トラックセレクタ：1 / 2 のピル群。押されたほうが「へこんで光る」。
+   タブ行の PANEL/SEQ と同じ視覚言語を踏襲。 */
+.seq-tracks {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 0 4px;
+}
+.seq-tracks-label {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--sub);
+  margin-right: 2px;
+}
+.seq-track-btn {
+  min-width: 36px;
+  height: 30px;
+  padding: 0 10px;
+  font-size: 13px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--sub);
+  background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
+  border: 1px solid #000;
+  border-radius: 0;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
+  cursor: pointer;
+}
+.seq-track-btn.sel {
+  color: var(--accent);
+  background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35), 0 0 6px rgba(90, 209, 196, 0.18);
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+}
+
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
 .seq-grid-wrap {
   flex: 1 1 auto;

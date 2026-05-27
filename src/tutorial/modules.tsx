@@ -5,7 +5,7 @@ import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
 import type { EnvParams, LfoDest } from '../audio/useSynth'
-import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, volAmtToGain, panAmtToPos, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs, fenvDecayAmtToSec } from '../audio/params'
+import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs, fenvDecayAmtToSec } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
 
@@ -49,8 +49,12 @@ export interface SoundCtl {
   onFenvDecay: (amt: number) => void
   reverb: number
   onReverb: (amt: number) => void
-  onVol: (v: number) => void
-  onPan: (p: number) => void
+  // VOL / PAN は MIX フレームのつまみ量で持つ（VOL=0〜10、PAN=-5〜5）。
+  // controlled にすることで、マルチトラックでアクティブが切り替わった時に表示も追従できる。
+  vol: number
+  onVol: (amt: number) => void
+  pan: number
+  onPan: (amt: number) => void
   onNoteOn: (midi: number) => void
   onNoteOff: (midi: number) => void
 }
@@ -264,18 +268,21 @@ export function LfoFrame({
 
 /** MIXフレーム：VOL（マスター音量）と PAN（左右の定位）の2ツマミ。 */
 export function MixFrame({
+  vol,
   onVol,
+  pan,
   onPan,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'onVol' | 'onPan' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'vol' | 'onVol' | 'pan' | 'onPan' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-mix">
       <div className="mix-knobs">
         <Knob
+          value={vol}
           fine={fine}
           snap={snap}
           snapStep={1}
@@ -287,9 +294,10 @@ export function MixFrame({
           defaultValue={10}
           label="VOL"
           format={(v) => ({ main: String(Math.round(v)) })}
-          onChange={(v) => onVol(volAmtToGain(v))}
+          onChange={onVol}
         />
         <Knob
+          value={pan}
           fine={fine}
           snap={snap}
           snapStep={1}
@@ -301,7 +309,7 @@ export function MixFrame({
           defaultValue={0}
           label="PAN"
           format={(v) => ({ main: fmtPan(v) })}
-          onChange={(v) => onPan(panAmtToPos(v))}
+          onChange={onPan}
         />
       </div>
     </div>

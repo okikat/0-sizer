@@ -76,7 +76,7 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'mix')
       return (
         <div data-stage-frame="mix" {...frameProps('mix')}>
-          <MixFrame onVol={sound.onVol} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} morphing={exiting} />
+          <MixFrame vol={sound.vol} onVol={sound.onVol} pan={sound.pan} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     if (lesson.id === 'osc2') {

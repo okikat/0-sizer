@@ -1,13 +1,20 @@
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, cellKey } from './seqConst'
 
-// 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。1 トラック・パターンは Set<string>。
+// 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
 // 再生・タイミング・音源との接続は App 側が持つ（このコンポーネントは表示と操作のみ）。
 //
 // タイ：同じ行で隣接セルを連続オンにすると、自動的に「1 つの長い音」として鳴る。
 // UI は変えない（連続オン＝タイ）。スイング：トランスポート行に SW% で出す。
 // タップテンポ：TAP を 2 回以上叩くと、平均間隔から BPM が決まる。
+// トラック：1 / 2 のセレクタで切替。アクティブトラックのパターンを編集する。
 
 interface Props {
+  /** 全トラック数（現状は 2）。 */
+  trackCount: number
+  /** 編集中のトラック index（0 始まり）。 */
+  activeTrack: number
+  onTrack: (t: number) => void
+  /** アクティブトラックのパターン。 */
   pattern: Set<string>
   /** 現在再生中のステップ番号。停止中は -1。 */
   currentStep: number
@@ -23,6 +30,9 @@ interface Props {
 }
 
 export function SeqPanel({
+  trackCount,
+  activeTrack,
+  onTrack,
   pattern,
   currentStep,
   playing,
@@ -41,7 +51,6 @@ export function SeqPanel({
   return (
     <div className="seq-panel">
       <div className="seq-transport">
-        {/* グループ 1：再生・テンポ。BPM 周りと TAP は離れないように 1 クラスタにまとめる。 */}
         <div className="seq-transport-cluster">
           <button
             className={'seq-play' + (playing ? ' on' : '')}
@@ -65,7 +74,6 @@ export function SeqPanel({
           <button className="seq-tap" onClick={onTap} aria-label="タップでテンポ">TAP</button>
         </div>
 
-        {/* グループ 2：スイング・クリア。 */}
         <div className="seq-transport-cluster">
           <div className="seq-swing">
             <button className="seq-bump" onClick={() => bumpSwing(-10)} aria-label="SWING -10">−10</button>
@@ -81,6 +89,23 @@ export function SeqPanel({
         </div>
       </div>
 
+      {/* トラックセレクタ：押されているトラックがアクティブ（編集対象＆PANEL の音色源）。
+          切替時は手動押下中のノートを解放してから切り替わる（App 側）。 */}
+      <div className="seq-tracks">
+        <span className="seq-tracks-label">TRACK</span>
+        {Array.from({ length: trackCount }).map((_, i) => (
+          <button
+            key={i}
+            className={'seq-track-btn' + (activeTrack === i ? ' sel' : '')}
+            onClick={() => onTrack(i)}
+            aria-pressed={activeTrack === i}
+            aria-label={`トラック ${i + 1} を編集`}
+          >
+            {i + 1}
+          </button>
+        ))}
+      </div>
+
       <div className="seq-grid-wrap">
         <div className="seq-grid">
           {SEQ_PITCHES.map((midi) => (
@@ -89,8 +114,6 @@ export function SeqPanel({
               {Array.from({ length: SEQ_STEPS }).map((_, step) => {
                 const on = pattern.has(cellKey(step, midi))
                 const inCol = currentStep === step
-                // タイ表示：直前セルがオンなら「前と繋がっている」、直後セルがオンなら「後ろと繋がる」。
-                // 連続オン区間の途中・末尾を視覚で区別すると、長い音が直感的に読める。
                 const tiedPrev = on && step > 0 && pattern.has(cellKey(step - 1, midi))
                 const tiedNext = on && step < SEQ_STEPS - 1 && pattern.has(cellKey(step + 1, midi))
                 const cls = 'seq-cell'
