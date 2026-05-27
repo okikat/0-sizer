@@ -22,6 +22,8 @@ const SEQ_PATTERNS_KEY = '0sizer.seqPatterns' // 配列：[Track1, Track2]
 const SEQ_PATTERN_LEGACY_KEY = '0sizer.seqPattern' // v0.1 単トラック時代の救出用
 const SEQ_BPM_KEY = '0sizer.seqBpm'
 const SEQ_SWING_KEY = '0sizer.seqSwing'
+const TRACKS_KEY = '0sizer.tracks' // トラック毎の音色（SoundState 配列）
+const ACTIVE_TRACK_KEY = '0sizer.activeTrack'
 const BLINK_MS = 1150
 // インストール演出：その場で最終形へモーフ → 少し浮く → ゆっくり定位置へ → 着座。
 const MORPH_MS = 460 // パネル収まり後の形へ作り替え（WAVEは計器が畳まれる）＋暗幕フェード
@@ -52,6 +54,36 @@ interface SoundState {
   reverb: number     // 0〜10
   vol: number        // 0〜10（マスター音量）
   pan: number        // -5〜5（定位）
+}
+
+const defaultTracks = (): SoundState[] =>
+  Array.from({ length: TRACK_COUNT }, () => ({ ...DEFAULT_SOUND, env: { ...DEFAULT_SOUND.env } }))
+
+const loadTracks = (): SoundState[] => {
+  if (typeof localStorage === 'undefined') return defaultTracks()
+  try {
+    const stored = localStorage.getItem(TRACKS_KEY)
+    if (!stored) return defaultTracks()
+    const parsed = JSON.parse(stored) as Partial<SoundState>[]
+    // 旧スキーマでフィールドが欠けていたら DEFAULT で埋める（env はネストしているので個別 merge）。
+    return defaultTracks().map((def, i) => {
+      const p = parsed[i] ?? {}
+      return {
+        ...def,
+        ...p,
+        env: { ...def.env, ...(p.env ?? {}) },
+      }
+    })
+  } catch {
+    return defaultTracks()
+  }
+}
+
+const loadActiveTrack = (): number => {
+  if (typeof localStorage === 'undefined') return 0
+  const n = Number(localStorage.getItem(ACTIVE_TRACK_KEY))
+  if (!Number.isFinite(n) || n < 0 || n >= TRACK_COUNT) return 0
+  return n
 }
 
 const DEFAULT_SOUND: SoundState = {
@@ -122,10 +154,8 @@ export default function App() {
   const [presetModalOpen, setPresetModalOpen] = useState(false)
 
   // ===== マルチトラック：音作り状態と「いま編集中のトラック」 =====
-  const [tracks, setTracks] = useState<SoundState[]>(() =>
-    Array.from({ length: TRACK_COUNT }, () => ({ ...DEFAULT_SOUND, env: { ...DEFAULT_SOUND.env } })),
-  )
-  const [activeTrack, setActiveTrack] = useState(0)
+  const [tracks, setTracks] = useState<SoundState[]>(() => loadTracks())
+  const [activeTrack, setActiveTrack] = useState<number>(() => loadActiveTrack())
   const currentSound = tracks[activeTrack]
   const currentEngine = activeTrack === 0 ? engineA : engineB
 
@@ -303,6 +333,23 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(SEQ_SWING_KEY, String(seqSwing)) } catch { /* */ }
   }, [seqSwing])
+
+  // ===== トラック毎の音作り状態と active を永続化 =====
+  useEffect(() => {
+    try { localStorage.setItem(TRACKS_KEY, JSON.stringify(tracks)) } catch { /* */ }
+  }, [tracks])
+  useEffect(() => {
+    try { localStorage.setItem(ACTIVE_TRACK_KEY, String(activeTrack)) } catch { /* */ }
+  }, [activeTrack])
+
+  // マウント時：ロード済みの SoundState を各エンジンへ反映（フィルター・LFO 等の ref を同期）。
+  // 以降は sound の各ハンドラが knob 変化ごとに engine.setX を呼ぶので、これは初期化専用。
+  useEffect(() => {
+    pushSoundToEngine(engineA, tracks[0])
+    pushSoundToEngine(engineB, tracks[1])
+    // マウント 1 回のみ走らせる。tracks/engineA/engineB はその時点の参照で十分。
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ===== SEQ：再生ループ（マルチトラック + スイング + タイ）=====
   // ・トラック数ぶんループして、それぞれのエンジンへ noteOn/noteOff を投げる。
