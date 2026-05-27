@@ -1367,9 +1367,19 @@ b {
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 0;
   cursor: pointer;
-  /* セル上でも縦スクロールはブラウザに任せ、横方向のジェスチャ（タイ塗り）だけ自前で拾う。 */
-  touch-action: pan-y;
+  /* 縦・横ともパンは browser に任せる（長押し中だけ setPointerCapture でこちらが奪う）。
+     ピンチによるページズームは pan-x pan-y で無効化される。 */
+  touch-action: pan-x pan-y;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
   transition: background 0.08s ease, box-shadow 0.08s ease;
+}
+/* 長押し成立後の "タイモード" 表示：開始セルを薄くティールに発光。
+   .on と排他ではなく重ねて出してよい（点灯中のセルからの長押しも光る）。 */
+.seq-cell.tie-active {
+  box-shadow: 0 0 0 2px rgba(90, 209, 196, 0.55), 0 0 10px rgba(90, 209, 196, 0.45), inset 0 0 8px rgba(90, 209, 196, 0.35);
+  z-index: 2;
 }
 .seq-cell:last-child { margin-right: 0; }
 .seq-cell.bar-start { margin-left: 3px; }

@@ -124,69 +124,78 @@ export function SeqPanel({
   const bumpBpm = (d: number) => onBpm(Math.max(SEQ_BPM_MIN, Math.min(SEQ_BPM_MAX, bpm + d)))
   const bumpSwing = (d: number) => onSwing(Math.max(SEQ_SWING_MIN, Math.min(SEQ_SWING_MAX, swing + d)))
 
-  // スライドジェスチャ用の状態。
-  //   - startCell / startX：開始セルと座標
-  //   - inSlide：水平 24px 以上動いたら true（タイ塗りモードに突入）
-  //   - lastStep：直近に visit したステップ（同じセルを何度も処理しないため）
-  // タップ判定：pointerup 時点で inSlide === false なら toggle。
-  // 2 指ピンチは無し（ぎこちなさ／単指操作との競合のため撤去）。代わりに虫眼鏡ボタンで拡縮。
+  // セル操作の 3 モード：
+  //   (a) クイックタップ（短時間 down→up、移動 <8px）→ ON/OFF トグル
+  //   (b) 長押しなしのスライド（移動 ≥8px が早い）→ ポインタを掴まずに browser 任せ
+  //       → .seq-cell の touch-action: pan-x pan-y で内側スクローラが動く
+  //   (c) 長押し（250ms 指止め）→ そのセルがティールに発光しタイモードへ
+  //       → 以後の左右スライドで通過セルを順にタイ結線
+  //       → スライドせずに離した場合は何もしない
   const slideRef = useRef<{
+    el: HTMLButtonElement
+    pointerId: number
     startStep: number
     startMidi: number
     startX: number
     startY: number
-    inSlide: boolean
+    inTieMode: boolean
+    painted: boolean
     lastStep: number
   } | null>(null)
+  const longPressTimerRef = useRef<number | null>(null)
+  const [tieActiveKey, setTieActiveKey] = useState<string | null>(null)
+
+  const LONG_PRESS_MS = 250
+  const MOVE_CANCEL_PX = 8
+
+  const cancelLongPressTimer = () => {
+    if (longPressTimerRef.current != null) {
+      window.clearTimeout(longPressTimerRef.current)
+      longPressTimerRef.current = null
+    }
+  }
 
   const handleCellPointerDown = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    e.currentTarget.setPointerCapture(e.pointerId)
+    const el = e.currentTarget
     slideRef.current = {
+      el,
+      pointerId: e.pointerId,
       startStep: step,
       startMidi: midi,
       startX: e.clientX,
       startY: e.clientY,
-      inSlide: false,
+      inTieMode: false,
+      painted: false,
       lastStep: step,
     }
+    cancelLongPressTimer()
+    longPressTimerRef.current = window.setTimeout(() => {
+      longPressTimerRef.current = null
+      const s = slideRef.current
+      if (!s) return
+      s.inTieMode = true
+      // ここで初めてキャプチャ。それまでは browser に pan を譲る。
+      try { s.el.setPointerCapture(s.pointerId) } catch { /* 既にキャプチャされていれば無視 */ }
+      setTieActiveKey(cellKey(s.startStep, s.startMidi))
+    }, LONG_PRESS_MS)
   }
 
   const handleCellPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
-    if (!slideRef.current) return
-    updateSlideFromPoint(e.clientX, e.clientY)
-  }
-
-  const handleCellPointerUp = (step: number, midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
-    if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-      e.currentTarget.releasePointerCapture(e.pointerId)
-    }
-    const s = slideRef.current
-    slideRef.current = null
-    if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
-      onToggleCell(step, midi)
-    }
-  }
-
-  const handleCellPointerCancel = () => {
-    slideRef.current = null
-  }
-
-  const updateSlideFromPoint = (clientX: number, clientY: number) => {
     const s = slideRef.current
     if (!s) return
-    if (!s.inSlide) {
-      // しきい値：水平 24px 以上動いて、しかも縦方向が支配的でないなら slide モード。
-      // 12px だと縦スクロール開始時の微小な水平ぶれで誤爆するので、もう少し意図的な動きを要求する。
-      const dx = clientX - s.startX
-      const dy = clientY - s.startY
-      if (Math.abs(dx) < 24) return
-      if (Math.abs(dy) > Math.abs(dx) - 4) return // 縦が同程度以上ならスクロール意図とみなす
-      s.inSlide = true
-      // スライド塗りが「始まった」瞬間に 1 度だけ履歴を push。連続塗りで履歴が暴れない。
-      onEditStart()
+    if (!s.inTieMode) {
+      // タイモード前：少しでも動いたら「スクロール意図」とみなしてキャンセル。
+      // browser が pan-x pan-y に従って親スクローラを動かす。
+      const dx = e.clientX - s.startX
+      const dy = e.clientY - s.startY
+      if (Math.hypot(dx, dy) > MOVE_CANCEL_PX) {
+        cancelLongPressTimer()
+        slideRef.current = null
+      }
+      return
     }
-    // 指の下のセルを特定。setPointerCapture 中でも document.elementFromPoint なら他のセルが取れる。
-    const el = document.elementFromPoint(clientX, clientY) as HTMLElement | null
+    // タイモード中：指の下のセルを拾ってタイ塗り。
+    const el = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null
     const cell = el?.closest('.seq-cell') as HTMLElement | null
     if (!cell) return
     const stepStr = cell.dataset.step
@@ -194,14 +203,41 @@ export function SeqPanel({
     if (stepStr === undefined || midiStr === undefined) return
     const step = Number(stepStr)
     const midi = Number(midiStr)
-    // 同じ row 限定。違う row に逸れたら無視（戻ってきたら再開）。
-    if (midi !== s.startMidi) return
+    if (midi !== s.startMidi) return // 同じ row のみ
     if (step === s.lastStep) return
+    if (!s.painted) {
+      // 実際に塗りが起きるタイミングで 1 度だけ履歴 push。
+      onEditStart()
+      s.painted = true
+    }
     onPaintTie(
       { step: s.lastStep, midi: s.startMidi },
       { step, midi: s.startMidi },
     )
     s.lastStep = step
+  }
+
+  const handleCellPointerUp = (_step: number, _midi: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    cancelLongPressTimer()
+    const s = slideRef.current
+    slideRef.current = null
+    setTieActiveKey(null)
+    if (!s) return
+    if (s.el.hasPointerCapture(e.pointerId)) {
+      try { s.el.releasePointerCapture(e.pointerId) } catch { /* noop */ }
+    }
+    if (!s.inTieMode) {
+      // 短押し（タイマー発火前 & 移動 <8px）= タップ → トグル。
+      // 開始セルを基準に。微小な指のズレで隣セルで up しても、意図は開始セル。
+      onToggleCell(s.startStep, s.startMidi)
+    }
+    // タイモード中で塗らずに離した場合は何もしない（painted=false のまま履歴も増えない）。
+  }
+
+  const handleCellPointerCancel = () => {
+    cancelLongPressTimer()
+    slideRef.current = null
+    setTieActiveKey(null)
   }
 
   // ▲ / ▼ ボタン：1 タップで「クライアント高さの半分」だけ縦スクロール。スライド誤爆の代替手段。
@@ -453,6 +489,7 @@ export function SeqPanel({
                       + (step > 0 && step % 4 === 0 ? ' bar-start' : '')
                       + (tiedPrev ? ' tied-prev' : '')
                       + (tiedNext ? ' tied-next' : '')
+                      + (tieActiveKey === key ? ' tie-active' : '')
                     return (
                       <button
                         key={step}
