@@ -1,4 +1,4 @@
-import { useEffect, useRef } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOT_LABELS, cellKey } from './seqConst'
 
 // 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
@@ -152,46 +152,81 @@ export function SeqPanel({
     s.lastStep = step
   }
 
-  // ▲ / ▼ ボタン：1 タップで「クライアント高さの半分」だけグリッドを縦スクロール。
-  // スライドで誤爆する人や、スライドジェスチャを使いたくない人向けの代替手段。
+  // ▲ / ▼ ボタン：1 タップで「クライアント高さの半分」だけ縦スクロール。スライド誤爆の代替手段。
   const scrollGridBy = (dir: 1 | -1) => {
     const g = gridScrollRef.current
     if (!g) return
     g.scrollBy({ top: dir * (g.clientHeight * 0.5), behavior: 'smooth' })
   }
-  // ◀ / ▶ ボタン：1 タップで「クライアント幅の半分」だけグリッドを横スクロール。
-  // ラベル列が sticky-left になったので、cells だけが横へ流れる。
-  const scrollGridByX = (dir: 1 | -1) => {
-    const g = gridScrollRef.current
-    if (!g) return
-    g.scrollBy({ left: dir * (g.clientWidth * 0.5), behavior: 'smooth' })
+
+  // 横スクロールバー（kbd-bar 風）。cellsAreaRef の scrollLeft / scrollWidth から
+  // ウィンドウ位置・幅を計算してティールのつまみで可視化。タップ／ドラッグで scrollLeft 制御。
+  const hscrollBarRef = useRef<HTMLDivElement>(null)
+  const hscrollDraggingRef = useRef(false)
+  const [hScroll, setHScroll] = useState({ left: 0, width: 1 })
+
+  const syncHScroll = useCallback(() => {
+    const el = cellsAreaRef.current
+    if (!el) return
+    const sw = el.scrollWidth || 1
+    setHScroll({
+      left: el.scrollLeft / sw,
+      width: Math.min(1, el.clientWidth / sw),
+    })
+  }, [])
+
+  useEffect(() => {
+    const el = cellsAreaRef.current
+    if (!el) return
+    syncHScroll()
+    el.addEventListener('scroll', syncHScroll)
+    const ro = new ResizeObserver(syncHScroll)
+    ro.observe(el)
+    return () => {
+      el.removeEventListener('scroll', syncHScroll)
+      ro.disconnect()
+    }
+  }, [syncHScroll])
+
+  // バー本体のタップ／ドラッグで scrollLeft を直接コントロール。
+  // ポインタ位置をバー幅の比率 → scrollWidth に変換し、ウィンドウの中心がそこへ来るように当てる。
+  const updateHScrollFromPointer = (clientX: number) => {
+    const bar = hscrollBarRef.current
+    const el = cellsAreaRef.current
+    if (!bar || !el) return
+    const rect = bar.getBoundingClientRect()
+    const frac = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width))
+    el.scrollTo({ left: frac * el.scrollWidth - el.clientWidth / 2, behavior: 'auto' })
   }
 
-  // グリッドとオートメーションレーンの横スクロールを双方向に同期させる。
-  // syncing フラグで「スクロール書き換え→相手の onScroll が発火→自分を書き換え返す」のループを防ぐ。
+  // gridScrollRef は縦スクロールの "stage"（外側）。横スクロールは cellsAreaRef（後段で宣言）。
   const gridScrollRef = useRef<HTMLDivElement>(null)
   const laneScrollRef = useRef<HTMLDivElement>(null)
+  // cellsAreaRef を先に宣言（下のスクロールバー用ロジックと共有）。
+  const cellsAreaRef = useRef<HTMLDivElement>(null)
+  // セルの横スクロールとオートメーションレーンの横スクロールを双方向に同期させる。
+  // syncing フラグで「片方書き換え→相手の onScroll → 自分を書き換え返す」ループ防止。
   useEffect(() => {
-    const g = gridScrollRef.current
+    const c = cellsAreaRef.current
     const l = laneScrollRef.current
-    if (!g || !l) return
+    if (!c || !l) return
     let syncing = false
-    const onG = () => {
+    const onC = () => {
       if (syncing) return
       syncing = true
-      l.scrollLeft = g.scrollLeft
+      l.scrollLeft = c.scrollLeft
       syncing = false
     }
     const onL = () => {
       if (syncing) return
       syncing = true
-      g.scrollLeft = l.scrollLeft
+      c.scrollLeft = l.scrollLeft
       syncing = false
     }
-    g.addEventListener('scroll', onG)
+    c.addEventListener('scroll', onC)
     l.addEventListener('scroll', onL)
     return () => {
-      g.removeEventListener('scroll', onG)
+      c.removeEventListener('scroll', onC)
       l.removeEventListener('scroll', onL)
     }
   }, [])
@@ -332,70 +367,77 @@ export function SeqPanel({
         <button className="seq-song-bump" onClick={onRemoveSongPosition} aria-label="ポジション削除">−</button>
       </div>
 
+      {/* 編集エリア：
+          - 縦スクロール = .seq-grid-stage（外側）
+          - 横スクロール = .seq-cells-area（内側、ラベル列の右側のみ）
+          - ラベル列（.seq-labels-col）は左に物理的に独立。横スクロール対象から外れて常に見える。
+          - ▲ / ▼ ボタンはラベル列の上下端にオーバーレイ。 */}
       <div className="seq-grid-area">
-      <div className="seq-grid-wrap" ref={gridScrollRef}>
-        <div className="seq-grid">
-          {SEQ_PITCHES.map((midi) => (
-            <div className="seq-row" key={midi}>
-              <span className="seq-row-label">{SEQ_NOTE_LABEL[midi]}</span>
-              {Array.from({ length: SEQ_STEPS }).map((_, step) => {
-                const key = cellKey(step, midi)
-                const on = pattern.on.has(key)
-                const inCol = currentStep === step
-                // tied 表示は「次セルへの繋ぎ」を持っているかどうか。前セル側の tied フラグも見て tied-prev を描く。
-                const tiedNext = on && pattern.tied.has(key) && step < SEQ_STEPS - 1 && pattern.on.has(cellKey(step + 1, midi))
-                const tiedPrev = on && step > 0 && pattern.tied.has(cellKey(step - 1, midi)) && pattern.on.has(cellKey(step - 1, midi))
-                const cls = 'seq-cell'
-                  + (on ? ' on' : '')
-                  + (inCol ? ' col-active' : '')
-                  + (step > 0 && step % 4 === 0 ? ' bar-start' : '')
-                  + (tiedPrev ? ' tied-prev' : '')
-                  + (tiedNext ? ' tied-next' : '')
-                return (
-                  <button
-                    key={step}
-                    data-step={step}
-                    data-midi={midi}
-                    className={cls}
-                    aria-label={`step ${step + 1} ${SEQ_NOTE_LABEL[midi]}`}
-                    onPointerDown={(e) => {
-                      // タップ vs スライド判定を始める。pointer capture でセル外に出ても event 来るが、
-                      // どのセルかは elementFromPoint で都度判定する。
-                      e.currentTarget.setPointerCapture(e.pointerId)
-                      slideRef.current = {
-                        startStep: step,
-                        startMidi: midi,
-                        startX: e.clientX,
-                        startY: e.clientY,
-                        inSlide: false,
-                        lastStep: step,
-                      }
-                    }}
-                    onPointerMove={(e) => updateSlideFromPoint(e.clientX, e.clientY)}
-                    onPointerUp={(e) => {
-                      const s = slideRef.current
-                      slideRef.current = null
-                      if (e.currentTarget.hasPointerCapture(e.pointerId)) {
-                        e.currentTarget.releasePointerCapture(e.pointerId)
-                      }
-                      // スライドが始まっていなければ普通のタップとして toggle。
-                      if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
-                        onToggleCell(step, midi)
-                      }
-                    }}
-                    onPointerCancel={() => {
-                      // touch-action: pan-y による垂直スクロール開始など → タイ塗りも tap も取りやめ。
-                      slideRef.current = null
-                    }}
-                  />
-                )
-              })}
+        <div className="seq-grid-stage" ref={gridScrollRef}>
+          <div className="seq-labels-col">
+            {SEQ_PITCHES.map((midi) => (
+              <div className="seq-label" key={midi}>{SEQ_NOTE_LABEL[midi]}</div>
+            ))}
+          </div>
+          <div className="seq-cells-area" ref={cellsAreaRef}>
+            <div className="seq-cells-grid">
+              {SEQ_PITCHES.map((midi) => (
+                <div className="seq-cells-row" key={midi}>
+                  {Array.from({ length: SEQ_STEPS }).map((_, step) => {
+                    const key = cellKey(step, midi)
+                    const on = pattern.on.has(key)
+                    const inCol = currentStep === step
+                    // tied 表示は「次セルへの繋ぎ」を持っているかどうか。前セル側の tied フラグも見て tied-prev を描く。
+                    const tiedNext = on && pattern.tied.has(key) && step < SEQ_STEPS - 1 && pattern.on.has(cellKey(step + 1, midi))
+                    const tiedPrev = on && step > 0 && pattern.tied.has(cellKey(step - 1, midi)) && pattern.on.has(cellKey(step - 1, midi))
+                    const cls = 'seq-cell'
+                      + (on ? ' on' : '')
+                      + (inCol ? ' col-active' : '')
+                      + (step > 0 && step % 4 === 0 ? ' bar-start' : '')
+                      + (tiedPrev ? ' tied-prev' : '')
+                      + (tiedNext ? ' tied-next' : '')
+                    return (
+                      <button
+                        key={step}
+                        data-step={step}
+                        data-midi={midi}
+                        className={cls}
+                        aria-label={`step ${step + 1} ${SEQ_NOTE_LABEL[midi]}`}
+                        onPointerDown={(e) => {
+                          e.currentTarget.setPointerCapture(e.pointerId)
+                          slideRef.current = {
+                            startStep: step,
+                            startMidi: midi,
+                            startX: e.clientX,
+                            startY: e.clientY,
+                            inSlide: false,
+                            lastStep: step,
+                          }
+                        }}
+                        onPointerMove={(e) => updateSlideFromPoint(e.clientX, e.clientY)}
+                        onPointerUp={(e) => {
+                          const s = slideRef.current
+                          slideRef.current = null
+                          if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+                            e.currentTarget.releasePointerCapture(e.pointerId)
+                          }
+                          // スライドが始まっていなければ普通のタップとして toggle。
+                          if (s && !s.inSlide && s.startStep === step && s.startMidi === midi) {
+                            onToggleCell(step, midi)
+                          }
+                        }}
+                        onPointerCancel={() => {
+                          slideRef.current = null
+                        }}
+                      />
+                    )
+                  })}
+                </div>
+              ))}
             </div>
-          ))}
+          </div>
         </div>
-      </div>
-        {/* ▲ / ▼ はラベル列の最上段／最下段にオーバーレイ。グリッド本体のスペースは奪わない。
-            スクロールしてもボタン位置は不動、背面でラベルだけが入れ替わって見える。 */}
+        {/* ▲ / ▼ ボタン：ラベル列の最上段／最下段にオーバーレイ。 */}
         <button
           className="seq-grid-scroll seq-grid-scroll-up"
           onClick={() => scrollGridBy(-1)}
@@ -408,19 +450,31 @@ export function SeqPanel({
         >▼</button>
       </div>
 
-      {/* 横スクロールバー：編集画面下の薄い帯。◀ / ▶ で半画面ぶん横スクロール。
-          ラベル列は sticky で動かないので、流れるのは cells だけ。 */}
-      <div className="seq-grid-hscroll">
-        <button
-          className="seq-grid-scroll-x seq-grid-scroll-x-left"
-          onClick={() => scrollGridByX(-1)}
-          aria-label="グリッドを左へスクロール"
-        >◀</button>
-        <button
-          className="seq-grid-scroll-x seq-grid-scroll-x-right"
-          onClick={() => scrollGridByX(1)}
-          aria-label="グリッドを右へスクロール"
-        >▶</button>
+      {/* 横スクロールバー：編集画面の下に物理的なバー。鍵盤の kbd-bar と同じ流儀。
+          ティールの「ウィンドウ」が現在見えている範囲を示す。タップ／ドラッグで scrollLeft 制御。 */}
+      <div
+        className="seq-grid-hscroll"
+        ref={hscrollBarRef}
+        onPointerDown={(e) => {
+          e.currentTarget.setPointerCapture(e.pointerId)
+          hscrollDraggingRef.current = true
+          updateHScrollFromPointer(e.clientX)
+        }}
+        onPointerMove={(e) => {
+          if (hscrollDraggingRef.current) updateHScrollFromPointer(e.clientX)
+        }}
+        onPointerUp={(e) => {
+          hscrollDraggingRef.current = false
+          if (e.currentTarget.hasPointerCapture(e.pointerId)) {
+            e.currentTarget.releasePointerCapture(e.pointerId)
+          }
+        }}
+        onPointerCancel={() => { hscrollDraggingRef.current = false }}
+      >
+        <div
+          className="seq-grid-hscroll-thumb"
+          style={{ left: `${hScroll.left * 100}%`, width: `${hScroll.width * 100}%` }}
+        />
       </div>
 
       {/* オートメーションレーン：CUTOFF をステップ毎に決め打ち。

@@ -1167,8 +1167,11 @@ b {
 }
 
 /* グリッド：7 行（白鍵 C〜B、上が高音）× 16 ステップ。 */
-/* グリッドエリア：grid-wrap を 100% 高さで包む。
-   ▲ / ▼ ボタンを absolute で上下端に重ねるため position: relative を持つ。 */
+/* グリッドエリア：
+   - .seq-grid-stage（外側）が縦スクロールを受ける
+   - 中身は [.seq-labels-col（横スクロール対象外）][.seq-cells-area（横スクロールここだけ）] の横並び
+   - ▲ / ▼ ボタンは absolute でラベル列の上下端にオーバーレイ
+   この構造で「ラベルは絶対に動かない／cells だけが横に流れる」が物理的に実現される。 */
 .seq-grid-area {
   flex: 1 1 auto;
   min-height: 0;
@@ -1176,17 +1179,73 @@ b {
   flex-direction: column;
   position: relative;
 }
-.seq-grid-wrap {
-  /* 14 行のグリッドはスマホ画面より縦に長くなりうる。内部スクロールで対応。 */
+.seq-grid-stage {
   flex: 1 1 auto;
   min-height: 0;
-  overflow: auto;
-  /* 端で overscroll してもブラウザ側へ伝えない（アプリが揺れない／引っ張られない） */
-  overscroll-behavior: contain;
   display: flex;
-  scrollbar-width: none; /* Firefox */
+  flex-direction: row;
+  /* 縦スクロールだけここで受ける。横スクロールは .seq-cells-area で。 */
+  overflow-y: auto;
+  overflow-x: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
+  border: 1px solid rgba(0, 0, 0, 0.7);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
 }
-.seq-grid-wrap::-webkit-scrollbar { width: 0; height: 0; display: none; }
+.seq-grid-stage::-webkit-scrollbar { width: 0; display: none; }
+
+/* ラベル列：横スクロール対象外、常に左に居る。
+   旧構造の「grid padding 4 + label 24 + label margin 2 = 30」と同じ幅に揃えてセル位置を一致させる。 */
+.seq-labels-col {
+  flex: 0 0 30px;
+  width: 30px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 4px 2px 4px 4px;
+  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
+  /* 右側に薄いライン（cells との境目）。inset shadow で layout に影響させない。 */
+  box-shadow: inset -1px 0 0 rgba(255, 255, 255, 0.05);
+  z-index: 2;
+}
+.seq-label {
+  flex: 0 0 auto;
+  width: 24px;
+  height: var(--seq-cell);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--sub);
+  letter-spacing: 1px;
+}
+
+/* セル領域：横方向のみスクロール。 */
+.seq-cells-area {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior: contain;
+  scrollbar-width: none;
+}
+.seq-cells-area::-webkit-scrollbar { height: 0; display: none; }
+
+.seq-cells-grid {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  /* 左 padding はラベル列側で吸収済みなので 0。右下のみ padding。 */
+  padding: 4px 4px 4px 0;
+  width: max-content;
+  min-width: 100%;
+}
+.seq-cells-row {
+  display: flex;
+  align-items: center;
+}
 /* ▲ / ▼ ボタン：ラベル列の最上段／最下段にちょうど重なるサイズで absolute 配置。
    セル列には被らないので編集の邪魔をしない。grid 本体の縦スペースを奪わないのが最大のポイント。
    スクロールしても位置は不動、背面でラベルだけが入れ替わって見える。 */
@@ -1215,72 +1274,38 @@ b {
   box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
 }
 
-/* 編集画面の直下：横スクロールバー（薄い帯）。◀ と ▶ ボタンが両端に。 */
+/* 編集画面の直下：横スクロールバー。kbd-bar と同じ流儀の「ウィンドウ表示」型。
+   ティールのつまみが現在見えている範囲を示し、タップ／ドラッグで scrollLeft 制御。 */
 .seq-grid-hscroll {
   flex: 0 0 auto;
-  display: flex;
-  justify-content: space-between;
-  margin-top: 2px;
-  padding: 0 4px;
-  gap: 4px;
-}
-.seq-grid-scroll-x {
-  width: 36px;
-  height: 22px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 11px;
-  color: var(--accent);
-  background: rgba(14, 17, 22, 0.92);
-  border: 1px solid rgba(90, 209, 196, 0.4);
-  border-radius: 0;
+  position: relative;
+  height: 16px;
+  margin: 4px 0 0 0;
+  background: rgba(14, 17, 22, 0.7);
+  border: 1px solid rgba(0, 0, 0, 0.5);
+  /* スワイプを browser scroll に取られないように */
+  touch-action: none;
   cursor: pointer;
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.45);
 }
-.seq-grid-scroll-x:active {
-  background: rgba(90, 209, 196, 0.2);
-  box-shadow: inset 0 2px 5px rgba(0, 0, 0, 0.75);
+.seq-grid-hscroll-thumb {
+  position: absolute;
+  top: 1px;
+  bottom: 1px;
+  background: rgba(90, 209, 196, 0.45);
+  border: 1px solid rgba(90, 209, 196, 0.75);
+  box-shadow: 0 0 6px rgba(90, 209, 196, 0.3);
+  pointer-events: none;
+  /* left/width は React 側で % 指定（cells-area の scrollLeft / scrollWidth から計算）。 */
 }
-.seq-grid {
-  display: flex;
-  flex-direction: column;
-  gap: 2px;
-  padding: 4px;
-  border: 1px solid rgba(0, 0, 0, 0.7);
-  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
-  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.04), inset 0 -1px 2px rgba(0, 0, 0, 0.5);
-}
-.seq-row {
-  display: flex;
-  align-items: center;
-  /* セル間の隙間は gap ではなく margin-right で作る。タイ時に隙間を 0 にできるよう。 */
-}
-.seq-row-label {
-  flex: 0 0 auto;
-  width: 24px;
-  margin-right: 2px;
-  font-size: 10px;
-  font-weight: 700;
-  text-align: center;
-  color: var(--sub);
-  letter-spacing: 1px;
-  /* 横スクロール中もラベルだけは左端にピン留め。cells が背面を通り過ぎる形になる。 */
-  position: sticky;
-  left: 0;
-  z-index: 1;
-  /* cells がラベルに重ならないよう、ラベル背景は不透明に。 */
-  background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-/* オートメーションレーンのラベル領域も同じく sticky-left に揃える（空 span だが配置を合わせるため）。 */
+/* オートメーションレーン側のラベル領域：横スクロール時にちゃんと残るよう sticky-left。
+   ラベル本体はないが（aria-hidden な span）、cells が透けないよう不透明背景＋ z-index。 */
 .seq-automation-lane .seq-row-label {
   background: linear-gradient(180deg, #0e1116 0%, #07090c 100%);
   position: sticky;
   left: 0;
   z-index: 1;
+  width: 26px;
+  flex: 0 0 auto;
 }
 .seq-cell {
   flex: 0 0 auto;
