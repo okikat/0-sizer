@@ -908,6 +908,7 @@ b {
   height: var(--seq-cell);
   margin-right: 2px;
   padding: 0;
+  position: relative; /* ::after のブリッジを乗せるための基準 */
   background: #0a0d11;
   border: 1px solid rgba(255, 255, 255, 0.04);
   border-radius: 0;
@@ -922,15 +923,28 @@ b {
   border-color: rgba(90, 209, 196, 0.7);
   box-shadow: inset 0 0 6px rgba(90, 209, 196, 0.3), 0 0 4px rgba(90, 209, 196, 0.25);
 }
-/* タイ：隣接する on セルは「1 つの長い音」。境界の余白とボーダーを消して、
-   背景が継ぎ目なく連続する塊に見せる。小節境界(.bar-start) の 3px は残るので
-   ここで自然に切れる（音は繋がる）。 */
-.seq-cell.on.tied-next {
-  margin-right: 0;
-  border-right-width: 0;
+/* タイ：行幅を変えないよう margin-right はそのまま 2px。代わりに ::after で
+   2px のブリッジを描画し、隣の tied-prev セルと背景がつながって見えるようにする。
+   左右の境界ボーダーは透明化（インテリア背景がそこを通ってブリッジまで連続する）。
+   ブリッジ自体にも上下 1px のボーダーを付けて、セル外枠との連続性を保つ。 */
+.seq-cell.on.tied-next { border-right-color: transparent; }
+.seq-cell.on.tied-prev { border-left-color: transparent; }
+.seq-cell.on.tied-next::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  left: 100%;
+  width: 2px;
+  background: linear-gradient(180deg, rgba(90, 209, 196, 0.55) 0%, rgba(90, 209, 196, 0.35) 100%);
+  border-top: 1px solid rgba(90, 209, 196, 0.7);
+  border-bottom: 1px solid rgba(90, 209, 196, 0.7);
+  box-sizing: border-box;
+  pointer-events: none;
 }
-.seq-cell.on.tied-prev {
-  border-left-width: 0;
+/* 再生ヘッドが tied-next 側に乗ったときはブリッジも明るく（playhead に追従）。 */
+.seq-cell.on.tied-next.col-active::after {
+  background: linear-gradient(180deg, rgba(120, 230, 218, 0.85) 0%, rgba(90, 209, 196, 0.6) 100%);
 }
 /* 再生ヘッド列：そのステップの全セルを少しブライトに、点灯セルはさらに強調。 */
 .seq-cell.col-active {
