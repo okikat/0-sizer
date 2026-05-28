@@ -1,4 +1,4 @@
-import type { EnvParams, LfoDest } from '../audio/useSynth'
+import type { EnvParams, LfoDest, FilterKind } from '../audio/useSynth'
 
 // 音色プリセット。選ぶと 波形・ENV・FILTER(cutoff/res)・LFO(rate/depth)・
 // OSC2(mix/detune)・NOISE・DELAY・GLIDE・FILTER ENV のすべてがその値へ
@@ -6,7 +6,10 @@ import type { EnvParams, LfoDest } from '../audio/useSynth'
 // 値はすべて「つまみ量(0〜10 等)」で持つ。実パラメータへの変換は audio/params で行う。
 export interface Preset {
   name: string
-  type: OscillatorType
+  type: OscillatorType       // OSC1 波形
+  osc2Type: OscillatorType   // OSC2 波形（OSC1 と独立）
+  osc2Oct: number            // OSC2 のオクターブ移調（-2〜+2、整数）
+  filterType: FilterKind     // フィルター種別（lowpass=上を削る / highpass=下を削る / bandpass=その帯だけ）
   env: EnvParams
   cutoff: number      // 0〜1 のつまみ量（FILTER CUTOFF）
   res: number         // 0〜10
@@ -29,6 +32,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'ピアノ',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.003, decay: 0.9, sustain: 0.15, release: 0.3 },
     cutoff: 0.55, res: 0, lfoRate: 3, lfoDepth: 0,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 1, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 0, glideAmt: 0,
@@ -37,6 +41,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'オルガン',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.002, decay: 0.05, sustain: 1.0, release: 0.05 },
     cutoff: 0.8, res: 1, lfoRate: 6, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 0, lfoDest: 'amp', delayTimeAmt: 3, delayMixAmt: 1, glideAmt: 0,
@@ -45,6 +50,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'フルート',
     type: 'sine',
+    osc2Type: 'sine', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.12, decay: 0.2, sustain: 0.85, release: 0.2 },
     cutoff: 1.0, res: 0, lfoRate: 5, lfoDepth: 1.5,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 2, lfoDest: 'pitch', delayTimeAmt: 4, delayMixAmt: 1, glideAmt: 1,
@@ -53,6 +59,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'ストリングス',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.5, decay: 0.4, sustain: 0.9, release: 0.8 },
     cutoff: 0.5, res: 1, lfoRate: 4, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 5, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 6, delayMixAmt: 2, glideAmt: 0,
@@ -61,6 +68,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'ベース',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.002, decay: 0.6, sustain: 0.0, release: 0.15 },
     cutoff: 0.3, res: 2, lfoRate: 3, lfoDepth: 0,
     mixAmt: 5, detuneAmt: 2, noiseAmt: 1, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 0, glideAmt: 1,
@@ -69,6 +77,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'テルミン',
     type: 'sine',
+    osc2Type: 'sine', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.25, decay: 0.2, sustain: 1.0, release: 0.4 },
     cutoff: 1.0, res: 0, lfoRate: 5, lfoDepth: 5,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 5, delayMixAmt: 2, glideAmt: 5,
@@ -78,6 +87,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'シンセリード',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.005, decay: 0.25, sustain: 0.85, release: 0.3 },
     cutoff: 0.78, res: 4, lfoRate: 5, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 4, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 4, delayMixAmt: 3, glideAmt: 2,
@@ -86,6 +96,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'シンセパッド',
     type: 'triangle',
+    osc2Type: 'triangle', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.9, decay: 0.6, sustain: 0.9, release: 1.4 },
     cutoff: 0.55, res: 1, lfoRate: 2, lfoDepth: 2,
     mixAmt: 5, detuneAmt: 6, noiseAmt: 0, lfoDest: 'cutoff', delayTimeAmt: 6, delayMixAmt: 4, glideAmt: 0,
@@ -94,6 +105,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'チップチューン',
     type: 'square',
+    osc2Type: 'square', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.001, decay: 0.08, sustain: 0.6, release: 0.05 },
     cutoff: 1.0, res: 0, lfoRate: 3, lfoDepth: 0,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 2, delayMixAmt: 1, glideAmt: 0,
@@ -102,6 +114,7 @@ export const PRESETS: Preset[] = [
   {
     name: 'アシッドベース',
     type: 'sawtooth',
+    osc2Type: 'sawtooth', osc2Oct: 0, filterType: 'lowpass',
     env: { attack: 0.002, decay: 0.3, sustain: 0.0, release: 0.15 },
     cutoff: 0.3, res: 8, lfoRate: 3, lfoDepth: 0,
     mixAmt: 0, detuneAmt: 0, noiseAmt: 0, lfoDest: 'pitch', delayTimeAmt: 3, delayMixAmt: 3, glideAmt: 2,

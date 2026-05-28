@@ -1,6 +1,7 @@
 import { useLayoutEffect, useRef, type ReactNode, type RefObject } from 'react'
 import { type FrameId } from './lessons'
-import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, FilterEnvFrame, ReverbFrame, KeyboardModule, type SoundCtl } from './modules'
+import { WaveFrame, PitchFrame, FineFrame, SnapFrame, EnvModule, FilterFrame, LfoFrame, MixFrame, Osc2Frame, NoiseFrame, DelayFrame, GlideFrame, FilterEnvFrame, ReverbFrame, KeyboardModule, KeyboardWaveRow, type SoundCtl } from './modules'
+import { trackRgb } from './seqConst'
 
 const COLS = 8
 const GAP = 0
@@ -123,7 +124,7 @@ export function SynthPanel({
                 <EnvModule compact env={sound.env} onEnvChange={sound.onEnvChange} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('filter')}>
-                <FilterFrame compact showText={showHelp} cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} />
+                <FilterFrame compact showText={showHelp} cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} filterType={sound.filterType} onFilterType={sound.onFilterType} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('lfo')}>
                 <LfoFrame compact showText={showHelp} lfoRate={sound.lfoRate} onLfoRate={sound.onLfoRate} lfoDepth={sound.lfoDepth} onLfoDepth={sound.onLfoDepth} lfoDest={sound.lfoDest} onLfoDest={sound.onLfoDest} fine={sound.fine} snap={sound.snap} />
@@ -132,7 +133,7 @@ export function SynthPanel({
                 <MixFrame compact showText={showHelp} vol={sound.vol} onVol={sound.onVol} pan={sound.pan} onPan={sound.onPan} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('osc2')}>
-                <Osc2Frame compact showText={showHelp} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
+                <Osc2Frame compact showText={showHelp} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} osc2Type={sound.osc2Type} onOsc2Type={sound.onOsc2Type} osc2Oct={sound.osc2Oct} onOsc2Oct={sound.onOsc2Oct} fine={sound.fine} snap={sound.snap} />
               </Slot>
               <Slot {...slotProps('noise')}>
                 <NoiseFrame compact showText={showHelp} noise={sound.noise} onNoise={sound.onNoise} fine={sound.fine} snap={sound.snap} />
@@ -212,7 +213,11 @@ export function SynthPanel({
       {(!realized.has('keys') || !showTabRow || keyboardVisible) && (
       <Slot {...slotProps('keys')}>
         {realized.has('keys') ? (
-          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} labelStyle={keyLabelStyle} />
+          <>
+            {/* 鍵盤の真上に波形ボタン（OSC1＝メインの音のキャラ）。識別色は編集中トラック。 */}
+            <KeyboardWaveRow type={sound.type} onType={sound.onType} accentRgb={trackRgb(activeTrack)} />
+            <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} labelStyle={keyLabelStyle} />
+          </>
         ) : null}
       </Slot>
       )}

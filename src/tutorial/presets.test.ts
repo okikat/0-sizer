@@ -45,10 +45,26 @@ describe('PRESETS', () => {
     }
   })
 
-  it('type は OscillatorType の 4 種に限る', () => {
+  it('type / osc2Type は OscillatorType の 4 種に限る', () => {
     const valid = new Set(['sine', 'square', 'sawtooth', 'triangle'])
     for (const p of PRESETS) {
       expect(valid.has(p.type), `${p.name}.type = ${p.type}`).toBe(true)
+      expect(valid.has(p.osc2Type), `${p.name}.osc2Type = ${p.osc2Type}`).toBe(true)
+    }
+  })
+
+  it('filterType は lowpass / highpass / bandpass のいずれか', () => {
+    const valid = new Set(['lowpass', 'highpass', 'bandpass'])
+    for (const p of PRESETS) {
+      expect(valid.has(p.filterType), `${p.name}.filterType = ${p.filterType}`).toBe(true)
+    }
+  })
+
+  it('osc2Oct は -2〜+2 の整数', () => {
+    for (const p of PRESETS) {
+      expect(Number.isInteger(p.osc2Oct), `${p.name}.osc2Oct`).toBe(true)
+      expect(p.osc2Oct, `${p.name}.osc2Oct`).toBeGreaterThanOrEqual(-2)
+      expect(p.osc2Oct, `${p.name}.osc2Oct`).toBeLessThanOrEqual(2)
     }
   })
 

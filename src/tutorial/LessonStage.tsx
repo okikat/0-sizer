@@ -64,7 +64,7 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
     if (lesson.id === 'filter')
       return (
         <div data-stage-frame="filter" {...frameProps('filter')}>
-          <FilterFrame cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} fine={sound.fine} snap={sound.snap} morphing={exiting} />
+          <FilterFrame cutoff={sound.cutoff} onCutoff={sound.onCutoff} res={sound.res} onRes={sound.onRes} filterType={sound.filterType} onFilterType={sound.onFilterType} fine={sound.fine} snap={sound.snap} morphing={exiting} />
         </div>
       )
     if (lesson.id === 'lfo')
@@ -85,7 +85,7 @@ export function LessonStage({ lesson, exitPhase, flights, popupOpen, onClosePopu
       const fp = frameProps('osc2')
       return (
         <div data-stage-frame="osc2" className={fp.className + ' slot slot-osc2 filled stage-osc2'} style={fp.style}>
-          <Osc2Frame compact showText morphing={exiting} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} fine={sound.fine} snap={sound.snap} />
+          <Osc2Frame compact showText morphing={exiting} mix={sound.mix} onMix={sound.onMix} detune={sound.detune} onDetune={sound.onDetune} osc2Type={sound.osc2Type} onOsc2Type={sound.onOsc2Type} osc2Oct={sound.osc2Oct} onOsc2Oct={sound.onOsc2Oct} fine={sound.fine} snap={sound.snap} />
         </div>
       )
     }

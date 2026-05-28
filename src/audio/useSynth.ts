@@ -23,6 +23,9 @@ export interface EnvParams {
 /** LFO の行き先：音程(ビブラート) / 明るさ(オートワウ) / 音量(トレモロ) */
 export type LfoDest = 'pitch' | 'cutoff' | 'amp'
 
+/** フィルターの種類：LP=上を削る / HP=下を削る / BP=その帯だけ残す。 */
+export type FilterKind = 'lowpass' | 'highpass' | 'bandpass'
+
 // 1 ノート分の音作りに必要なノード一式。
 interface Voice {
   midi: number
@@ -67,7 +70,10 @@ export function useSynth() {
   const noiseBufRef = useRef<AudioBuffer | null>(null)
 
   // ---- 設定値（refs） ----
-  const typeRef = useRef<OscillatorType>('sine')
+  const typeRef = useRef<OscillatorType>('sine')       // OSC1 波形
+  const osc2TypeRef = useRef<OscillatorType>('sine')   // OSC2 波形（OSC1 と独立）
+  const osc2OctRef = useRef(0)                          // OSC2 のオクターブ移調（-2〜+2）
+  const filterTypeRef = useRef<BiquadFilterType>('lowpass') // フィルター種別（LP/HP/BP）
   const tuneRef = useRef(0)
   const glideTauRef = useRef(0.005) // ピッチが新しい音へ滑る時定数（秒）。小さいほど即時。
   const cutoffRef = useRef(16000) // 既定は全開（実質フィルターなし）
@@ -222,7 +228,7 @@ export function useSynth() {
     envGain.connect(tremolo)
 
     const filter = ctx.createBiquadFilter()
-    filter.type = 'lowpass'
+    filter.type = filterTypeRef.current
     filter.frequency.value = cutoffRef.current
     filter.Q.value = resRef.current
     filter.connect(envGain)
@@ -237,8 +243,9 @@ export function useSynth() {
     lfoPitchGain.connect(osc1.detune)
 
     const osc2 = ctx.createOscillator()
-    osc2.type = typeRef.current
-    osc2.detune.value = detuneRef.current
+    osc2.type = osc2TypeRef.current
+    // OSC2 の総デチューン＝微デチューン(セント) ＋ オクターブ移調(1oct=1200¢)。
+    osc2.detune.value = detuneRef.current + osc2OctRef.current * 1200
     const osc2Gain = ctx.createGain()
     osc2Gain.gain.value = mixBalanceRef.current
     osc2.connect(osc2Gain)
@@ -424,7 +431,20 @@ export function useSynth() {
     typeRef.current = t
     voicesRef.current.forEach((v) => {
       v.osc1.type = t
+    })
+  }, [])
+
+  const setWaveform2 = useCallback((t: OscillatorType) => {
+    osc2TypeRef.current = t
+    voicesRef.current.forEach((v) => {
       v.osc2.type = t
+    })
+  }, [])
+
+  const setFilterType = useCallback((kind: BiquadFilterType) => {
+    filterTypeRef.current = kind
+    voicesRef.current.forEach((v) => {
+      v.filter.type = kind
     })
   }, [])
 
@@ -462,8 +482,19 @@ export function useSynth() {
     detuneRef.current = cents
     const ctx = ctxRef.current
     if (!ctx) return
+    const total = cents + osc2OctRef.current * 1200
     voicesRef.current.forEach((v) => {
-      v.osc2.detune.setTargetAtTime(cents, ctx.currentTime, 0.02)
+      v.osc2.detune.setTargetAtTime(total, ctx.currentTime, 0.02)
+    })
+  }, [])
+
+  const setOsc2Oct = useCallback((oct: number) => {
+    osc2OctRef.current = oct
+    const ctx = ctxRef.current
+    if (!ctx) return
+    const total = detuneRef.current + oct * 1200
+    voicesRef.current.forEach((v) => {
+      v.osc2.detune.setTargetAtTime(total, ctx.currentTime, 0.02)
     })
   }, [])
 
@@ -594,6 +625,9 @@ export function useSynth() {
     noteOn,
     noteOff,
     setWaveform,
+    setWaveform2,
+    setFilterType,
+    setOsc2Oct,
     setTune,
     setEnv,
     setCutoff,

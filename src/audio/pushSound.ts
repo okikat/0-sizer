@@ -25,6 +25,8 @@ import type { SoundState } from '../lib/seqStorage'
 
 export function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundState) {
   engine.setWaveform(s.type)
+  engine.setWaveform2(s.osc2Type)
+  engine.setFilterType(s.filterType)
   engine.setEnv(s.env)
   engine.setCutoff(cutoffNormToHz(s.cutoff))
   engine.setResonance(resAmtToQ(s.res))
@@ -32,6 +34,7 @@ export function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundS
   engine.setLfoDepth(s.lfoDepth)
   engine.setLfoDest(s.lfoDest)
   engine.setDetune(detuneAmtToCents(s.detune))
+  engine.setOsc2Oct(s.osc2Oct)
   engine.setMix(mixAmtToBalance(s.mix))
   engine.setNoise(noiseAmtToLevel(s.noise))
   engine.setDelayTime(delayTimeAmtToSec(s.delayTime))

@@ -22,6 +22,7 @@ import {
   type TrackSlotPattern,
   type SoundState,
 } from './seqStorage'
+import type { FilterKind } from '../audio/useSynth'
 
 export const PROJECT_VERSION = 1
 
@@ -141,15 +142,23 @@ export function deserializeProject(raw: unknown): Project | null {
   }
 
   // 音色：DEFAULT_SOUND をベースに既知フィールドを merge。
+  const WAVES: OscillatorType[] = ['sine', 'triangle', 'sawtooth', 'square']
+  const FILTERS: FilterKind[] = ['lowpass', 'highpass', 'bandpass']
   const tracks: SoundState[] = defaultTracks().map((def, i) => {
     const t = Array.isArray(r.tracks) ? r.tracks[i] : undefined
     if (!t || typeof t !== 'object') return def
     const src = t as Partial<SoundState>
-    return {
+    const merged: SoundState = {
       ...def,
       ...src,
       env: { ...def.env, ...(src.env ?? {}) },
     }
+    // 追加パラメータは型・範囲外を既定へ寄せる（壊れた JSON でも安全に鳴らす）。
+    merged.type = WAVES.includes(merged.type) ? merged.type : def.type
+    merged.osc2Type = WAVES.includes(merged.osc2Type) ? merged.osc2Type : def.osc2Type
+    merged.filterType = FILTERS.includes(merged.filterType) ? merged.filterType : def.filterType
+    merged.osc2Oct = Number.isFinite(Number(merged.osc2Oct)) ? clamp(Math.round(Number(merged.osc2Oct)), -2, 2) : def.osc2Oct
+    return merged
   })
 
   const bpm = Number.isFinite(Number(r.bpm)) ? clamp(Number(r.bpm), SEQ_BPM_MIN, SEQ_BPM_MAX) : 120

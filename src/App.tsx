@@ -402,6 +402,12 @@ export default function App() {
   const sound: SoundCtl = {
     type: currentSound.type,
     onType: (t) => { patchActive({ type: t }); currentEngine.setWaveform(t) },
+    osc2Type: currentSound.osc2Type,
+    onOsc2Type: (t) => { patchActive({ osc2Type: t }); currentEngine.setWaveform2(t) },
+    osc2Oct: currentSound.osc2Oct,
+    onOsc2Oct: (o) => { patchActive({ osc2Oct: o }); currentEngine.setOsc2Oct(o) },
+    filterType: currentSound.filterType,
+    onFilterType: (k) => { patchActive({ filterType: k }); currentEngine.setFilterType(k) },
     playing: keyHeld || seqPlaying,
     onTune: (v) => currentEngine.setTune(v),
     fine,
@@ -1106,6 +1112,9 @@ export default function App() {
     // 離散値（波形・LFO 行き先）は即セット。連続値は下のループで補間。
     const target: SoundState = {
       type: p.type,
+      osc2Type: p.osc2Type,
+      osc2Oct: p.osc2Oct,
+      filterType: p.filterType,
       env: { ...p.env },
       cutoff: p.cutoff,
       res: p.res,
@@ -1137,8 +1146,11 @@ export default function App() {
       const k = Math.min(1, (now - t0) / DUR)
       const e = 1 - Math.pow(1 - k, 3) // easeOutCubic
       const interpolated: SoundState = {
-        type: target.type,     // 離散：即
-        lfoDest: target.lfoDest, // 離散：即
+        type: target.type,         // 離散：即
+        osc2Type: target.osc2Type, // 離散：即
+        osc2Oct: target.osc2Oct,   // 離散：即
+        filterType: target.filterType, // 離散：即
+        lfoDest: target.lfoDest,   // 離散：即
         cutoff: lp(start.cutoff, target.cutoff, e),
         res: lp(start.res, target.res, e),
         lfoRate: lp(start.lfoRate, target.lfoRate, e),

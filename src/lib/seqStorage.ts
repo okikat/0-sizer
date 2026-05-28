@@ -7,7 +7,7 @@
 // すべての関数は副作用が「localStorage の読み取り」だけ。書き込みは App 側で行う。
 // localStorage が無い環境（SSR／テスト）でも安全に動くよう、毎関数で typeof を確認する。
 
-import type { EnvParams, LfoDest } from '../audio/useSynth'
+import type { EnvParams, LfoDest, FilterKind } from '../audio/useSynth'
 import { SEQ_STEPS, SLOTS_PER_TRACK, SONG_MIN_LENGTH, SONG_MAX_LENGTH } from '../tutorial/seqConst'
 
 // ====== ストレージキー ======
@@ -68,7 +68,10 @@ export const migrateOldSet = (oldOnArr: string[]): TrackSlotPattern => {
 
 // ====== 1 トラック分の音色全パラメータ ======
 export interface SoundState {
-  type: OscillatorType
+  type: OscillatorType       // OSC1 波形
+  osc2Type: OscillatorType   // OSC2 波形（OSC1 と独立）
+  osc2Oct: number            // OSC2 のオクターブ移調（-2〜+2、整数）
+  filterType: FilterKind     // フィルター種別（LP / HP / BP）
   env: EnvParams
   cutoff: number     // 0〜1
   res: number        // 0〜10
@@ -90,6 +93,9 @@ export interface SoundState {
 
 export const DEFAULT_SOUND: SoundState = {
   type: 'sine',
+  osc2Type: 'sine',
+  osc2Oct: 0,
+  filterType: 'lowpass',
   env: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
   cutoff: 1,
   res: 0,

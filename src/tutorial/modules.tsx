@@ -4,7 +4,7 @@ import { Scope } from '../components/Scope'
 import { WaveformPicker } from '../components/WaveformPicker'
 import { Slider } from '../components/Slider'
 import { EnvGraph } from '../components/EnvGraph'
-import type { EnvParams, LfoDest } from '../audio/useSynth'
+import type { EnvParams, LfoDest, FilterKind } from '../audio/useSynth'
 import { fmtTime, fmtPct, cutoffNormToHz, fmtHz, lfoRateToHz, fmtPan, detuneAmtToCents, fmtMix, delayTimeAmtToSec, fmtDelayMs, fenvDecayAmtToSec } from '../audio/params'
 
 export type EnvKey = keyof EnvParams
@@ -12,6 +12,12 @@ export type EnvKey = keyof EnvParams
 export interface SoundCtl {
   type: OscillatorType
   onType: (t: OscillatorType) => void
+  osc2Type: OscillatorType
+  onOsc2Type: (t: OscillatorType) => void
+  osc2Oct: number
+  onOsc2Oct: (o: number) => void
+  filterType: FilterKind
+  onFilterType: (k: FilterKind) => void
   playing: boolean
   onTune: (v: number) => void
   fine: boolean
@@ -157,20 +163,39 @@ export function EnvModule({
   )
 }
 
-/** フィルターフレーム：CUTOFF と RES の2ツマミ（ローパス）。 */
+/** フィルターフレーム：種別(LP/HP/BP)＋ CUTOFF と RES の2ツマミ。 */
+const FILTER_KINDS: { k: FilterKind; label: string }[] = [
+  { k: 'lowpass', label: 'LP' },
+  { k: 'highpass', label: 'HP' },
+  { k: 'bandpass', label: 'BP' },
+]
 export function FilterFrame({
   cutoff,
   onCutoff,
   res,
   onRes,
+  filterType,
+  onFilterType,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'cutoff' | 'onCutoff' | 'res' | 'onRes' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'cutoff' | 'onCutoff' | 'res' | 'onRes' | 'filterType' | 'onFilterType' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-filter">
+      <div className="filter-kinds">
+        {FILTER_KINDS.map((it) => (
+          <button
+            key={it.k}
+            className={'filter-kind-btn' + (filterType === it.k ? ' sel' : '')}
+            onClick={() => onFilterType(it.k)}
+            aria-pressed={filterType === it.k}
+          >
+            {it.label}
+          </button>
+        ))}
+      </div>
       <div className="filter-knobs">
         <Knob
           value={cutoff}
@@ -318,20 +343,51 @@ export function MixFrame({
   )
 }
 
-/** OSC2フレーム：MIX（OSC1↔OSC2バランス）と DETUNE（OSC2のずらし量）の2ツマミ。 */
+/** OSC2フレーム：波形＋オクターブ ＋ MIX（OSC1↔OSC2バランス）と DETUNE（ずらし量）。 */
+const OSC2_WAVES: { t: OscillatorType; sym: string; label: string }[] = [
+  { t: 'sine', sym: '∿', label: 'サイン波' },
+  { t: 'triangle', sym: '△', label: '三角波' },
+  { t: 'sawtooth', sym: '◺', label: 'ノコギリ波' },
+  { t: 'square', sym: '⊓', label: '矩形波' },
+]
+const fmtOct = (o: number) => (o > 0 ? `+${o}` : String(o))
 export function Osc2Frame({
   mix,
   onMix,
   detune,
   onDetune,
+  osc2Type,
+  onOsc2Type,
+  osc2Oct,
+  onOsc2Oct,
   fine,
   snap,
   compact = false,
   showText = true,
   morphing = false,
-}: Pick<SoundCtl, 'mix' | 'onMix' | 'detune' | 'onDetune' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
+}: Pick<SoundCtl, 'mix' | 'onMix' | 'detune' | 'onDetune' | 'osc2Type' | 'onOsc2Type' | 'osc2Oct' | 'onOsc2Oct' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-osc2">
+      <div className="osc2-shape">
+        <div className="osc2-waves">
+          {OSC2_WAVES.map((it) => (
+            <button
+              key={it.t}
+              className={'osc2-wave-btn' + (osc2Type === it.t ? ' sel' : '')}
+              onClick={() => onOsc2Type(it.t)}
+              aria-label={`OSC2 ${it.label}`}
+              aria-pressed={osc2Type === it.t}
+            >
+              {it.sym}
+            </button>
+          ))}
+        </div>
+        <div className="osc2-oct">
+          <button className="osc2-oct-btn" onClick={() => onOsc2Oct(Math.max(-2, osc2Oct - 1))} aria-label="OSC2 オクターブ下げ">−</button>
+          <span className="osc2-oct-val">{fmtOct(osc2Oct)}</span>
+          <button className="osc2-oct-btn" onClick={() => onOsc2Oct(Math.min(2, osc2Oct + 1))} aria-label="OSC2 オクターブ上げ">＋</button>
+        </div>
+      </div>
       <div className="osc2-knobs">
         <Knob
           value={mix}
@@ -557,6 +613,36 @@ export function ReverbFrame({
         format={(v) => ({ main: String(Math.round(v)) })}
         onChange={onReverb}
       />
+    </div>
+  )
+}
+
+/** 鍵盤の真上に置く波形ボタン列（OSC1＝メインの音のキャラ）。計器は出さない。
+ *  色は編集中トラックの識別色（accentRgb = "R, G, B"）に揃える。 */
+const KBD_WAVES: { t: OscillatorType; sym: string; label: string }[] = [
+  { t: 'sine', sym: '∿', label: 'サイン波' },
+  { t: 'triangle', sym: '△', label: '三角波' },
+  { t: 'sawtooth', sym: '◺', label: 'ノコギリ波' },
+  { t: 'square', sym: '⊓', label: '矩形波' },
+]
+export function KeyboardWaveRow({
+  type,
+  onType,
+  accentRgb,
+}: Pick<SoundCtl, 'type' | 'onType'> & { accentRgb: string }) {
+  return (
+    <div className="kbd-wave-row" style={{ ['--track-rgb' as string]: accentRgb } as React.CSSProperties}>
+      {KBD_WAVES.map((it) => (
+        <button
+          key={it.t}
+          className={'kbd-wave-btn' + (type === it.t ? ' sel' : '')}
+          onClick={() => onType(it.t)}
+          aria-label={it.label}
+          aria-pressed={type === it.t}
+        >
+          {it.sym}
+        </button>
+      ))}
     </div>
   )
 }

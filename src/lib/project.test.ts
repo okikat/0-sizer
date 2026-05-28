@@ -97,6 +97,33 @@ describe('project: シリアライズの往復', () => {
     expect(p.automations[0][0].length).toBe(SEQ_STEPS)
   })
 
+  it('音色の追加パラメータ（osc2Type / osc2Oct / filterType）が往復する', () => {
+    const p = sampleProject()
+    p.tracks[0] = { ...p.tracks[0], osc2Type: 'square', osc2Oct: -1, filterType: 'highpass' }
+    const round = deserializeProject(serializeProject(p))!
+    expect(round.tracks[0].osc2Type).toBe('square')
+    expect(round.tracks[0].osc2Oct).toBe(-1)
+    expect(round.tracks[0].filterType).toBe('highpass')
+  })
+
+  it('追加パラメータの型違い・範囲外は既定へ寄せる', () => {
+    const raw = {
+      v: 1,
+      bpm: 120,
+      swing: 0,
+      patterns: [],
+      automations: [],
+      automationEnabled: [],
+      songSequence: [0],
+      songMode: false,
+      tracks: [{ osc2Type: 'bogus', osc2Oct: 99, filterType: 'nope' }],
+    }
+    const p = deserializeProject(raw)!
+    expect(p.tracks[0].osc2Type).toBe('sine')      // 不正 → 既定
+    expect(p.tracks[0].filterType).toBe('lowpass') // 不正 → 既定
+    expect(p.tracks[0].osc2Oct).toBe(2)            // 99 → クランプ +2
+  })
+
   it('null / 非オブジェクトは null', () => {
     expect(deserializeProject(null)).toBeNull()
     expect(deserializeProject(42)).toBeNull()
