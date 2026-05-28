@@ -503,6 +503,8 @@ export function SeqPanel({
         </div>
 
         <div className="seq-transport-cluster">
+          {/* 先頭スペーサ：上段の再生ボタン幅を埋め、SWING の −10 を BPM の −10 と縦に揃える。 */}
+          <span className="seq-transport-lead" aria-hidden />
           <div className="seq-swing">
             <button className="seq-bump" onClick={() => bumpSwing(-10)} aria-label="SWING -10">−10</button>
             <button className="seq-bump" onClick={() => bumpSwing(-1)} aria-label="SWING -1">−</button>

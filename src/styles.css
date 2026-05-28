@@ -560,7 +560,7 @@ b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  gap: 6px;
+  gap: 3px;
   padding: 0 6px;
   font-size: 13px;
   font-weight: 700;
@@ -585,10 +585,10 @@ b {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  min-width: 16px;
+  min-width: 14px;
   height: 16px;
-  margin-left: 6px;
-  padding: 0 4px;
+  margin-left: 0;
+  padding: 0 3px;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: 0;
@@ -762,6 +762,13 @@ b {
   display: inline-flex;
   align-items: center;
   gap: 4px;
+}
+/* SWING クラスタ先頭の見えないスペーサ。上段の再生ボタン（40px）と同じ幅を取り、
+   クラスタ間 gap(4px) と合わせて SWING の −10 を BPM の −10 と縦に揃える。 */
+.seq-transport-lead {
+  flex: 0 0 40px;
+  width: 40px;
+  height: 1px;
 }
 .seq-play {
   width: 40px;
