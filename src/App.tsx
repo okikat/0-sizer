@@ -645,6 +645,21 @@ export default function App() {
     lastShouldPlayRef.current = shouldPlay
   }, [trackMute, trackSolo, aNoteOff, bNoteOff])
 
+  // ===== CUTOFF の引き戻し =====
+  // 再生中＆オートメーション ON のトラックは再生ループが毎ステップ CUTOFF を上書きする。
+  // それ以外（停止中、またはオートメーション OFF）は、エンジンの CUTOFF を「つまみの値」に
+  // 戻す。これをやらないと、再生を止めた／オートメーションを切った後もエンジンが
+  // オートメーション最後の値のまま残り、鍵盤を弾くと意図しない明るさで鳴ってしまう。
+  useEffect(() => {
+    const engines = [engineA, engineB]
+    for (let t = 0; t < TRACK_COUNT; t++) {
+      const followingAutomation = seqPlaying && seqAutomationEnabled[t]
+      if (!followingAutomation) {
+        engines[t].setCutoff(cutoffNormToHz(tracks[t].cutoff))
+      }
+    }
+  }, [seqPlaying, seqAutomationEnabled, tracks, engineA, engineB])
+
   const toggleMute = (track: number) => {
     setTrackMute((prev) => prev.map((v, i) => (i === track ? !v : v)))
   }
@@ -1150,6 +1165,9 @@ export default function App() {
   // Project を全 state に流し込み、両エンジンへ音色を反映する。
   const applyProject = (p: Project) => {
     if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
+    // 再生中の読み込みはタイの鳴りっぱなし等を招くので、まず止める
+    // （再生ループの cleanup が全ピッチを release する）。
+    setSeqPlaying(false)
     setSeqBpm(p.bpm)
     setSeqSwing(p.swing)
     setSeqPatterns(p.patterns)
