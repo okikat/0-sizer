@@ -504,6 +504,16 @@ export function SeqPanel({
           <button className="seq-tap" onClick={onTap} aria-label="タップでテンポ">TAP</button>
         </div>
 
+        {/* SEQ の操作ヘルプ（隠れジェスチャの導線）。1 段目の右端＝画面端に寄せる。 */}
+        <button
+          className="seq-help-btn"
+          onClick={() => setHelpOpen(true)}
+          aria-label="SEQ の使い方"
+          title="SEQ の使い方"
+        >
+          ?
+        </button>
+
         <div className="seq-transport-cluster">
           {/* 先頭スペーサ：上段の再生ボタン幅を埋め、SWING の −10 を BPM の −10 と縦に揃える。 */}
           <span className="seq-transport-lead" aria-hidden />
@@ -528,15 +538,6 @@ export function SeqPanel({
             強弱
           </button>
           <button className="seq-clear" onClick={onClear}>クリア</button>
-          {/* SEQ の操作ヘルプ（隠れジェスチャの導線）。 */}
-          <button
-            className="seq-help-btn"
-            onClick={() => setHelpOpen(true)}
-            aria-label="SEQ の使い方"
-            title="SEQ の使い方"
-          >
-            ?
-          </button>
         </div>
       </div>
 

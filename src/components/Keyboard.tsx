@@ -6,6 +6,8 @@ interface Props {
   onNoteOff: (midi: number) => void
   /** 鍵盤上の音名（ドレミ・♯）を出すか。盤面では「解説表示」と連動。 */
   showLabels?: boolean
+  /** 白鍵ラベルの表記：'solfege'＝ドレミ / 'note'＝音名（C4 等）。 */
+  labelStyle?: 'solfege' | 'note'
 }
 
 const LOW = 48 // C3
@@ -15,6 +17,7 @@ const BW = WKEY_W * 0.6
 const WHITE_OFFSETS = [0, 2, 4, 5, 7, 9, 11]
 const BLACK_OFFSETS = [1, 3, 6, 8, 10]
 const NAME: Record<number, string> = { 0: 'ド', 2: 'レ', 4: 'ミ', 5: 'ファ', 7: 'ソ', 9: 'ラ', 11: 'シ' }
+const LETTER: Record<number, string> = { 0: 'C', 2: 'D', 4: 'E', 5: 'F', 7: 'G', 9: 'A', 11: 'B' }
 // PC キーは「ホームのオクターブ（C4〜C5）」だけに割り当てる。
 const KMAP: Record<string, number> = {
   a: 60, w: 61, s: 62, e: 63, d: 64, f: 65, t: 66, g: 67, y: 68, h: 69, u: 70, j: 71, k: 72,
@@ -23,7 +26,7 @@ const KLABEL: Record<number, string> = {
   60: 'A', 61: 'W', 62: 'S', 63: 'E', 64: 'D', 65: 'F', 66: 'T', 67: 'G', 68: 'Y', 69: 'H', 70: 'U', 71: 'J', 72: 'K',
 }
 
-interface White { m: number; wi: number; name: string; isC: boolean; oct: number }
+interface White { m: number; wi: number; name: string; note: string; isC: boolean; oct: number }
 interface Black { m: number; x: number }
 
 function buildKeys() {
@@ -35,7 +38,8 @@ function buildKeys() {
     const pc = m % 12
     if (WHITE_OFFSETS.includes(pc)) {
       wiByMidi[m] = wi
-      whites.push({ m, wi, name: NAME[pc], isC: pc === 0, oct: Math.floor(m / 12) - 1 })
+      const oct = Math.floor(m / 12) - 1
+      whites.push({ m, wi, name: NAME[pc], note: `${LETTER[pc]}${oct}`, isC: pc === 0, oct })
       wi++
     }
   }
@@ -59,7 +63,7 @@ const cMark = (oct: number) => {
 }
 
 /** 多オクターブの鍵盤。キーは弾く専用、移動は下のバー。ドの位置を◎/●/・で示す。 */
-export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
+export function Keyboard({ onNoteOn, onNoteOff, showLabels = true, labelStyle = 'solfege' }: Props) {
   const [active, setActive] = useState<Set<number>>(new Set())
   const [win, setWin] = useState({ left: 0, width: 1 })
   const pointers = useRef<Map<number, number>>(new Map())
@@ -197,7 +201,7 @@ export function Keyboard({ onNoteOn, onNoteOff, showLabels = true }: Props) {
             >
               {w.isC && <span className={'ckey-mark' + (w.oct === 4 ? ' home' : '')}>{cMark(w.oct)}</span>}
               {KLABEL[w.m] && <span className="kk">{KLABEL[w.m]}</span>}
-              {showLabels && <span className="kn">{w.name}</span>}
+              {showLabels && <span className="kn">{labelStyle === 'note' ? w.note : w.name}</span>}
             </div>
           ))}
           {BLACKS.map((b) => (

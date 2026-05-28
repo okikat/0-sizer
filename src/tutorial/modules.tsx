@@ -223,13 +223,8 @@ export function LfoFrame({
 }: Pick<SoundCtl, 'lfoRate' | 'onLfoRate' | 'lfoDepth' | 'onLfoDepth' | 'lfoDest' | 'onLfoDest' | 'fine' | 'snap'> & { compact?: boolean; showText?: boolean; morphing?: boolean }) {
   return (
     <div className="mod mod-lfo">
-      <div className="lfo-dest">
-        {(['pitch', 'cutoff', 'amp'] as const).map((d) => (
-          <button key={d} className={'lfo-dest-btn' + (lfoDest === d ? ' sel' : '')} onClick={() => onLfoDest(d)} aria-pressed={lfoDest === d}>
-            {d === 'pitch' ? 'PITCH' : d === 'cutoff' ? 'CUTOFF' : 'AMP'}
-          </button>
-        ))}
-      </div>
+      {/* ツマミを上段に置き、行き先ボタンを下段へ。こうすると右上の「LFO」シルク文字と
+          PITCH ボタンが被らない（上はツマミの丸い余白になる）。 */}
       <div className="lfo-knobs">
         <Knob
           value={lfoRate}
@@ -261,6 +256,13 @@ export function LfoFrame({
           format={(v) => ({ main: String(Math.round(v)) })}
           onChange={onLfoDepth}
         />
+      </div>
+      <div className="lfo-dest">
+        {(['pitch', 'cutoff', 'amp'] as const).map((d) => (
+          <button key={d} className={'lfo-dest-btn' + (lfoDest === d ? ' sel' : '')} onClick={() => onLfoDest(d)} aria-pressed={lfoDest === d}>
+            {d === 'pitch' ? 'PITCH' : d === 'cutoff' ? 'CUTOFF' : 'AMP'}
+          </button>
+        ))}
       </div>
     </div>
   )
@@ -564,10 +566,11 @@ export function KeyboardModule({
   onNoteOn,
   onNoteOff,
   showLabels = true,
-}: Pick<SoundCtl, 'onNoteOn' | 'onNoteOff'> & { showLabels?: boolean }) {
+  labelStyle = 'solfege',
+}: Pick<SoundCtl, 'onNoteOn' | 'onNoteOff'> & { showLabels?: boolean; labelStyle?: 'solfege' | 'note' }) {
   return (
     <div className="mod mod-keys">
-      <Keyboard onNoteOn={onNoteOn} onNoteOff={onNoteOff} showLabels={showLabels} />
+      <Keyboard onNoteOn={onNoteOn} onNoteOff={onNoteOff} showLabels={showLabels} labelStyle={labelStyle} />
     </div>
   )
 }

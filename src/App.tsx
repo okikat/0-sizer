@@ -28,6 +28,7 @@ import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/Lesson
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
 import { SongModal } from './tutorial/SongModal'
+import { SettingsModal } from './tutorial/SettingsModal'
 import { SeqPanel } from './tutorial/SeqPanel'
 import { type Project, projectToJSON, projectFromJSON } from './lib/project'
 import { projectToMidi } from './lib/midi'
@@ -50,6 +51,8 @@ import {
   KEYBOARD_VISIBLE_KEY,
   SEQ_ZOOM_KEY,
   VELOCITY_MODE_KEY,
+  KEY_LABEL_STYLE_KEY,
+  type KeyLabelStyle,
   TRACK_COUNT,
   VEL_SCALES,
   VEL_STRONG,
@@ -64,6 +67,7 @@ import {
   loadSongSequence,
   loadSongMode,
   loadVelocityMode,
+  loadKeyLabelStyle,
 } from './lib/seqStorage'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
@@ -102,6 +106,11 @@ export default function App() {
   const [presetModalOpen, setPresetModalOpen] = useState(false)
   const [songModalOpen, setSongModalOpen] = useState(false)
   const [savedSongs, setSavedSongs] = useState<SavedSong[]>(() => listSongs())
+  const [settingsOpen, setSettingsOpen] = useState(false)
+  const [keyLabelStyle, setKeyLabelStyle] = useState<KeyLabelStyle>(() => loadKeyLabelStyle())
+  useEffect(() => {
+    try { localStorage.setItem(KEY_LABEL_STYLE_KEY, keyLabelStyle) } catch { /* */ }
+  }, [keyLabelStyle])
 
   // ===== マルチトラック：音作り状態と「いま編集中のトラック」 =====
   const [tracks, setTracks] = useState<SoundState[]>(() => loadTracks())
@@ -1249,6 +1258,9 @@ export default function App() {
       <button className="menu-item" onClick={() => { closeMenu(); setSongModalOpen(true) }}>
         <span className="menu-arrow" />曲の保存・書き出し
       </button>
+      <button className="menu-item" onClick={() => { closeMenu(); setSettingsOpen(true) }}>
+        <span className="menu-arrow" />設定
+      </button>
       <button className="menu-item" onClick={() => { closeMenu(); replay() }}>
         <span className="menu-arrow" />もう一度見る
       </button>
@@ -1280,6 +1292,7 @@ export default function App() {
         menuChildren={menuItems}
         keyboardVisible={keyboardVisible}
         onToggleKeyboard={() => setKeyboardVisible((v) => !v)}
+        keyLabelStyle={keyLabelStyle}
         seqContent={
           <SeqPanel
             trackCount={TRACK_COUNT}
@@ -1389,6 +1402,14 @@ export default function App() {
           onExportJson={handleExportJson}
           onImportJson={handleImportJson}
           onClose={() => setSongModalOpen(false)}
+        />
+      )}
+
+      {settingsOpen && (
+        <SettingsModal
+          keyLabelStyle={keyLabelStyle}
+          onChangeKeyLabelStyle={setKeyLabelStyle}
+          onClose={() => setSettingsOpen(false)}
         />
       )}
 

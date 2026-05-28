@@ -61,6 +61,8 @@ interface Props {
   /** 鍵盤の表示/非表示トグル。OFF にすると下部の鍵盤エリアが消えて編集スペースが広がる。 */
   keyboardVisible: boolean
   onToggleKeyboard: () => void
+  /** 白鍵ラベルの表記（設定画面で切替）。 */
+  keyLabelStyle: 'solfege' | 'note'
   /** SEQ タブのとき表示する中身（App が SeqPanel を渡す）。 */
   seqContent: ReactNode
 }
@@ -84,6 +86,7 @@ export function SynthPanel({
   menuChildren,
   keyboardVisible,
   onToggleKeyboard,
+  keyLabelStyle,
   seqContent,
 }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
@@ -209,7 +212,7 @@ export function SynthPanel({
       {(!realized.has('keys') || !showTabRow || keyboardVisible) && (
       <Slot {...slotProps('keys')}>
         {realized.has('keys') ? (
-          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} />
+          <KeyboardModule onNoteOn={sound.onNoteOn} onNoteOff={sound.onNoteOff} showLabels={showHelp} labelStyle={keyLabelStyle} />
         ) : null}
       </Slot>
       )}

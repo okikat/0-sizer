@@ -26,6 +26,7 @@ export const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'         // CUTOFF �
 export const KEYBOARD_VISIBLE_KEY = '0sizer.keyboardVisible'        // 鍵盤を表示しているか（既定 ON）
 export const SEQ_ZOOM_KEY = '0sizer.seqZoom'                        // SEQ セルのズーム倍率
 export const VELOCITY_MODE_KEY = '0sizer.velocityMode'             // ベロシティ編集モード（'1' / null）
+export const KEY_LABEL_STYLE_KEY = '0sizer.keyLabelStyle'          // 白鍵ラベル：'solfege'（ドレミ）/ 'note'（音名）
 
 // ====== トラック数（音作りトラック ＝ SEQ トラック）======
 export const TRACK_COUNT = 2
@@ -229,4 +230,11 @@ export const loadSongMode = (): boolean => {
 export const loadVelocityMode = (): boolean => {
   if (typeof localStorage === 'undefined') return false
   return localStorage.getItem(VELOCITY_MODE_KEY) === '1'
+}
+
+// 白鍵ラベルの表記。'solfege'＝ドレミ（初心者向け既定）/ 'note'＝音名（C4 等）。
+export type KeyLabelStyle = 'solfege' | 'note'
+export const loadKeyLabelStyle = (): KeyLabelStyle => {
+  if (typeof localStorage === 'undefined') return 'solfege'
+  return localStorage.getItem(KEY_LABEL_STYLE_KEY) === 'note' ? 'note' : 'solfege'
 }
