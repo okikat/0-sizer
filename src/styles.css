@@ -1159,35 +1159,34 @@ b {
   inset: 0;
   z-index: 60;
 }
-/* スロット選択ポップアップ：タップしたマスの直上にホログラム投影風で開く。 */
+/* スロット選択ポップアップ：タップしたマスの直上にホログラム投影風で開く。
+   4 列 × 2 段の固定グリッド（8 スロット）。位置によって形が変わらない。
+   幅 160px は SeqPanel 側の POPUP_W と一致させる（4×34 + gap 4×3 + padding 6×2）。 */
 .seq-song-picker {
   position: absolute;
   bottom: calc(100% + 6px);
-  transform: translateX(-50%);
   z-index: 61;
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: center;
+  width: 160px;
+  box-sizing: border-box;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
   gap: 4px;
-  max-width: 92vw;
   padding: 6px;
   background: linear-gradient(180deg, rgba(8, 22, 24, 0.96) 0%, rgba(6, 16, 18, 0.98) 100%);
   border: 1px solid rgba(90, 209, 196, 0.5);
   box-shadow: 0 0 0 1px rgba(90, 209, 196, 0.18), 0 0 22px rgba(90, 209, 196, 0.4);
   animation: hologramRise 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
 }
-/* 直下に向かう小さな三角（吹き出しの足）。 */
-.seq-song-picker::after {
-  content: '';
+/* 直下に向かう小さな三角（吹き出しの足）。タップしたマスを指すよう left を JS で指定。 */
+.seq-song-picker-tail {
   position: absolute;
   top: 100%;
-  left: 50%;
   transform: translateX(-50%);
   border: 6px solid transparent;
   border-top-color: rgba(90, 209, 196, 0.5);
 }
 .seq-song-picker-btn {
-  width: 34px;
+  width: 100%;
   height: 34px;
   font-size: 13px;
   font-weight: 800;

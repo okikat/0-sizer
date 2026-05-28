@@ -351,8 +351,9 @@ export function SeqPanel({
   } | null>(null)
   const [copySource, setCopySource] = useState<{ track: number; slot: number } | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
-  // SONG スロット選択ポップアップ：開いている position と、その直上に出すための x 位置。
-  const [songPicker, setSongPicker] = useState<{ idx: number; left: number } | null>(null)
+  // SONG スロット選択ポップアップ：開いている position と、吹き出しを出すための座標。
+  //   center = タップしたマス中心の x（.seq-song 左端基準）、rowW = SONG 行の幅。
+  const [songPicker, setSongPicker] = useState<{ idx: number; center: number; rowW: number } | null>(null)
 
   const SLOT_LONG_MS = 400
   const SLOT_MOVE_CANCEL = 10
@@ -651,7 +652,7 @@ export function SeqPanel({
                 if (!row) return
                 const b = e.currentTarget.getBoundingClientRect()
                 const r = row.getBoundingClientRect()
-                setSongPicker({ idx: i, left: b.left - r.left + b.width / 2 })
+                setSongPicker({ idx: i, center: b.left - r.left + b.width / 2, rowW: r.width })
               }}
               aria-label={`SONG ポジション ${i + 1}：スロット ${SLOT_LABELS[slot] ?? slot}（タップで選択）`}
             >
@@ -662,26 +663,35 @@ export function SeqPanel({
         <button className="seq-song-bump" onClick={onAddSongPosition} aria-label="ポジション追加">＋</button>
         <button className="seq-song-bump" onClick={onRemoveSongPosition} aria-label="ポジション削除">−</button>
 
-        {/* スロット選択ポップアップ（ホログラム）。タップしたマスの直上に出す。 */}
-        {songPicker && (
-          <>
-            <div className="seq-song-picker-veil" onClick={() => setSongPicker(null)} aria-hidden />
-            <div className="seq-song-picker" style={{ left: `${songPicker.left}px` }}>
-              {Array.from({ length: slotsPerTrack }).map((_, s) => (
-                <button
-                  key={s}
-                  className={'seq-song-picker-btn' + (songSequence[songPicker.idx] === s ? ' sel' : '')}
-                  onClick={() => {
-                    onSetSongPosition(songPicker.idx, s)
-                    setSongPicker(null)
-                  }}
-                >
-                  {SLOT_LABELS[s] ?? s}
-                </button>
-              ))}
-            </div>
-          </>
-        )}
+        {/* スロット選択ポップアップ（ホログラム）。4×2 の固定グリッド。
+            画面端でクランプしつつ、▼ はタップしたマスを指すよう個別に位置決め。 */}
+        {songPicker && (() => {
+          const POPUP_W = 160 // 下の CSS（4 列 × 34px + gap/padding）と一致させる
+          const M = 4
+          const maxLeft = Math.max(M, songPicker.rowW - POPUP_W - M)
+          const popupLeft = Math.min(maxLeft, Math.max(M, songPicker.center - POPUP_W / 2))
+          const tailLeft = Math.min(POPUP_W - 14, Math.max(14, songPicker.center - popupLeft))
+          return (
+            <>
+              <div className="seq-song-picker-veil" onClick={() => setSongPicker(null)} aria-hidden />
+              <div className="seq-song-picker" style={{ left: `${popupLeft}px` }}>
+                {Array.from({ length: slotsPerTrack }).map((_, s) => (
+                  <button
+                    key={s}
+                    className={'seq-song-picker-btn' + (songSequence[songPicker.idx] === s ? ' sel' : '')}
+                    onClick={() => {
+                      onSetSongPosition(songPicker.idx, s)
+                      setSongPicker(null)
+                    }}
+                  >
+                    {SLOT_LABELS[s] ?? s}
+                  </button>
+                ))}
+                <span className="seq-song-picker-tail" style={{ left: `${tailLeft}px` }} aria-hidden />
+              </div>
+            </>
+          )
+        })()}
       </div>
 
       {/* 編集エリア：
