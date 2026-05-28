@@ -29,7 +29,7 @@ export const VELOCITY_MODE_KEY = '0sizer.velocityMode'             // ベロシ�
 export const KEY_LABEL_STYLE_KEY = '0sizer.keyLabelStyle'          // 白鍵ラベル：'solfege'（ドレミ）/ 'note'（音名）
 
 // ====== トラック数（音作りトラック ＝ SEQ トラック）======
-export const TRACK_COUNT = 2
+export const TRACK_COUNT = 4
 
 // ====== 1 スロット分のパターン ======
 /** `on` = 点灯セル、`tied` = 「次のステップへ繋ぐ」フラグ付きセル、

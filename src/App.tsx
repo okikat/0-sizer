@@ -85,12 +85,22 @@ export default function App() {
   // ===== 2 トラック分の独立エンジン =====
   // useSynth() ごとに別 AudioContext / 別 voice pool / 別 FX チェーンを持つ。
   // どちらも同じ destination に流れるので、ブラウザがミックスしてくれる。
+  // TRACK_COUNT 個ぶん。Hooks は固定数で呼ぶ必要があるので 4 個ベタ書き。
   const engineA = useSynth()
   const engineB = useSynth()
+  const engineC = useSynth()
+  const engineD = useSynth()
+  const engines = [engineA, engineB, engineC, engineD]
   // useSynth() は毎レンダ新しいオブジェクトを返すが、中身のメソッドは useCallback 済みで参照安定。
   // 後続の useCallback / useEffect の依存配列で扱いやすいよう、必要なメソッドだけ分解しておく。
   const { noteOn: aNoteOn, noteOff: aNoteOff, getAudioContext: aGetCtx, setCutoff: aSetCutoff } = engineA
   const { noteOn: bNoteOn, noteOff: bNoteOff, setCutoff: bSetCutoff } = engineB
+  const { noteOn: cNoteOn, noteOff: cNoteOff, setCutoff: cSetCutoff } = engineC
+  const { noteOn: dNoteOn, noteOff: dNoteOff, setCutoff: dSetCutoff } = engineD
+  // トラック index → 各メソッド配列（再生ループ・MUTE/SOLO・自動化で使う）。
+  const noteOnByTrack = [aNoteOn, bNoteOn, cNoteOn, dNoteOn]
+  const noteOffByTrack = [aNoteOff, bNoteOff, cNoteOff, dNoteOff]
+  const setCutoffByTrack = [aSetCutoff, bSetCutoff, cSetCutoff, dSetCutoff]
 
   const done = typeof localStorage !== 'undefined' && localStorage.getItem(DONE_KEY) === '1'
   const [phase, setPhase] = useState<Phase>(done ? 'panel' : 'start')
@@ -116,7 +126,7 @@ export default function App() {
   const [tracks, setTracks] = useState<SoundState[]>(() => loadTracks())
   const [activeTrack, setActiveTrack] = useState<number>(() => loadActiveTrack())
   const currentSound = tracks[activeTrack]
-  const currentEngine = activeTrack === 0 ? engineA : engineB
+  const currentEngine = engines[activeTrack] ?? engineA
 
   // アクティブトラックの SoundState に部分パッチを当てる。
   // engine への反映は呼び出し側で行う（パラメータごとに変換式が違うため）。
@@ -366,13 +376,13 @@ export default function App() {
   const stopAll = useCallback(() => {
     heldNotesRef.current.forEach((k) => {
       const [t, m] = k.split(':')
-      const fn = t === '0' ? aNoteOff : bNoteOff
-      fn(Number(m))
+      noteOffByTrack[Number(t)]?.(Number(m))
     })
     heldNotesRef.current.clear()
     setKeyHeld(false)
     setSeqPlaying(false)
-  }, [aNoteOff, bNoteOff])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [aNoteOff, bNoteOff, cNoteOff, dNoteOff])
 
   // トラック切替：その時点で手動押下中のノートはアクティブ側エンジンで離す
   // （切替後に「同じ鍵盤の指を離した」つもりが別エンジンに行って release し損ねるのを防ぐ）。
@@ -380,8 +390,7 @@ export default function App() {
     if (next === activeTrack) return
     heldNotesRef.current.forEach((k) => {
       const [t, m] = k.split(':')
-      const fn = t === '0' ? aNoteOff : bNoteOff
-      fn(Number(m))
+      noteOffByTrack[Number(t)]?.(Number(m))
     })
     heldNotesRef.current.clear()
     setKeyHeld(false)
@@ -500,9 +509,8 @@ export default function App() {
   // マウント時：ロード済みの SoundState を各エンジンへ反映（フィルター・LFO 等の ref を同期）。
   // 以降は sound の各ハンドラが knob 変化ごとに engine.setX を呼ぶので、これは初期化専用。
   useEffect(() => {
-    pushSoundToEngine(engineA, tracks[0])
-    pushSoundToEngine(engineB, tracks[1])
-    // マウント 1 回のみ走らせる。tracks/engineA/engineB はその時点の参照で十分。
+    engines.forEach((eng, i) => pushSoundToEngine(eng, tracks[i]))
+    // マウント 1 回のみ走らせる。tracks/engines はその時点の参照で十分。
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
@@ -516,9 +524,9 @@ export default function App() {
   // ・aNoteOn / aNoteOff / bNoteOn / bNoteOff の参照は安定（useCallback 済み）なので依存に入れて OK。
   useEffect(() => {
     if (!seqPlaying) return
-    const trackOnFns = [aNoteOn, bNoteOn]
-    const trackOffFns = [aNoteOff, bNoteOff]
-    const trackCutoffFns = [aSetCutoff, bSetCutoff]
+    const trackOnFns = noteOnByTrack
+    const trackOffFns = noteOffByTrack
+    const trackCutoffFns = setCutoffByTrack
     const stepMs = 60000 / (seqBpm * 4)
     let curStep = -1
     const releaseTimers: ReturnType<typeof setTimeout>[] = []
@@ -635,7 +643,8 @@ export default function App() {
       }
       setSeqCurrentStep(-1)
     }
-  }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff, aSetCutoff, bSetCutoff])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seqPlaying, seqBpm, aNoteOn, aNoteOff, bNoteOn, bNoteOff, cNoteOn, cNoteOff, dNoteOn, dNoteOff, aSetCutoff, bSetCutoff, cSetCutoff, dSetCutoff])
 
   // ===== MUTE / SOLO 切替で「いま鳴ってる音」を即時 release =====
   // 「無音化された瞬間」を検知して、そのトラックの全ピッチに noteOff を投げる。
@@ -644,15 +653,15 @@ export default function App() {
   useEffect(() => {
     const anySolo = trackSolo.some((s) => s)
     const shouldPlay = trackMute.map((muted, i) => !muted && (!anySolo || trackSolo[i]))
-    const offFns = [aNoteOff, bNoteOff]
     for (let i = 0; i < TRACK_COUNT; i++) {
       if (lastShouldPlayRef.current[i] && !shouldPlay[i]) {
         // 直前は鳴らせていた → いま無音化された：このトラックの全ピッチを離す。
-        SEQ_PITCHES.forEach((m) => offFns[i](m))
+        SEQ_PITCHES.forEach((m) => noteOffByTrack[i]?.(m))
       }
     }
     lastShouldPlayRef.current = shouldPlay
-  }, [trackMute, trackSolo, aNoteOff, bNoteOff])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [trackMute, trackSolo, aNoteOff, bNoteOff, cNoteOff, dNoteOff])
 
   // ===== CUTOFF の引き戻し =====
   // 再生中＆オートメーション ON のトラックは再生ループが毎ステップ CUTOFF を上書きする。
@@ -660,14 +669,14 @@ export default function App() {
   // 戻す。これをやらないと、再生を止めた／オートメーションを切った後もエンジンが
   // オートメーション最後の値のまま残り、鍵盤を弾くと意図しない明るさで鳴ってしまう。
   useEffect(() => {
-    const engines = [engineA, engineB]
     for (let t = 0; t < TRACK_COUNT; t++) {
       const followingAutomation = seqPlaying && seqAutomationEnabled[t]
       if (!followingAutomation) {
-        engines[t].setCutoff(cutoffNormToHz(tracks[t].cutoff))
+        setCutoffByTrack[t]?.(cutoffNormToHz(tracks[t].cutoff))
       }
     }
-  }, [seqPlaying, seqAutomationEnabled, tracks, engineA, engineB])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [seqPlaying, seqAutomationEnabled, tracks, aSetCutoff, bSetCutoff, cSetCutoff, dSetCutoff])
 
   const toggleMute = (track: number) => {
     setTrackMute((prev) => prev.map((v, i) => (i === track ? !v : v)))
@@ -701,8 +710,7 @@ export default function App() {
     // OFF に切り替えた瞬間：エンジンの CUTOFF を「パネルの CUTOFF つまみ」値に戻す。
     // 直前のステップ位置で値が止まっていると、無効化後の音が想定とズレるため。
     if (wasEnabled) {
-      const fn = track === 0 ? aSetCutoff : bSetCutoff
-      fn(cutoffNormToHz(tracks[track].cutoff))
+      setCutoffByTrack[track]?.(cutoffNormToHz(tracks[track].cutoff))
     }
   }
 
@@ -1193,8 +1201,7 @@ export default function App() {
     setHistoryPastLen(0)
     setHistoryFutureLen(0)
     // 両エンジンへ即時反映（補間なし）。
-    pushSoundToEngine(engineA, p.tracks[0])
-    pushSoundToEngine(engineB, p.tracks[1])
+    engines.forEach((eng, i) => pushSoundToEngine(eng, p.tracks[i]))
   }
 
   const handleSaveSong = (name: string) => {

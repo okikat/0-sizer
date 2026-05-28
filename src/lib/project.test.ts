@@ -48,7 +48,9 @@ describe('project: シリアライズの往復', () => {
     expect(round.swing).toBe(20)
     expect(round.songMode).toBe(true)
     expect(round.songSequence).toEqual([0, 0, 1, 2])
-    expect(round.automationEnabled).toEqual([true, false])
+    expect(round.automationEnabled.length).toBe(TRACK_COUNT)
+    expect(round.automationEnabled[0]).toBe(true)
+    expect(round.automationEnabled[1]).toBe(false)
     // パターン（on/tied/vel）の往復
     expect(round.patterns[0][0].on.has('0_60')).toBe(true)
     expect(round.patterns[0][0].on.has('1_60')).toBe(true)
