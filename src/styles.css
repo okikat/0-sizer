@@ -1587,9 +1587,22 @@ b {
   border-bottom: 1px solid rgba(90, 209, 196, 0.7);
   pointer-events: none;
 }
-/* 再生ヘッドが tied-next 側に乗ったときはブリッジも明るく（playhead に追従）。 */
+/* 強弱に合わせて橋も暗く（セル本体の明るさと揃える）。中／弱。 */
+.seq-cell.on.vel-mid.tied-next::after {
+  background: linear-gradient(180deg, rgba(90, 209, 196, 0.33) 0%, rgba(90, 209, 196, 0.21) 100%);
+  border-top-color: rgba(90, 209, 196, 0.5);
+  border-bottom-color: rgba(90, 209, 196, 0.5);
+}
+.seq-cell.on.vel-low.tied-next::after {
+  background: linear-gradient(180deg, rgba(90, 209, 196, 0.18) 0%, rgba(90, 209, 196, 0.11) 100%);
+  border-top-color: rgba(90, 209, 196, 0.34);
+  border-bottom-color: rgba(90, 209, 196, 0.34);
+}
+/* 再生ヘッドが tied-next 側に乗ったときはブリッジも明るく（playhead に追従、強弱より優先）。 */
 .seq-cell.on.tied-next.col-active::after {
   background: linear-gradient(180deg, rgba(120, 230, 218, 0.85) 0%, rgba(90, 209, 196, 0.6) 100%);
+  border-top-color: rgba(90, 209, 196, 0.7);
+  border-bottom-color: rgba(90, 209, 196, 0.7);
 }
 /* 再生ヘッド列：そのステップの全セルを少しブライトに、点灯セルはさらに強調。 */
 .seq-cell.col-active {
