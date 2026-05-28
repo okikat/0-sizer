@@ -730,9 +730,9 @@ export default function App() {
   const toggleSongMode = () => {
     setSongMode((v) => !v)
   }
-  // SONG ポジションのスロット循環：A → B → C → D → A …。
-  const cycleSongPosition = (positionIdx: number) => {
-    setSongSequence((prev) => prev.map((v, i) => (i === positionIdx ? (v + 1) % SLOTS_PER_TRACK : v)))
+  // SONG ポジションに任意のスロットを設定（ポップアップから選択）。
+  const setSongPositionSlot = (positionIdx: number, slot: number) => {
+    setSongSequence((prev) => prev.map((v, i) => (i === positionIdx ? slot : v)))
   }
   // ポジション追加（最大 SONG_MAX_LENGTH まで）。新ポジションは最終ポジションのスロットをコピー。
   const addSongPosition = () => {
@@ -1307,7 +1307,7 @@ export default function App() {
             songSequence={songSequence}
             songPosition={songPosition}
             onToggleSongMode={toggleSongMode}
-            onCycleSongPosition={cycleSongPosition}
+            onSetSongPosition={setSongPositionSlot}
             onAddSongPosition={addSongPosition}
             onRemoveSongPosition={removeSongPosition}
             trackMute={trackMute}

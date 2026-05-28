@@ -980,12 +980,20 @@ b {
 
 /* スロット枠（A/B/C/D）：トラック行の右側にぴったり寄せて、4 ボタンの "セクション選択" 帯にする。 */
 .seq-slots {
-  display: inline-flex;
+  display: flex;
   align-items: center;
   gap: 1px;
   margin-left: 6px;
+  /* スロット 8 個（A〜H）が幅に収まらない端末では、この帯だけ横スクロール。
+     トラック番号 / M / S は左に固定されたまま。 */
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow-x: auto;
+  scrollbar-width: none;
 }
+.seq-slots::-webkit-scrollbar { height: 0; display: none; }
 .seq-slot-btn {
+  flex: 0 0 auto;
   min-width: 26px;
   height: 30px;
   padding: 0 6px;
@@ -1064,6 +1072,7 @@ b {
 /* ===== SONG モード行（スロットの並べ替え再生） =====
    トラック行の下に置かれる position 列。タップで A→B→C→D を循環、+/- で長さ変更。 */
 .seq-song {
+  position: relative; /* スロット選択ポップアップの基準 */
   flex: 0 0 auto;
   display: flex;
   align-items: center;
@@ -1071,18 +1080,14 @@ b {
   padding: 4px 4px 0;
   border-top: 1px dashed rgba(255, 255, 255, 0.06);
 }
-.seq-song-label {
-  font-size: 10px;
-  font-weight: 700;
-  letter-spacing: 2px;
-  color: var(--sub);
+/* 「SONG」文字自体がトグルボタン。ON で押し込まれ、文字がティールに発光。 */
+.seq-song-btn {
   flex: 0 0 auto;
-}
-.seq-song-toggle {
-  min-width: 32px;
   height: 28px;
-  padding: 0;
-  font-size: 14px;
+  padding: 0 10px;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 2px;
   color: var(--sub);
   background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
   border: 1px solid #000;
@@ -1090,11 +1095,11 @@ b {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
-.seq-song-toggle.on {
+.seq-song-btn.on {
   color: var(--accent);
   background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35);
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.4);
+  text-shadow: 0 0 7px rgba(90, 209, 196, 0.7);
 }
 /* position 列：横スクロール可能（最大 16 個に対応）、スクロールバー非表示。 */
 .seq-song-positions {
@@ -1143,6 +1148,62 @@ b {
   cursor: pointer;
 }
 .seq-song-bump:active { color: var(--accent); background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%); }
+/* 選択中のポジション：ポップアップを開いている間うっすら枠を出す。 */
+.seq-song-pos.picking {
+  color: var(--accent);
+  box-shadow: inset 0 0 0 1.5px rgba(90, 209, 196, 0.8), 0 0 8px rgba(90, 209, 196, 0.4);
+}
+/* ポップアップ外タップで閉じる透明ベール（SONG 行の外側全体を覆う）。 */
+.seq-song-picker-veil {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+}
+/* スロット選択ポップアップ：タップしたマスの直上にホログラム投影風で開く。 */
+.seq-song-picker {
+  position: absolute;
+  bottom: calc(100% + 6px);
+  transform: translateX(-50%);
+  z-index: 61;
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 4px;
+  max-width: 92vw;
+  padding: 6px;
+  background: linear-gradient(180deg, rgba(8, 22, 24, 0.96) 0%, rgba(6, 16, 18, 0.98) 100%);
+  border: 1px solid rgba(90, 209, 196, 0.5);
+  box-shadow: 0 0 0 1px rgba(90, 209, 196, 0.18), 0 0 22px rgba(90, 209, 196, 0.4);
+  animation: hologramRise 0.16s cubic-bezier(0.2, 0.8, 0.3, 1) both;
+}
+/* 直下に向かう小さな三角（吹き出しの足）。 */
+.seq-song-picker::after {
+  content: '';
+  position: absolute;
+  top: 100%;
+  left: 50%;
+  transform: translateX(-50%);
+  border: 6px solid transparent;
+  border-top-color: rgba(90, 209, 196, 0.5);
+}
+.seq-song-picker-btn {
+  width: 34px;
+  height: 34px;
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--accent);
+  background: rgba(90, 209, 196, 0.06);
+  border: 1px solid rgba(90, 209, 196, 0.35);
+  border-radius: 0;
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.4);
+  cursor: pointer;
+}
+.seq-song-picker-btn.sel {
+  background: rgba(90, 209, 196, 0.22);
+  border-color: rgba(90, 209, 196, 0.7);
+  box-shadow: inset 0 0 10px rgba(90, 209, 196, 0.3);
+}
+.seq-song-picker-btn:active { background: rgba(90, 209, 196, 0.3); }
 
 /* ===== オートメーションレーン（CUTOFF） =====
    グリッド下に置かれる 16 ステップの縦バー帯。AUTO トグルを ON にしている間

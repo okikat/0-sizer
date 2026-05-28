@@ -19,9 +19,13 @@ describe('seqConst', () => {
     expect(SEQ_STEPS).toBe(16)
   })
 
-  it('SLOT_LABELS は A B C D で SLOTS_PER_TRACK と一致', () => {
-    expect(SLOT_LABELS).toEqual(['A', 'B', 'C', 'D'])
+  it('SLOT_LABELS は A から始まる連続英字で SLOTS_PER_TRACK と一致', () => {
     expect(SLOT_LABELS.length).toBe(SLOTS_PER_TRACK)
+    expect(SLOT_LABELS[0]).toBe('A')
+    // A, B, C, … と連続するアルファベット 1 文字
+    SLOT_LABELS.forEach((label, i) => {
+      expect(label).toBe(String.fromCharCode(65 + i))
+    })
   })
 
   it('SEQ_PITCHES は 14 行（白鍵 2 オクターブ C3〜B4）で上から高音順', () => {

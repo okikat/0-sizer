@@ -38,7 +38,8 @@ interface Props {
   /** 現在再生中の SONG ポジション。停止中は 0。 */
   songPosition: number
   onToggleSongMode: () => void
-  onCycleSongPosition: (positionIdx: number) => void
+  /** SONG の position に任意のスロットを設定（ポップアップから選択）。 */
+  onSetSongPosition: (positionIdx: number, slot: number) => void
   onAddSongPosition: () => void
   onRemoveSongPosition: () => void
   /** アクティブトラック × 編集中スロットのパターン。
@@ -99,7 +100,7 @@ export function SeqPanel({
   songSequence,
   songPosition,
   onToggleSongMode,
-  onCycleSongPosition,
+  onSetSongPosition,
   onAddSongPosition,
   onRemoveSongPosition,
   trackMute,
@@ -350,6 +351,8 @@ export function SeqPanel({
   } | null>(null)
   const [copySource, setCopySource] = useState<{ track: number; slot: number } | null>(null)
   const [helpOpen, setHelpOpen] = useState(false)
+  // SONG スロット選択ポップアップ：開いている position と、その直上に出すための x 位置。
+  const [songPicker, setSongPicker] = useState<{ idx: number; left: number } | null>(null)
 
   const SLOT_LONG_MS = 400
   const SLOT_MOVE_CANCEL = 10
@@ -625,29 +628,32 @@ export function SeqPanel({
         </div>
       )}
 
-      {/* SONG モード行：スロットの並び（position 列）と ⏵ トグルで「曲が自動で進む」体験を作る。
-          - ⏵ が ON：再生中、ループ頭ごとに次 position へ進み、その position のスロットを全トラックに適用
-          - 各 position をタップで A→B→C→D→A と循環。+/− で長さを変更（1〜16）
-          - 再生中は songPosition の cell が強調される。SONG ON 中、トラック行のスロットボタンは無効化 */}
+      {/* SONG モード行：「SONG」文字自体がトグルボタン（ON で押し込み＆ティール発光）。
+          並びの各マスをタップ → 直上にホログラムのスロット選択ポップアップが開く。 */}
       <div className="seq-song">
-        <span className="seq-song-label">SONG</span>
         <button
-          className={'seq-song-toggle' + (songMode ? ' on' : '')}
+          className={'seq-song-btn' + (songMode ? ' on' : '')}
           onClick={onToggleSongMode}
           aria-pressed={songMode}
-          aria-label="SONG モード"
           title="SONG モード"
         >
-          {songMode ? '⏵' : '○'}
+          SONG
         </button>
         <div className="seq-song-positions">
           {songSequence.map((slot, i) => (
             <button
               key={i}
               className={'seq-song-pos'
-                + (songMode && playing && songPosition === i ? ' playing' : '')}
-              onClick={() => onCycleSongPosition(i)}
-              aria-label={`SONG ポジション ${i + 1}：スロット ${SLOT_LABELS[slot] ?? slot}`}
+                + (songMode && playing && songPosition === i ? ' playing' : '')
+                + (songPicker?.idx === i ? ' picking' : '')}
+              onClick={(e) => {
+                const row = e.currentTarget.closest('.seq-song') as HTMLElement | null
+                if (!row) return
+                const b = e.currentTarget.getBoundingClientRect()
+                const r = row.getBoundingClientRect()
+                setSongPicker({ idx: i, left: b.left - r.left + b.width / 2 })
+              }}
+              aria-label={`SONG ポジション ${i + 1}：スロット ${SLOT_LABELS[slot] ?? slot}（タップで選択）`}
             >
               {SLOT_LABELS[slot] ?? slot}
             </button>
@@ -655,6 +661,27 @@ export function SeqPanel({
         </div>
         <button className="seq-song-bump" onClick={onAddSongPosition} aria-label="ポジション追加">＋</button>
         <button className="seq-song-bump" onClick={onRemoveSongPosition} aria-label="ポジション削除">−</button>
+
+        {/* スロット選択ポップアップ（ホログラム）。タップしたマスの直上に出す。 */}
+        {songPicker && (
+          <>
+            <div className="seq-song-picker-veil" onClick={() => setSongPicker(null)} aria-hidden />
+            <div className="seq-song-picker" style={{ left: `${songPicker.left}px` }}>
+              {Array.from({ length: slotsPerTrack }).map((_, s) => (
+                <button
+                  key={s}
+                  className={'seq-song-picker-btn' + (songSequence[songPicker.idx] === s ? ' sel' : '')}
+                  onClick={() => {
+                    onSetSongPosition(songPicker.idx, s)
+                    setSongPicker(null)
+                  }}
+                >
+                  {SLOT_LABELS[s] ?? s}
+                </button>
+              ))}
+            </div>
+          </>
+        )}
       </div>
 
       {/* 編集エリア：

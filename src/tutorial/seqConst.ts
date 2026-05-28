@@ -3,10 +3,10 @@
 
 export const SEQ_STEPS = 16
 
-// 1 トラックあたりのパターンスロット数（A/B/C/D）。
+// 1 トラックあたりのパターンスロット数（A〜H）。
 // バース／コーラス／ブリッジ等の「セクション」単位で持てるパターン枠。
-export const SLOTS_PER_TRACK = 4
-export const SLOT_LABELS = ['A', 'B', 'C', 'D'] as const
+export const SLOTS_PER_TRACK = 8
+export const SLOT_LABELS = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'] as const
 
 // SONG モード：スロットの並び（position 列）。1 position = 1 ループ分。
 // 最低 1 position は必要。最大は UI の見やすさで 16 まで（4 拍 × 16 = 16 小節相当）。
