@@ -12,6 +12,8 @@ import {
   SONG_MIN_LENGTH,
   SONG_MAX_LENGTH,
   cellKey,
+  TRACK_RGB,
+  trackRgb,
 } from './seqConst'
 
 describe('seqConst', () => {
@@ -66,6 +68,31 @@ describe('seqConst', () => {
   it('SONG_MIN_LENGTH ≤ SONG_MAX_LENGTH', () => {
     expect(SONG_MIN_LENGTH).toBeGreaterThanOrEqual(1)
     expect(SONG_MAX_LENGTH).toBeGreaterThanOrEqual(SONG_MIN_LENGTH)
+  })
+
+  describe('TRACK_RGB / trackRgb', () => {
+    it('各色は CSS rgba に流せる "R, G, B" の三つ組（0〜255）', () => {
+      expect(TRACK_RGB.length).toBeGreaterThanOrEqual(4)
+      for (const c of TRACK_RGB) {
+        const parts = c.split(',').map((s) => Number(s.trim()))
+        expect(parts.length).toBe(3)
+        for (const n of parts) {
+          expect(Number.isInteger(n)).toBe(true)
+          expect(n).toBeGreaterThanOrEqual(0)
+          expect(n).toBeLessThanOrEqual(255)
+        }
+      }
+    })
+
+    it('全トラックで色がユニーク（見分けがつく）', () => {
+      expect(new Set(TRACK_RGB).size).toBe(TRACK_RGB.length)
+    })
+
+    it('trackRgb は範囲外で T1（先頭）にフォールバック', () => {
+      expect(trackRgb(0)).toBe(TRACK_RGB[0])
+      expect(trackRgb(-1)).toBe(TRACK_RGB[0])
+      expect(trackRgb(999)).toBe(TRACK_RGB[0])
+    })
   })
 
   describe('cellKey', () => {

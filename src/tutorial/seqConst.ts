@@ -36,3 +36,15 @@ export const SEQ_SWING_MAX = 66
 
 /** パターン内のセル識別子：`{ステップ}_{midi}`。 */
 export const cellKey = (step: number, midi: number) => `${step}_${midi}`
+
+// トラックごとの識別色。「どのトラックがどの音か」を一目で分けるための色分けに使う。
+// CSS の rgba(...) に流し込めるよう RGB の三つ組文字列で持つ（例: rgba(var(--track-rgb), .5)）。
+// T1 は既存テーマのティールを継承。以降は彩度をそろえた琥珀・藤・珊瑚。
+export const TRACK_RGB: string[] = [
+  '90, 209, 196', // T1 ティール
+  '232, 192, 106', // T2 琥珀
+  '198, 150, 240', // T3 藤
+  '240, 145, 127', // T4 珊瑚
+]
+/** トラック index → CSS で使える色文字列（範囲外は T1 にフォールバック）。 */
+export const trackRgb = (i: number): string => TRACK_RGB[i] ?? TRACK_RGB[0]

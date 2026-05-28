@@ -725,6 +725,9 @@ b {
 
 /* ===== Eternal シーケンサー ===== */
 .seq-panel {
+  /* トラック識別色のデフォルト（=既存テーマのティール）。
+     トラック行は各行で、グリッドはアクティブトラックの色で上書きする。 */
+  --track-rgb: 90, 209, 196;
   flex: 1 1 auto;
   display: flex;
   flex-direction: column;
@@ -924,19 +927,22 @@ b {
   transition: border-color 0.12s ease, background 0.12s ease;
 }
 .seq-track-row.active {
-  border-left-color: rgba(90, 209, 196, 0.55);
-  background: linear-gradient(90deg, rgba(90, 209, 196, 0.05), transparent 40%);
+  border-left-color: rgba(var(--track-rgb), 0.55);
+  background: linear-gradient(90deg, rgba(var(--track-rgb), 0.05), transparent 40%);
 }
 /* MUTE 中 or SOLO で除外されている → 行全体をうっすら沈める（鳴ってないサイン）。 */
 .seq-track-row.silenced .seq-track-btn,
 .seq-track-row.silenced .seq-slot-btn { opacity: 0.55; }
 .seq-track-btn {
+  display: flex;
+  align-items: center;
+  gap: 4px;
   min-width: 30px;
   height: 30px;
-  padding: 0 8px;
+  padding: 0 7px;
   font-size: 13px;
   font-weight: 700;
-  letter-spacing: 1.5px;
+  letter-spacing: 1px;
   color: var(--sub);
   background: linear-gradient(180deg, #14171c 0%, #0b0d10 100%);
   border: 1px solid #000;
@@ -944,11 +950,20 @@ b {
   box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), 0 1px 2px rgba(0, 0, 0, 0.5);
   cursor: pointer;
 }
+/* 波形アイコン：常にそのトラックの識別色で光らせ、選択していなくても
+   「どのトラックがどの音か」が並びで読めるようにする。 */
+.seq-wave-icon {
+  width: 20px;
+  height: 11px;
+  flex: 0 0 auto;
+  color: rgb(var(--track-rgb));
+  filter: drop-shadow(0 0 3px rgba(var(--track-rgb), 0.55));
+}
 .seq-track-btn.sel {
-  color: var(--accent);
+  color: rgb(var(--track-rgb));
   background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.35), 0 0 6px rgba(90, 209, 196, 0.18);
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.6);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(var(--track-rgb), 0.35), 0 0 6px rgba(var(--track-rgb), 0.18);
+  text-shadow: 0 0 6px rgba(var(--track-rgb), 0.6);
 }
 /* M / S：小さめのフラグボタン。押されると "へこむ" のは PANEL/SEQ と同じ視覚言語。
    ON 色は MUTE=赤系、SOLO=黄系で機能が即読みできるように分ける。 */
@@ -1009,19 +1024,19 @@ b {
 }
 /* 再生中のスロット：押し込まれたティール。点灯のメイン表現。 */
 .seq-slot-btn.playing {
-  color: var(--accent);
+  color: rgb(var(--track-rgb));
   background: linear-gradient(180deg, #0a0c0f 0%, #070809 100%);
-  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(90, 209, 196, 0.4), 0 0 6px rgba(90, 209, 196, 0.18);
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.55);
+  box-shadow: inset 0 3px 7px rgba(0, 0, 0, 0.85), inset 0 0 0 1px rgba(var(--track-rgb), 0.4), 0 0 6px rgba(var(--track-rgb), 0.18);
+  text-shadow: 0 0 6px rgba(var(--track-rgb), 0.55);
 }
 /* 予約中のスロット（次ループ頭で切り替わる）：枠が点滅。 */
 .seq-slot-btn.pending {
-  color: var(--accent);
+  color: rgb(var(--track-rgb));
   animation: seq-slot-pending 0.6s ease-in-out infinite alternate;
 }
 @keyframes seq-slot-pending {
-  from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(90, 209, 196, 0.2); }
-  to   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1.5px rgba(90, 209, 196, 0.85), 0 0 8px rgba(90, 209, 196, 0.35); }
+  from { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1px rgba(var(--track-rgb), 0.2); }
+  to   { box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.06), inset 0 0 0 1.5px rgba(var(--track-rgb), 0.85), 0 0 8px rgba(var(--track-rgb), 0.35); }
 }
 /* SONG モード中：スロットボタンはアプリ側で disabled。
    タップ不能を見た目でも示すため、明るさを少し落として「自動運転中」感を出す。 */
@@ -1535,35 +1550,35 @@ b {
    セル背景には触れず、行コンテナと対応ラベルに上下のティールラインを引く。 */
 .seq-cells-row.tie-active {
   box-shadow:
-    inset 0 1px 0 rgba(90, 209, 196, 0.55),
-    inset 0 -1px 0 rgba(90, 209, 196, 0.55),
-    0 0 12px rgba(90, 209, 196, 0.25);
-  background: rgba(90, 209, 196, 0.06);
+    inset 0 1px 0 rgba(var(--track-rgb), 0.55),
+    inset 0 -1px 0 rgba(var(--track-rgb), 0.55),
+    0 0 12px rgba(var(--track-rgb), 0.25);
+  background: rgba(var(--track-rgb), 0.06);
 }
 .seq-label.tie-active {
-  color: var(--accent);
-  text-shadow: 0 0 6px rgba(90, 209, 196, 0.7);
+  color: rgb(var(--track-rgb));
+  text-shadow: 0 0 6px rgba(var(--track-rgb), 0.7);
 }
 .seq-cell:last-child { margin-right: 0; }
 .seq-cell.bar-start { margin-left: 3px; }
 .seq-cell:active { background: #14181f; }
 .seq-cell.on {
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.55) 0%, rgba(90, 209, 196, 0.35) 100%);
-  border-color: rgba(90, 209, 196, 0.7);
-  box-shadow: inset 0 0 6px rgba(90, 209, 196, 0.3), 0 0 4px rgba(90, 209, 196, 0.25);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.55) 0%, rgba(var(--track-rgb), 0.35) 100%);
+  border-color: rgba(var(--track-rgb), 0.7);
+  box-shadow: inset 0 0 6px rgba(var(--track-rgb), 0.3), 0 0 4px rgba(var(--track-rgb), 0.25);
 }
 /* ベロシティ段階＝明るさ。強(既定)はそのまま、中・弱で段階的に暗く。
    再生ヘッド（.col-active.on）はこの後で定義され、同じ詳細度で勝つので
    ヘッドが乗っている間はフラッシュが優先される。 */
 .seq-cell.on.vel-mid {
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.33) 0%, rgba(90, 209, 196, 0.21) 100%);
-  border-color: rgba(90, 209, 196, 0.5);
-  box-shadow: inset 0 0 5px rgba(90, 209, 196, 0.18), 0 0 3px rgba(90, 209, 196, 0.14);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.33) 0%, rgba(var(--track-rgb), 0.21) 100%);
+  border-color: rgba(var(--track-rgb), 0.5);
+  box-shadow: inset 0 0 5px rgba(var(--track-rgb), 0.18), 0 0 3px rgba(var(--track-rgb), 0.14);
 }
 .seq-cell.on.vel-low {
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.18) 0%, rgba(90, 209, 196, 0.11) 100%);
-  border-color: rgba(90, 209, 196, 0.34);
-  box-shadow: inset 0 0 4px rgba(90, 209, 196, 0.1);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.18) 0%, rgba(var(--track-rgb), 0.11) 100%);
+  border-color: rgba(var(--track-rgb), 0.34);
+  box-shadow: inset 0 0 4px rgba(var(--track-rgb), 0.1);
 }
 /* タイ：行幅を変えないよう margin-right はそのまま 2px。代わりに ::after で
    2px のブリッジを描画し、隣の tied-prev セルと背景がつながって見えるようにする。
@@ -1582,36 +1597,36 @@ b {
      親の右ボーダー幅ぶん（+1px）外側にシフトしてからギャップ全幅を覆う。 */
   left: calc(100% + 1px);
   width: 2px;
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.55) 0%, rgba(90, 209, 196, 0.35) 100%);
-  border-top: 1px solid rgba(90, 209, 196, 0.7);
-  border-bottom: 1px solid rgba(90, 209, 196, 0.7);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.55) 0%, rgba(var(--track-rgb), 0.35) 100%);
+  border-top: 1px solid rgba(var(--track-rgb), 0.7);
+  border-bottom: 1px solid rgba(var(--track-rgb), 0.7);
   pointer-events: none;
 }
 /* 強弱に合わせて橋も暗く（セル本体の明るさと揃える）。中／弱。 */
 .seq-cell.on.vel-mid.tied-next::after {
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.33) 0%, rgba(90, 209, 196, 0.21) 100%);
-  border-top-color: rgba(90, 209, 196, 0.5);
-  border-bottom-color: rgba(90, 209, 196, 0.5);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.33) 0%, rgba(var(--track-rgb), 0.21) 100%);
+  border-top-color: rgba(var(--track-rgb), 0.5);
+  border-bottom-color: rgba(var(--track-rgb), 0.5);
 }
 .seq-cell.on.vel-low.tied-next::after {
-  background: linear-gradient(180deg, rgba(90, 209, 196, 0.18) 0%, rgba(90, 209, 196, 0.11) 100%);
-  border-top-color: rgba(90, 209, 196, 0.34);
-  border-bottom-color: rgba(90, 209, 196, 0.34);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.18) 0%, rgba(var(--track-rgb), 0.11) 100%);
+  border-top-color: rgba(var(--track-rgb), 0.34);
+  border-bottom-color: rgba(var(--track-rgb), 0.34);
 }
 /* 再生ヘッドが tied-next 側に乗ったときはブリッジも明るく（playhead に追従、強弱より優先）。 */
 .seq-cell.on.tied-next.col-active::after {
-  background: linear-gradient(180deg, rgba(120, 230, 218, 0.85) 0%, rgba(90, 209, 196, 0.6) 100%);
-  border-top-color: rgba(90, 209, 196, 0.7);
-  border-bottom-color: rgba(90, 209, 196, 0.7);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.95) 0%, rgba(var(--track-rgb), 0.6) 100%);
+  border-top-color: rgba(var(--track-rgb), 0.7);
+  border-bottom-color: rgba(var(--track-rgb), 0.7);
 }
 /* 再生ヘッド列：そのステップの全セルを少しブライトに、点灯セルはさらに強調。 */
 .seq-cell.col-active {
   background: #1a2228;
-  box-shadow: inset 0 0 0 1px rgba(90, 209, 196, 0.3);
+  box-shadow: inset 0 0 0 1px rgba(var(--track-rgb), 0.3);
 }
 .seq-cell.col-active.on {
-  background: linear-gradient(180deg, rgba(120, 230, 218, 0.85) 0%, rgba(90, 209, 196, 0.6) 100%);
-  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.3), 0 0 10px rgba(90, 209, 196, 0.65);
+  background: linear-gradient(180deg, rgba(var(--track-rgb), 0.95) 0%, rgba(var(--track-rgb), 0.6) 100%);
+  box-shadow: inset 0 0 8px rgba(255, 255, 255, 0.3), 0 0 10px rgba(var(--track-rgb), 0.65);
 }
 
 /* ===== PRESET モーダル（ホログラム投影風） =====

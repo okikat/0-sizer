@@ -1,6 +1,24 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOT_LABELS, cellKey } from './seqConst'
+import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOT_LABELS, cellKey, trackRgb } from './seqConst'
 import { SeqHelpModal } from './SeqHelpModal'
+
+// オシレータ波形を小さな線画で示すアイコン。トラック番号の隣に出して
+// 「このトラックはどんな音か」を一目で分かるようにする。色は行ごとの識別色（currentColor）。
+function WaveIcon({ type }: { type: string }) {
+  const d =
+    type === 'square'
+      ? 'M2 9V3h5v6h5V3h5v6h3'
+      : type === 'sawtooth'
+        ? 'M2 9 8 3v6l6-6v6l6-6'
+        : type === 'triangle'
+          ? 'M2 9 6.5 3 11 9l4.5-6L20 9'
+          : 'M2 6q3-5 6 0t6 0 6 0' // sine（既定）
+  return (
+    <svg className="seq-wave-icon" viewBox="0 0 22 12" aria-hidden focusable="false">
+      <path d={d} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round" />
+    </svg>
+  )
+}
 
 // 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
 // 再生・タイミング・音源との接続は App 側が持つ（このコンポーネントは表示と操作のみ）。
@@ -25,6 +43,8 @@ interface Props {
   onSelectSlot: (track: number, slot: number) => void
   /** パターンのコピー：from スロットの内容（on/tied/vel ＋ CUTOFF オートメーション）を to へ複製。 */
   onCopySlot: (from: { track: number; slot: number }, to: { track: number; slot: number }) => void
+  /** 各トラックのオシレータ波形（'sine'|'square'|'sawtooth'|'triangle'）。波形アイコン表示用。 */
+  trackTypes: string[]
   /** トラックごとの MUTE 状態。 */
   trackMute: boolean[]
   /** トラックごとの SOLO 状態。 */
@@ -96,6 +116,7 @@ export function SeqPanel({
   pendingSlot,
   onSelectSlot,
   onCopySlot,
+  trackTypes,
   songMode,
   songSequence,
   songPosition,
@@ -557,14 +578,19 @@ export function SeqPanel({
           const anySolo = trackSolo.some((s) => s)
           const silenced = trackMute[i] || (anySolo && !trackSolo[i])
           return (
-            <div key={i} className={'seq-track-row' + (silenced ? ' silenced' : '') + (activeTrack === i ? ' active' : '')}>
+            <div
+              key={i}
+              className={'seq-track-row' + (silenced ? ' silenced' : '') + (activeTrack === i ? ' active' : '')}
+              style={{ ['--track-rgb' as string]: trackRgb(i) } as React.CSSProperties}
+            >
               <button
                 className={'seq-track-btn' + (activeTrack === i ? ' sel' : '')}
                 onClick={() => onTrack(i)}
                 aria-pressed={activeTrack === i}
                 aria-label={`トラック ${i + 1} を編集`}
               >
-                {i + 1}
+                <span className="seq-track-num">{i + 1}</span>
+                <WaveIcon type={trackTypes[i] ?? 'sine'} />
               </button>
               <button
                 className={'seq-track-flag seq-track-mute' + (trackMute[i] ? ' on' : '')}
@@ -699,7 +725,7 @@ export function SeqPanel({
           - 横スクロール = .seq-cells-area（内側、ラベル列の右側のみ）
           - ラベル列（.seq-labels-col）は左に物理的に独立。横スクロール対象から外れて常に見える。
           - ▲ / ▼ ボタンはラベル列の上下端にオーバーレイ。 */}
-      <div className="seq-grid-area">
+      <div className="seq-grid-area" style={{ ['--track-rgb' as string]: trackRgb(activeTrack) } as React.CSSProperties}>
         <div className="seq-grid-stage" ref={gridScrollRef}>
           <div className="seq-labels-col">
             {SEQ_PITCHES.map((midi) => (

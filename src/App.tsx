@@ -1311,6 +1311,7 @@ export default function App() {
             pendingSlot={pendingSlot}
             onSelectSlot={selectSlot}
             onCopySlot={copySlot}
+            trackTypes={tracks.map((t) => t.type)}
             songMode={songMode}
             songSequence={songSequence}
             songPosition={songPosition}
