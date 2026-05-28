@@ -1592,6 +1592,132 @@ b {
   box-shadow: inset 0 0 14px rgba(90, 209, 196, 0.28), 0 0 14px rgba(90, 209, 196, 0.3);
 }
 
+/* ===== SONG モーダル（保存・読込・書き出し）。preset-modal の枠を流用。 ===== */
+.song-modal {
+  overflow-y: auto;
+  overscroll-behavior: contain;
+}
+.song-modal-section {
+  position: relative;
+  padding: 12px 14px;
+  border-bottom: 1px solid rgba(90, 209, 196, 0.15);
+}
+.song-modal-section:last-child { border-bottom: none; }
+.song-modal-label {
+  font-size: 10px;
+  letter-spacing: 2px;
+  font-weight: 700;
+  color: var(--sub);
+  margin-bottom: 8px;
+}
+.song-modal-saverow,
+.song-modal-exprow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  flex-wrap: wrap;
+}
+.song-modal-input {
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 34px;
+  padding: 0 10px;
+  font-size: 14px;
+  font-family: inherit;
+  color: var(--accent);
+  background: rgba(90, 209, 196, 0.05);
+  border: 1px solid rgba(90, 209, 196, 0.35);
+  border-radius: 0;
+}
+.song-modal-input::placeholder { color: rgba(120, 160, 156, 0.6); }
+.song-modal-act {
+  flex: 0 0 auto;
+  height: 34px;
+  padding: 0 14px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--accent);
+  background: rgba(90, 209, 196, 0.08);
+  border: 1px solid rgba(90, 209, 196, 0.4);
+  border-radius: 0;
+  text-shadow: 0 0 6px rgba(90, 209, 196, 0.4);
+  cursor: pointer;
+}
+.song-modal-act:active {
+  background: rgba(90, 209, 196, 0.2);
+  box-shadow: inset 0 0 12px rgba(90, 209, 196, 0.25);
+}
+.song-modal-empty {
+  font-size: 12px;
+  color: var(--sub);
+  opacity: 0.7;
+  padding: 6px 2px;
+}
+.song-modal-list {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+.song-modal-row {
+  display: flex;
+  gap: 6px;
+  align-items: stretch;
+}
+.song-modal-open {
+  flex: 1 1 auto;
+  min-width: 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 9px 12px;
+  color: var(--accent);
+  background: rgba(90, 209, 196, 0.06);
+  border: 1px solid rgba(90, 209, 196, 0.3);
+  border-radius: 0;
+  cursor: pointer;
+  text-align: left;
+}
+.song-modal-open:active {
+  background: rgba(90, 209, 196, 0.18);
+  box-shadow: inset 0 0 12px rgba(90, 209, 196, 0.22);
+}
+.song-modal-name {
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.song-modal-date {
+  flex: 0 0 auto;
+  font-size: 10px;
+  color: var(--sub);
+  opacity: 0.7;
+}
+.song-modal-del {
+  flex: 0 0 auto;
+  width: 40px;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--sub);
+  background: rgba(255, 90, 90, 0.06);
+  border: 1px solid rgba(255, 120, 120, 0.3);
+  border-radius: 0;
+  cursor: pointer;
+}
+.song-modal-del.confirm {
+  width: auto;
+  padding: 0 10px;
+  font-size: 11px;
+  color: #ff9b9b;
+  background: rgba(255, 90, 90, 0.18);
+  border-color: rgba(255, 120, 120, 0.6);
+}
+.song-modal-del:active { background: rgba(255, 90, 90, 0.25); }
+
 /* メニュー内のチェックボックス行（解説表示）。 */
 .menu-check {
   cursor: pointer;

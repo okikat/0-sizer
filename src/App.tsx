@@ -27,7 +27,12 @@ import { SynthPanel, type PanelTab } from './tutorial/SynthPanel'
 import { LessonStage, type ExitPhase, type FrameFlight } from './tutorial/LessonStage'
 import { Popup } from './tutorial/Popup'
 import { PresetModal } from './tutorial/PresetModal'
+import { SongModal } from './tutorial/SongModal'
 import { SeqPanel } from './tutorial/SeqPanel'
+import { type Project, projectToJSON, projectFromJSON } from './lib/project'
+import { projectToMidi } from './lib/midi'
+import { listSongs, saveSong, loadSong, deleteSong, suggestSongName, type SavedSong } from './lib/songLibrary'
+import { downloadFile } from './lib/download'
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOTS_PER_TRACK, SONG_MIN_LENGTH, SONG_MAX_LENGTH, cellKey as seqCellKey } from './tutorial/seqConst'
 import {
   DONE_KEY,
@@ -95,6 +100,8 @@ export default function App() {
   const [panelPopup, setPanelPopup] = useState<FrameId | null>(null)
   const [activeTab, setActiveTab] = useState<PanelTab>('panel')
   const [presetModalOpen, setPresetModalOpen] = useState(false)
+  const [songModalOpen, setSongModalOpen] = useState(false)
+  const [savedSongs, setSavedSongs] = useState<SavedSong[]>(() => listSongs())
 
   // ===== マルチトラック：音作り状態と「いま編集中のトラック」 =====
   const [tracks, setTracks] = useState<SoundState[]>(() => loadTracks())
@@ -1102,6 +1109,74 @@ export default function App() {
     tweenRef.current = requestAnimationFrame(step)
   }
 
+  // ===== 曲（プロジェクト）の保存・読込・書き出し =====
+  // いまの SEQ 全状態を 1 つの Project に集める。
+  const getCurrentProject = (): Project => ({
+    bpm: seqBpm,
+    swing: seqSwing,
+    patterns: seqPatterns,
+    automations: seqAutomations,
+    automationEnabled: seqAutomationEnabled,
+    songSequence,
+    songMode,
+    tracks,
+  })
+
+  // Project を全 state に流し込み、両エンジンへ音色を反映する。
+  const applyProject = (p: Project) => {
+    if (tweenRef.current) cancelAnimationFrame(tweenRef.current)
+    setSeqBpm(p.bpm)
+    setSeqSwing(p.swing)
+    setSeqPatterns(p.patterns)
+    setSeqAutomations(p.automations)
+    setSeqAutomationEnabled(p.automationEnabled)
+    setSongSequence(p.songSequence)
+    setSongMode(p.songMode)
+    setTracks(p.tracks)
+    // スロット選択は安全側に戻す（読み込んだパターンの A から）。
+    setCurrentSlot(Array(TRACK_COUNT).fill(0))
+    setPendingSlot(Array(TRACK_COUNT).fill(-1))
+    // 履歴はクリア（別の曲を跨いで undo されると混乱するため）。
+    historyRef.current = { past: [], future: [] }
+    setHistoryPastLen(0)
+    setHistoryFutureLen(0)
+    // 両エンジンへ即時反映（補間なし）。
+    pushSoundToEngine(engineA, p.tracks[0])
+    pushSoundToEngine(engineB, p.tracks[1])
+  }
+
+  const handleSaveSong = (name: string) => {
+    setSavedSongs(saveSong(name, getCurrentProject()))
+  }
+  const handleLoadSong = (name: string) => {
+    const p = loadSong(name)
+    if (p) {
+      applyProject(p)
+      setSongModalOpen(false)
+    }
+  }
+  const handleDeleteSong = (name: string) => {
+    setSavedSongs(deleteSong(name))
+  }
+  const handleExportMidi = () => {
+    const bytes = projectToMidi(getCurrentProject())
+    downloadFile('0sizer.mid', bytes, 'audio/midi')
+  }
+  const handleExportJson = () => {
+    downloadFile('0sizer-song.json', projectToJSON(getCurrentProject()), 'application/json')
+  }
+  const handleImportJson = (file: File) => {
+    const reader = new FileReader()
+    reader.onload = () => {
+      const p = projectFromJSON(String(reader.result ?? ''))
+      if (p) {
+        applyProject(p)
+        setSongModalOpen(false)
+      }
+    }
+    reader.readAsText(file)
+  }
+
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
@@ -1128,6 +1203,9 @@ export default function App() {
           </div>
         )}
       </div>
+      <button className="menu-item" onClick={() => { closeMenu(); setSongModalOpen(true) }}>
+        <span className="menu-arrow" />曲の保存・書き出し
+      </button>
       <button className="menu-item" onClick={() => { closeMenu(); replay() }}>
         <span className="menu-arrow" />もう一度見る
       </button>
@@ -1253,6 +1331,20 @@ export default function App() {
           presets={PRESETS}
           onPick={applyPreset}
           onClose={() => setPresetModalOpen(false)}
+        />
+      )}
+
+      {songModalOpen && (
+        <SongModal
+          songs={savedSongs}
+          defaultName={suggestSongName()}
+          onSave={handleSaveSong}
+          onLoad={handleLoadSong}
+          onDelete={handleDeleteSong}
+          onExportMidi={handleExportMidi}
+          onExportJson={handleExportJson}
+          onImportJson={handleImportJson}
+          onClose={() => setSongModalOpen(false)}
         />
       )}
 
