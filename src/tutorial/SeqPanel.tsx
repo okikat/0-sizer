@@ -416,7 +416,15 @@ export function SeqPanel({
             onClick={onTogglePlay}
             aria-label={playing ? '停止' : '再生'}
           >
-            {playing ? '⏹' : '▶'}
+            {playing ? (
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+                <rect x="6" y="6" width="12" height="12" rx="1.5" fill="currentColor" />
+              </svg>
+            ) : (
+              <svg viewBox="0 0 24 24" width="15" height="15" aria-hidden>
+                <path d="M8 5.5 L18.5 12 L8 18.5 Z" fill="currentColor" />
+              </svg>
+            )}
           </button>
 
           <div className="seq-bpm">
