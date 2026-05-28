@@ -1,5 +1,6 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { SEQ_STEPS, SEQ_PITCHES, SEQ_NOTE_LABEL, SEQ_BPM_MIN, SEQ_BPM_MAX, SEQ_SWING_MIN, SEQ_SWING_MAX, SLOT_LABELS, cellKey } from './seqConst'
+import { SeqHelpModal } from './SeqHelpModal'
 
 // 16 ステップ × 7 白鍵（C4〜B4）の最小シーケンサー。マルチトラック対応。
 // 再生・タイミング・音源との接続は App 側が持つ（このコンポーネントは表示と操作のみ）。
@@ -348,6 +349,7 @@ export function SeqPanel({
     longFired: boolean
   } | null>(null)
   const [copySource, setCopySource] = useState<{ track: number; slot: number } | null>(null)
+  const [helpOpen, setHelpOpen] = useState(false)
 
   const SLOT_LONG_MS = 400
   const SLOT_MOVE_CANCEL = 10
@@ -526,8 +528,19 @@ export function SeqPanel({
             強弱
           </button>
           <button className="seq-clear" onClick={onClear}>クリア</button>
+          {/* SEQ の操作ヘルプ（隠れジェスチャの導線）。 */}
+          <button
+            className="seq-help-btn"
+            onClick={() => setHelpOpen(true)}
+            aria-label="SEQ の使い方"
+            title="SEQ の使い方"
+          >
+            ?
+          </button>
         </div>
       </div>
+
+      {helpOpen && <SeqHelpModal onClose={() => setHelpOpen(false)} />}
 
       {/* トラックごとの 1 行：[TRACK N] [M] [S] [A B C D] [プレイヘッド先取り] 。
           - TRACK N：アクティブトラック（PANEL の編集対象）を切替
