@@ -60,6 +60,8 @@ import {
   type SoundState,
   emptyPattern,
   migrateOldSet,
+  DEFAULT_SOUND,
+  defaultAutomations,
   loadTracks,
   loadActiveTrack,
   loadAutomations,
@@ -1236,6 +1238,38 @@ export default function App() {
     reader.readAsText(file)
   }
 
+  // 4 トラック同時再生のズレ確認用テスト曲。全トラック同じ C4 を 8 分で連打する
+  // ユニゾン。完全同期なら 1 つのキレた連打、ズレるとフラム（パタパタ）として聞こえる。
+  const handleLoadTestSong = () => {
+    const onSteps = [0, 2, 4, 6, 8, 10, 12, 14]
+    const patterns = Array.from({ length: TRACK_COUNT }, () =>
+      Array.from({ length: SLOTS_PER_TRACK }, (_, s) => {
+        const p = emptyPattern()
+        if (s === 0) for (const st of onSteps) p.on.add(seqCellKey(st, 60))
+        return p
+      }),
+    )
+    // アタックの鋭い短いブリップ（ズレが目立つ）。
+    const blip: SoundState = {
+      ...DEFAULT_SOUND,
+      type: 'square',
+      env: { attack: 0.002, decay: 0.1, sustain: 0, release: 0.06 },
+      cutoff: 1,
+    }
+    const testTracks = Array.from({ length: TRACK_COUNT }, () => ({ ...blip, env: { ...blip.env } }))
+    applyProject({
+      bpm: 120,
+      swing: 0,
+      patterns,
+      automations: defaultAutomations(),
+      automationEnabled: Array(TRACK_COUNT).fill(false),
+      songSequence: [0],
+      songMode: false,
+      tracks: testTracks,
+    })
+    setSongModalOpen(false)
+  }
+
   if (phase === 'start') return <StartScreen onStart={() => setPhase('intro')} />
   if (phase === 'intro') return <IntroScreen onDone={() => setPhase('ghost')} />
 
@@ -1408,6 +1442,7 @@ export default function App() {
           onExportMidi={handleExportMidi}
           onExportJson={handleExportJson}
           onImportJson={handleImportJson}
+          onLoadTestSong={handleLoadTestSong}
           onClose={() => setSongModalOpen(false)}
         />
       )}
