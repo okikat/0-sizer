@@ -1254,6 +1254,12 @@ b {
   min-height: 0;
   display: flex;
   flex-direction: row;
+  /* セル列(.seq-cells-area)は overflow-x:auto を持つため、align-items:stretch だと
+     縦方向に「潰せる」とみなされ、stage の（短い）高さに切り詰められてしまう。
+     一方ラベル列は中身（14 行）の高さを保つので、縦スクロール時に
+     「ラベルは動くのにセルはクリップされて見えない」というズレが起きる。
+     flex-start にして両列とも中身の自然な高さを保ち、一緒にスクロールさせる。 */
+  align-items: flex-start;
   /* 縦スクロールだけここで受ける。横スクロールは .seq-cells-area で。 */
   overflow-y: auto;
   overflow-x: hidden;
