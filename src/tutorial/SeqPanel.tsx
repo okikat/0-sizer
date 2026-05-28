@@ -22,6 +22,8 @@ interface Props {
   /** 各トラックの「次ループ頭で切り替わる予約スロット」（-1 なら予約なし）。 */
   pendingSlot: number[]
   onSelectSlot: (track: number, slot: number) => void
+  /** パターンのコピー：from スロットの内容（on/tied/vel ＋ CUTOFF オートメーション）を to へ複製。 */
+  onCopySlot: (from: { track: number; slot: number }, to: { track: number; slot: number }) => void
   /** トラックごとの MUTE 状態。 */
   trackMute: boolean[]
   /** トラックごとの SOLO 状態。 */
@@ -91,6 +93,7 @@ export function SeqPanel({
   currentSlot,
   pendingSlot,
   onSelectSlot,
+  onCopySlot,
   songMode,
   songSequence,
   songPosition,
@@ -335,6 +338,64 @@ export function SeqPanel({
   const zoomOut = () => onZoomChange(Math.max(0.6, zoom / 1.15))
   const zoomReset = () => onZoomChange(1.0)
 
+  // ===== スロットのコピー（長押しで「コピー元」、続けて別スロットをタップで複製）=====
+  const slotPressRef = useRef<{
+    track: number
+    slot: number
+    x: number
+    y: number
+    timer: number | null
+    longFired: boolean
+  } | null>(null)
+  const [copySource, setCopySource] = useState<{ track: number; slot: number } | null>(null)
+
+  const SLOT_LONG_MS = 400
+  const SLOT_MOVE_CANCEL = 10
+
+  const handleSlotPointerDown = (track: number, slot: number, e: React.PointerEvent<HTMLButtonElement>) => {
+    const rec = { track, slot, x: e.clientX, y: e.clientY, timer: null as number | null, longFired: false }
+    rec.timer = window.setTimeout(() => {
+      rec.longFired = true
+      rec.timer = null
+      setCopySource({ track, slot })
+    }, SLOT_LONG_MS)
+    slotPressRef.current = rec
+  }
+
+  const handleSlotPointerMove = (e: React.PointerEvent<HTMLButtonElement>) => {
+    const r = slotPressRef.current
+    if (!r) return
+    if (Math.hypot(e.clientX - r.x, e.clientY - r.y) > SLOT_MOVE_CANCEL) {
+      if (r.timer != null) { window.clearTimeout(r.timer); r.timer = null }
+      slotPressRef.current = null
+    }
+  }
+
+  const handleSlotPointerUp = (track: number, slot: number) => {
+    const r = slotPressRef.current
+    slotPressRef.current = null
+    if (!r) return
+    if (r.timer != null) { window.clearTimeout(r.timer); r.timer = null }
+    if (r.longFired) return // 長押し成立（コピー元を選択済み）。up では何もしない。
+    // タップ：コピー中なら貼り付け先、そうでなければ通常のスロット選択。
+    if (copySource) {
+      if (copySource.track === track && copySource.slot === slot) {
+        setCopySource(null) // コピー元自身をタップ＝キャンセル
+      } else {
+        onCopySlot(copySource, { track, slot })
+        setCopySource(null)
+      }
+    } else {
+      onSelectSlot(track, slot)
+    }
+  }
+
+  const handleSlotPointerCancel = () => {
+    const r = slotPressRef.current
+    if (r?.timer != null) window.clearTimeout(r.timer)
+    slotPressRef.current = null
+  }
+
   // 横スクロールバー（kbd-bar 風）。cellsAreaRef の scrollLeft / scrollWidth から
   // ウィンドウ位置・幅を計算してティールのつまみで可視化。タップ／ドラッグで scrollLeft 制御。
   const hscrollBarRef = useRef<HTMLDivElement>(null)
@@ -507,14 +568,21 @@ export function SeqPanel({
                 {Array.from({ length: slotsPerTrack }).map((_, s) => {
                   const isPlaying = currentSlot[i] === s
                   const isPending = pendingSlot[i] === s
+                  const isCopySrc = copySource?.track === i && copySource?.slot === s
+                  const isCopyTarget = copySource != null && !isCopySrc
                   return (
                     <button
                       key={s}
                       className={'seq-slot-btn'
                         + (isPlaying ? ' playing' : '')
                         + (isPending ? ' pending' : '')
-                        + (songMode ? ' song-driven' : '')}
-                      onClick={() => onSelectSlot(i, s)}
+                        + (songMode ? ' song-driven' : '')
+                        + (isCopySrc ? ' copy-src' : '')
+                        + (isCopyTarget ? ' copy-target' : '')}
+                      onPointerDown={(e) => handleSlotPointerDown(i, s, e)}
+                      onPointerMove={handleSlotPointerMove}
+                      onPointerUp={() => handleSlotPointerUp(i, s)}
+                      onPointerCancel={handleSlotPointerCancel}
                       disabled={songMode}
                       aria-pressed={isPlaying}
                       aria-label={`トラック ${i + 1} スロット ${SLOT_LABELS[s]}`}
@@ -528,6 +596,18 @@ export function SeqPanel({
           )
         })}
       </div>
+
+      {/* コピー操作中のヒット帯：コピー元を示し、貼り付け先のタップを促す。 */}
+      {copySource && (
+        <div className="seq-copy-hint">
+          <span>
+            コピー元 <b>T{copySource.track + 1} {SLOT_LABELS[copySource.slot]}</b> → 貼り付け先のスロットをタップ
+          </span>
+          <button className="seq-copy-cancel" onClick={() => setCopySource(null)} aria-label="コピーをやめる">
+            ×
+          </button>
+        </div>
+      )}
 
       {/* SONG モード行：スロットの並び（position 列）と ⏵ トグルで「曲が自動で進む」体験を作る。
           - ⏵ が ON：再生中、ループ頭ごとに次 position へ進み、その position のスロットを全トラックに適用

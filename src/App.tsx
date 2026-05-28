@@ -848,6 +848,31 @@ export default function App() {
     }))
   }
 
+  // パターンのコピー：from スロットの内容（on/tied/vel）と CUTOFF オートメーションを to へ複製。
+  // from/to は別トラックでも可。上書きは pushHistory 済みなので Undo で戻せる。
+  const copySlot = (from: { track: number; slot: number }, to: { track: number; slot: number }) => {
+    if (from.track === to.track && from.slot === to.slot) return
+    pushHistory()
+    setSeqPatterns((prev) => {
+      const src = prev[from.track]?.[from.slot]
+      if (!src) return prev
+      return prev.map((slots, t) =>
+        t !== to.track
+          ? slots
+          : slots.map((p, s) =>
+              s !== to.slot ? p : { on: new Set(src.on), tied: new Set(src.tied), vel: new Map(src.vel) },
+            ),
+      )
+    })
+    setSeqAutomations((prev) => {
+      const src = prev[from.track]?.[from.slot]
+      if (!src) return prev
+      return prev.map((slots, t) =>
+        t !== to.track ? slots : slots.map((arr, s) => (s !== to.slot ? arr : [...src])),
+      )
+    })
+  }
+
   // クリア：アクティブトラックの「編集中スロット」のみを空に（他のスロットは残す）。
   const clearActiveTrackPattern = () => {
     pushHistory()
@@ -1246,6 +1271,7 @@ export default function App() {
             currentSlot={currentSlot}
             pendingSlot={pendingSlot}
             onSelectSlot={selectSlot}
+            onCopySlot={copySlot}
             songMode={songMode}
             songSequence={songSequence}
             songPosition={songPosition}
