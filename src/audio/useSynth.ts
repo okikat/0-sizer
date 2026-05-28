@@ -45,6 +45,11 @@ export function useSynth() {
   const voicesRef = useRef<Map<number, Voice>>(new Map())
   // GLIDE 開始ピッチ（直前ボイスの目標周波数）。1 音目は使わず、2 音目以降に滑り始点として使う。
   const lastFreqRef = useRef(440)
+  // suspended な ctx に noteOn を投げると trigger が非同期予約になる。
+  // その間に来た noteOff を保留しておき、trigger 後に確実にリリースを実行するためのキュー。
+  // これが無いと「1 回目のタップ：voice 作成前に noteOff が来て無視 → voice 作成後に release なしで
+  // 永久に鳴り続ける」というバグになる。
+  const pendingOffRef = useRef<Set<number>>(new Set())
 
   // ---- 共有ノード（context あたり 1 つ） ----
   const masterRef = useRef<GainNode | null>(null)
@@ -342,6 +347,20 @@ export function useSynth() {
         voice.filter.frequency.setValueAtTime(peak, now)
         const tau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
         voice.filter.frequency.setTargetAtTime(base, now + 0.005, tau)
+        // suspended 中に noteOff を取りこぼしていたら、ここでリリースを入れる。
+        // アタック頂点（now + a）以降だけキャンセルしてリリース ramp を追加 → アタックは聴かせる。
+        if (pendingOffRef.current.has(midi)) {
+          pendingOffRef.current.delete(midi)
+          const r = Math.max(0.01, envRef.current.release)
+          voice.envGain.gain.cancelScheduledValues(now + a + 0.001)
+          voice.envGain.gain.linearRampToValueAtTime(0.0001, now + a + r)
+          if (voice.cleanupTimer) clearTimeout(voice.cleanupTimer)
+          const captured = voice
+          voice.cleanupTimer = setTimeout(() => {
+            hardStopVoice(captured)
+            voicesRef.current.delete(midi)
+          }, (a + r + 0.05) * 1000)
+        }
       }
       const ctx = ctxRef.current
       if (!ctx) return
@@ -369,7 +388,12 @@ export function useSynth() {
       const ctx = ctxRef.current
       if (!ctx) return
       const voice = voicesRef.current.get(midi)
-      if (!voice) return
+      if (!voice) {
+        // voice 未作成（noteOn の trigger が ctx resume 待ちで非同期予約中）。
+        // ここで諦めると永久に鳴り続けてしまうので、キューに積んで trigger 側で消化する。
+        pendingOffRef.current.add(midi)
+        return
+      }
       const now = ctx.currentTime
       const r = Math.max(0.01, envRef.current.release)
       const cur = voice.envGain.gain.value
