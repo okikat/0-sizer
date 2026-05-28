@@ -73,6 +73,8 @@ export function useSynth() {
   const typeRef = useRef<OscillatorType>('sine')       // OSC1 波形
   const osc2TypeRef = useRef<OscillatorType>('sine')   // OSC2 波形（OSC1 と独立）
   const osc2OctRef = useRef(0)                          // OSC2 のオクターブ移調（-2〜+2）
+  const pulseWidthRef = useRef(0.5)                     // パルス幅（0.5=矩形）。square のときだけ効く
+  const pulseWaveRef = useRef<PeriodicWave | null>(null) // 現 ctx・現 width のパルス波（キャッシュ）
   const filterTypeRef = useRef<BiquadFilterType>('lowpass') // フィルター種別（LP/HP/BP）
   const tuneRef = useRef(0)
   const glideTauRef = useRef(0.005) // ピッチが新しい音へ滑る時定数（秒）。小さいほど即時。
@@ -116,6 +118,33 @@ export function useSynth() {
     c.gain.setTargetAtTime(cutoffCents, t, 0.02)
     a.gain.setTargetAtTime(ampMod, t, 0.02)
   }, [])
+
+  // 現在のパルス幅から PeriodicWave を作り直す（ctx に紐づくのでctx生成/幅変更時に再構築）。
+  // デューティ比 d の矩形波のフーリエ係数：real[n]=sin(2πnd)/(πn), imag[n]=(1-cos(2πnd))/(πn)。
+  // d=0.5 で内蔵 square と同じ（odd 倍音のみ）。倍音数は上の音域で過剰なエイリアスが出ない範囲に。
+  const PULSE_HARMONICS = 32
+  const buildPulseWave = useCallback(() => {
+    const ctx = ctxRef.current
+    if (!ctx) { pulseWaveRef.current = null; return }
+    const d = Math.max(0.05, Math.min(0.95, pulseWidthRef.current))
+    const real = new Float32Array(PULSE_HARMONICS + 1)
+    const imag = new Float32Array(PULSE_HARMONICS + 1)
+    for (let n = 1; n <= PULSE_HARMONICS; n++) {
+      const t = 2 * Math.PI * n * d
+      real[n] = Math.sin(t) / (Math.PI * n)
+      imag[n] = (1 - Math.cos(t)) / (Math.PI * n)
+    }
+    pulseWaveRef.current = ctx.createPeriodicWave(real, imag)
+  }, [])
+
+  // オシレータに波形を適用。square かつ幅が 0.5 から外れていれば自作パルス波、それ以外は内蔵波形。
+  const applyOscWave = useCallback((osc: OscillatorNode, type: OscillatorType) => {
+    if (type === 'square' && Math.abs(pulseWidthRef.current - 0.5) > 0.01) {
+      if (!pulseWaveRef.current) buildPulseWave()
+      if (pulseWaveRef.current) { osc.setPeriodicWave(pulseWaveRef.current); return }
+    }
+    osc.type = type
+  }, [buildPulseWave])
 
   const ensure = useCallback(() => {
     // 'closed' になった AudioContext は復活できない（resume が必ず失敗する）。
@@ -215,9 +244,11 @@ export function useSynth() {
       noiseBufRef.current = noiseBuf
       // 既定の depth=0 なので 3 つとも 0 のまま。OK。
       applyLfo()
+      // パルス波は ctx に紐づくので、ctx 生成のたびに作り直す。
+      buildPulseWave()
     }
     if (ctxRef.current.state !== 'running') void ctxRef.current.resume()
-  }, [applyLfo])
+  }, [applyLfo, buildPulseWave])
 
   // 1 ボイスを生成して共有ノードに接続する。
   const createVoice = useCallback((midi: number): Voice | null => {
@@ -240,7 +271,7 @@ export function useSynth() {
     lfoCutoffGain.connect(filter.detune)
 
     const osc1 = ctx.createOscillator()
-    osc1.type = typeRef.current
+    applyOscWave(osc1, typeRef.current)
     const osc1Gain = ctx.createGain()
     osc1Gain.gain.value = 1 - mixBalanceRef.current
     osc1.connect(osc1Gain)
@@ -248,7 +279,7 @@ export function useSynth() {
     lfoPitchGain.connect(osc1.detune)
 
     const osc2 = ctx.createOscillator()
-    osc2.type = osc2TypeRef.current
+    applyOscWave(osc2, osc2TypeRef.current)
     // OSC2 の総デチューン＝微デチューン(セント) ＋ オクターブ移調(1oct=1200¢)。
     osc2.detune.value = detuneRef.current + osc2OctRef.current * 1200
     const osc2Gain = ctx.createGain()
@@ -302,7 +333,7 @@ export function useSynth() {
       startedAt: now,
       cleanupTimer: null,
     }
-  }, [])
+  }, [applyOscWave])
 
   // ボイスのノードを停止・切断する。リリース完了後に呼ぶ。
   const hardStopVoice = useCallback((v: Voice) => {
@@ -467,16 +498,26 @@ export function useSynth() {
   const setWaveform = useCallback((t: OscillatorType) => {
     typeRef.current = t
     voicesRef.current.forEach((v) => {
-      v.osc1.type = t
+      applyOscWave(v.osc1, t)
     })
-  }, [])
+  }, [applyOscWave])
 
   const setWaveform2 = useCallback((t: OscillatorType) => {
     osc2TypeRef.current = t
     voicesRef.current.forEach((v) => {
-      v.osc2.type = t
+      applyOscWave(v.osc2, t)
     })
-  }, [])
+  }, [applyOscWave])
+
+  // パルス幅（0〜1）。square のオシレータにだけ効く。鳴っている音にも即反映。
+  const setPulseWidth = useCallback((width: number) => {
+    pulseWidthRef.current = Math.max(0.05, Math.min(0.95, width))
+    buildPulseWave()
+    voicesRef.current.forEach((v) => {
+      applyOscWave(v.osc1, typeRef.current)
+      applyOscWave(v.osc2, osc2TypeRef.current)
+    })
+  }, [applyOscWave, buildPulseWave])
 
   const setFilterType = useCallback((kind: BiquadFilterType) => {
     filterTypeRef.current = kind
@@ -676,6 +717,7 @@ export function useSynth() {
     noteOff,
     setWaveform,
     setWaveform2,
+    setPulseWidth,
     setFilterType,
     setOsc2Oct,
     setTune,

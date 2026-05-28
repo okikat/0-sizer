@@ -30,6 +30,7 @@ import type { SoundState } from '../lib/seqStorage'
 export function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundState) {
   engine.setWaveform(s.type)
   engine.setWaveform2(s.osc2Type)
+  engine.setPulseWidth(s.pulseWidth)
   engine.setFilterType(s.filterType)
   engine.setEnv(s.env)
   engine.setCutoff(cutoffNormToHz(s.cutoff))

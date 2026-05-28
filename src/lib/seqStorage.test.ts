@@ -145,9 +145,10 @@ describe('seqStorage: 構造的デフォルト', () => {
     expect(DEFAULT_SOUND.pan).toBeLessThanOrEqual(5)
   })
 
-  it('DEFAULT_SOUND の追加パラメータ（OSC2 波形/oct, フィルタ種別）が既定値', () => {
+  it('DEFAULT_SOUND の追加パラメータ（OSC2 波形/oct, パルス幅, フィルタ種別）が既定値', () => {
     expect(DEFAULT_SOUND.osc2Type).toBe('sine')
     expect(DEFAULT_SOUND.osc2Oct).toBe(0)
+    expect(DEFAULT_SOUND.pulseWidth).toBe(0.5)
     expect(DEFAULT_SOUND.filterType).toBe('lowpass')
   })
 

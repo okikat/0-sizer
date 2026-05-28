@@ -97,13 +97,23 @@ describe('project: シリアライズの往復', () => {
     expect(p.automations[0][0].length).toBe(SEQ_STEPS)
   })
 
-  it('音色の追加パラメータ（osc2Type / osc2Oct / filterType）が往復する', () => {
+  it('音色の追加パラメータ（osc2Type / osc2Oct / filterType / pulseWidth）が往復する', () => {
     const p = sampleProject()
-    p.tracks[0] = { ...p.tracks[0], osc2Type: 'square', osc2Oct: -1, filterType: 'highpass' }
+    p.tracks[0] = { ...p.tracks[0], osc2Type: 'square', osc2Oct: -1, filterType: 'highpass', pulseWidth: 0.2 }
     const round = deserializeProject(serializeProject(p))!
     expect(round.tracks[0].osc2Type).toBe('square')
     expect(round.tracks[0].osc2Oct).toBe(-1)
     expect(round.tracks[0].filterType).toBe('highpass')
+    expect(round.tracks[0].pulseWidth).toBeCloseTo(0.2)
+  })
+
+  it('pulseWidth は 0.05〜0.95 にクランプ、不正は既定 0.5', () => {
+    const lo = deserializeProject({ bpm: 120, songSequence: [0], tracks: [{ pulseWidth: 0 }] })!
+    const hi = deserializeProject({ bpm: 120, songSequence: [0], tracks: [{ pulseWidth: 9 }] })!
+    const bad = deserializeProject({ bpm: 120, songSequence: [0], tracks: [{ pulseWidth: 'x' }] })!
+    expect(lo.tracks[0].pulseWidth).toBeCloseTo(0.05)
+    expect(hi.tracks[0].pulseWidth).toBeCloseTo(0.95)
+    expect(bad.tracks[0].pulseWidth).toBe(0.5)
   })
 
   it('裏方 Env（filterEnv ADSR / pitchEnv）が往復し、範囲外はクランプ', () => {

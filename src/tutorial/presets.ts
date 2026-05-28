@@ -26,6 +26,7 @@ export interface Preset {
   filterEnvDecay: number   // 0〜10（フィルターEnv 戻り時間＝サステインへ向かう減衰）
   reverbMixAmt: number     // 0〜10（REVERB 響きの混ぜ量）
   // --- 裏方（任意）。UI なし。未指定なら 0＝従来挙動。プリセットの再現度を上げる用 ---
+  pulseWidth?: number        // 0〜1（既定 0.5=矩形）。type/osc2Type が square のとき効く
   filterEnvAttack?: number   // 0〜10（フィルターEnv 立ち上がり）
   filterEnvSustain?: number  // 0〜10（フィルターEnv 保持する明るさの割合）
   filterEnvRelease?: number  // 0〜10（離鍵後に base へ戻る時間）

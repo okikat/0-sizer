@@ -1114,6 +1114,7 @@ export default function App() {
       type: p.type,
       osc2Type: p.osc2Type,
       osc2Oct: p.osc2Oct,
+      pulseWidth: p.pulseWidth ?? 0.5,
       filterType: p.filterType,
       env: { ...p.env },
       cutoff: p.cutoff,
@@ -1154,6 +1155,7 @@ export default function App() {
         type: target.type,         // 離散：即
         osc2Type: target.osc2Type, // 離散：即
         osc2Oct: target.osc2Oct,   // 離散：即
+        pulseWidth: target.pulseWidth, // 裏方：即
         filterType: target.filterType, // 離散：即
         lfoDest: target.lfoDest,   // 離散：即
         fenvAttack: target.fenvAttack,   // 裏方：即

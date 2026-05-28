@@ -71,6 +71,7 @@ export interface SoundState {
   type: OscillatorType       // OSC1 波形
   osc2Type: OscillatorType   // OSC2 波形（OSC1 と独立）
   osc2Oct: number            // OSC2 のオクターブ移調（-2〜+2、整数）
+  pulseWidth: number         // パルス幅（0〜1、既定 0.5=矩形）。type が square のオシレータに効く
   filterType: FilterKind     // フィルター種別（LP / HP / BP）
   env: EnvParams
   cutoff: number     // 0〜1
@@ -102,6 +103,7 @@ export const DEFAULT_SOUND: SoundState = {
   type: 'sine',
   osc2Type: 'sine',
   osc2Oct: 0,
+  pulseWidth: 0.5,
   filterType: 'lowpass',
   env: { attack: 0.01, decay: 0.2, sustain: 0.7, release: 0.3 },
   cutoff: 1,

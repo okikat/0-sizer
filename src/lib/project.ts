@@ -161,6 +161,7 @@ export function deserializeProject(raw: unknown): Project | null {
     // 裏方 Env パラメータ：つまみ系は 0〜10、ピッチEnv 量は -12〜+12 半音。
     const num = (v: unknown, lo: number, hi: number, d: number) =>
       Number.isFinite(Number(v)) ? clamp(Number(v), lo, hi) : d
+    merged.pulseWidth = num(merged.pulseWidth, 0.05, 0.95, def.pulseWidth)
     merged.fenvAttack = num(merged.fenvAttack, 0, 10, def.fenvAttack)
     merged.fenvSustain = num(merged.fenvSustain, 0, 10, def.fenvSustain)
     merged.fenvRelease = num(merged.fenvRelease, 0, 10, def.fenvRelease)
