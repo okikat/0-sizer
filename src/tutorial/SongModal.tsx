@@ -10,8 +10,6 @@ interface Props {
   onExportMidi: () => void
   onExportJson: () => void
   onImportJson: (file: File) => void
-  /** 4 トラック同時再生のズレ確認用テスト曲を読み込む（診断用）。 */
-  onLoadTestSong: () => void
   onClose: () => void
 }
 
@@ -35,7 +33,6 @@ export function SongModal({
   onExportMidi,
   onExportJson,
   onImportJson,
-  onLoadTestSong,
   onClose,
 }: Props) {
   const [name, setName] = useState(defaultName)
@@ -129,14 +126,6 @@ export function SongModal({
               }}
             />
           </div>
-        </div>
-
-        {/* 診断：4 トラック同時再生のズレ確認用テスト曲。 */}
-        <div className="song-modal-section">
-          <div className="song-modal-label">診断</div>
-          <button className="song-modal-act" onClick={onLoadTestSong}>
-            再生テスト曲（4トラック同時）
-          </button>
         </div>
       </div>
     </div>
