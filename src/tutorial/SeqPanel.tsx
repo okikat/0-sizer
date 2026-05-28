@@ -43,8 +43,9 @@ interface Props {
   pattern: { on: Set<string>; tied: Set<string> }
   /** スライドでのタイ塗り：from→to の方向で隣り合うセル間にタイを引く。 */
   onPaintTie: (from: { step: number; midi: number }, to: { step: number; midi: number }) => void
-  /** タイ描画中の "戻り消し"：1 セルを off にして、前後の tied フラグも整理する。 */
-  onEraseSeqCell: (step: number, midi: number) => void
+  /** タイ描画中の "戻り消し"：1 セルを off にして、塗った側の tied だけを整理する。
+   *  side が 'right' なら右端 erase（tied[k-1] を消す）、'left' なら左端 erase（tied[k] を消す）。 */
+  onEraseSeqCell: (step: number, midi: number, side: 'left' | 'right') => void
   /** 同上の CUTOFF オートメーション値（0〜1、ステップ毎）。 */
   automation: number[]
   /** アクティブトラックのオートメーション有効フラグ（トラック単位、スロット横断）。 */
@@ -147,10 +148,14 @@ export function SeqPanel({
     // pan モード用
     startScrollLeft: number
     startScrollTop: number
-    // tie モード用
+    // tie モード用：塗られた範囲 [lastLeft, lastRight] は常に startStep を含む連続区間。
+    //   - 指が startStep より右にあれば lastRight が伸びる
+    //   - 指が startStep より左にあれば lastLeft が伸びる
+    //   - 指が startStep を跨ぐと、片側が縮んでもう片側が伸びる
     rowCenterY: number
     painted: boolean
-    lastStep: number
+    lastLeft: number
+    lastRight: number
     /** タイ突入時点で「すでに ON だったセルキー」のスナップショット。
      *  paintedSteps の判定（このジェスチャで足したのか、最初から ON だったのか）に使う。 */
     initialOn: Set<string>
@@ -185,7 +190,8 @@ export function SeqPanel({
       startScrollTop: gridScrollRef.current?.scrollTop ?? 0,
       rowCenterY: 0,
       painted: false,
-      lastStep: step,
+      lastLeft: step,
+      lastRight: step,
       initialOn: new Set(pattern.on),
       paintedSteps: new Set(),
     }
@@ -239,38 +245,54 @@ export function SeqPanel({
       const midi = Number(midiStr)
       if (midi !== s.startMidi) return
 
-      // 開始セルより手前は何もしない（戻りすぎ無視）。
-      const clampedStep = Math.max(step, s.startStep)
-      if (clampedStep === s.lastStep) return
+      // 新しい範囲 = startStep と現在の指位置を含む最小区間。
+      // 範囲は常に startStep を含むので、指が右に伸びれば lastRight が、左に伸びれば lastLeft が
+      // 動く。指が startStep を跨いだら片側が縮んでもう片側が伸びる。
+      const newLeft = Math.min(s.startStep, step)
+      const newRight = Math.max(s.startStep, step)
+      if (newLeft === s.lastLeft && newRight === s.lastRight) return
 
-      if (clampedStep > s.lastStep) {
-        // 前進：lastStep+1 から clampedStep まで 1 つずつタイで結ぶ。
-        // ここで初めて履歴 push（前進が「実際に塗りが発生する」唯一の経路）。
-        if (!s.painted) {
-          onEditStart()
-          s.painted = true
-        }
-        for (let st = s.lastStep + 1; st <= clampedStep; st++) {
-          onPaintTie(
-            { step: st - 1, midi: s.startMidi },
-            { step: st, midi: s.startMidi },
-          )
-          // 「もともと OFF だった」セルだけ paintedSteps に積む。
-          // 元から ON だったセルや、開始セル（手前は erase しない）は触らない。
-          const k = cellKey(st, s.startMidi)
-          if (!s.initialOn.has(k)) s.paintedSteps.add(st)
-        }
-      } else {
-        // 後退：lastStep から clampedStep+1 までを順に erase。
-        // ただし「このジェスチャで塗った」step だけ消す（initial ON は残す）。
-        for (let st = s.lastStep; st > clampedStep; st--) {
-          if (s.paintedSteps.has(st)) {
-            onEraseSeqCell(st, s.startMidi)
-            s.paintedSteps.delete(st)
-          }
+      // 1 ジェスチャ＝ 1 履歴。最初に範囲が動いた時点で push。
+      if (!s.painted) {
+        onEditStart()
+        s.painted = true
+      }
+
+      // 右に伸びる：lastRight+1 から newRight まで隣接ペアで塗る。
+      for (let st = s.lastRight + 1; st <= newRight; st++) {
+        onPaintTie(
+          { step: st - 1, midi: s.startMidi },
+          { step: st, midi: s.startMidi },
+        )
+        const k = cellKey(st, s.startMidi)
+        if (!s.initialOn.has(k)) s.paintedSteps.add(st)
+      }
+      // 右に縮む：newRight+1 から lastRight までを右端 erase。
+      for (let st = s.lastRight; st > newRight; st--) {
+        if (s.paintedSteps.has(st)) {
+          onEraseSeqCell(st, s.startMidi, 'right')
+          s.paintedSteps.delete(st)
         }
       }
-      s.lastStep = clampedStep
+      // 左に伸びる：lastLeft-1 から newLeft まで隣接ペアで塗る。tied は左セル側に立てる。
+      for (let st = s.lastLeft - 1; st >= newLeft; st--) {
+        onPaintTie(
+          { step: st, midi: s.startMidi },
+          { step: st + 1, midi: s.startMidi },
+        )
+        const k = cellKey(st, s.startMidi)
+        if (!s.initialOn.has(k)) s.paintedSteps.add(st)
+      }
+      // 左に縮む：lastLeft から newLeft-1 までを左端 erase。
+      for (let st = s.lastLeft; st < newLeft; st++) {
+        if (s.paintedSteps.has(st)) {
+          onEraseSeqCell(st, s.startMidi, 'left')
+          s.paintedSteps.delete(st)
+        }
+      }
+
+      s.lastLeft = newLeft
+      s.lastRight = newRight
     }
   }
 

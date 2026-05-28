@@ -767,12 +767,15 @@ export default function App() {
     }))
   }
 
-  // タイ描画中の "戻り消し"：指定セルを off にし、このセルに繋がるタイも整理する。
-  //   - on.delete(k)
-  //   - tied.delete(k)（このセル発の tied = k→k+1 の繋ぎ）
-  //   - tied.delete(k-1)（前セル発の tied = k-1→k の繋ぎ。k が消えるのでこれも宙ぶらりん）
-  // 履歴 push は呼び出し側で onEditStart（前進塗り時に 1 回だけ）行う。
-  const eraseSeqCell = (step: number, midi: number) => {
+  // タイ描画中の "戻り消し"：指定セルを off にし、塗った側の tied だけを整理する。
+  //   - 共通：on.delete(k)
+  //   - side='right'（範囲の右端を erase）：tied.delete(k-1)
+  //     k-1 → k の繋ぎはこのジェスチャで paintTie が足したもの。安全に消せる。
+  //     k → k+1 の tied は範囲外（=元から ON だった可能性）なので触らない。
+  //   - side='left'（範囲の左端を erase）：tied.delete(k)
+  //     k → k+1 の繋ぎはこのジェスチャで paintTie が足したもの。安全に消せる。
+  //     k-1 → k の tied は範囲外なので触らない。
+  const eraseSeqCell = (step: number, midi: number, side: 'left' | 'right') => {
     const slotIdx = editSlotFor(activeTrack)
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
@@ -783,8 +786,11 @@ export default function App() {
         const newOn = new Set(p.on)
         const newTied = new Set(p.tied)
         newOn.delete(k)
-        newTied.delete(k)
-        if (step > 0) newTied.delete(seqCellKey(step - 1, midi))
+        if (side === 'left') {
+          newTied.delete(k)
+        } else {
+          if (step > 0) newTied.delete(seqCellKey(step - 1, midi))
+        }
         return { on: newOn, tied: newTied }
       })
     }))
