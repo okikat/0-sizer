@@ -23,8 +23,14 @@ export interface Preset {
   delayMixAmt: number  // 0〜10（DELAY 山びこの大きさ）
   glideAmt: number     // 0〜10（GLIDE 滑る速さ）
   filterEnvAmt: number     // 0〜10（フィルターEnv 持ち上げ量）
-  filterEnvDecay: number   // 0〜10（フィルターEnv 戻り時間）
+  filterEnvDecay: number   // 0〜10（フィルターEnv 戻り時間＝サステインへ向かう減衰）
   reverbMixAmt: number     // 0〜10（REVERB 響きの混ぜ量）
+  // --- 裏方（任意）。UI なし。未指定なら 0＝従来挙動。プリセットの再現度を上げる用 ---
+  filterEnvAttack?: number   // 0〜10（フィルターEnv 立ち上がり）
+  filterEnvSustain?: number  // 0〜10（フィルターEnv 保持する明るさの割合）
+  filterEnvRelease?: number  // 0〜10（離鍵後に base へ戻る時間）
+  pitchEnvAmt?: number       // -12〜+12（発音直後の音程ずれ・半音）
+  pitchEnvDecay?: number     // 0〜10（音程が目標へ収まる時間）
 }
 
 // 現行プリセット（Codex 生成・名前と音を一致させたもの）。

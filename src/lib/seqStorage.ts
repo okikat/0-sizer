@@ -86,6 +86,13 @@ export interface SoundState {
   glide: number      // 0〜10
   fenvAmt: number    // 0〜10
   fenvDecay: number  // 0〜10
+  // --- フィルターEnv の追加段（裏方：プリセット専用。既定 0 で従来挙動＝即アタック・base へ減衰）---
+  fenvAttack: number   // 0〜10（持ち上がりにかける時間。0=即）
+  fenvSustain: number  // 0〜10（保持する明るさ＝amount のうち何割を維持するか）
+  fenvRelease: number  // 0〜10（鍵を離してから base へ戻る時間。0=即）
+  // --- ピッチEnv（裏方：プリセット専用。発音直後に音程をしゃくる）---
+  pitchEnvAmt: number    // 出だしの音程ずれ（半音、-12〜+12。+で上から、-で下から目標へ）
+  pitchEnvDecay: number  // 0〜10（目標音程へ収まるまでの時間）
   reverb: number     // 0〜10
   vol: number        // 0〜10
   pan: number        // -5〜5
@@ -110,6 +117,11 @@ export const DEFAULT_SOUND: SoundState = {
   glide: 0,
   fenvAmt: 0,
   fenvDecay: 3,
+  fenvAttack: 0,
+  fenvSustain: 0,
+  fenvRelease: 0,
+  pitchEnvAmt: 0,
+  pitchEnvDecay: 0,
   reverb: 3,
   vol: 10,
   pan: 0,

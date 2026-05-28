@@ -158,6 +158,14 @@ export function deserializeProject(raw: unknown): Project | null {
     merged.osc2Type = WAVES.includes(merged.osc2Type) ? merged.osc2Type : def.osc2Type
     merged.filterType = FILTERS.includes(merged.filterType) ? merged.filterType : def.filterType
     merged.osc2Oct = Number.isFinite(Number(merged.osc2Oct)) ? clamp(Math.round(Number(merged.osc2Oct)), -2, 2) : def.osc2Oct
+    // 裏方 Env パラメータ：つまみ系は 0〜10、ピッチEnv 量は -12〜+12 半音。
+    const num = (v: unknown, lo: number, hi: number, d: number) =>
+      Number.isFinite(Number(v)) ? clamp(Number(v), lo, hi) : d
+    merged.fenvAttack = num(merged.fenvAttack, 0, 10, def.fenvAttack)
+    merged.fenvSustain = num(merged.fenvSustain, 0, 10, def.fenvSustain)
+    merged.fenvRelease = num(merged.fenvRelease, 0, 10, def.fenvRelease)
+    merged.pitchEnvAmt = num(merged.pitchEnvAmt, -12, 12, def.pitchEnvAmt)
+    merged.pitchEnvDecay = num(merged.pitchEnvDecay, 0, 10, def.pitchEnvDecay)
     return merged
   })
 

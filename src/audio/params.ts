@@ -40,6 +40,13 @@ export const glideAmtToTau = (amt: number) => 0.005 + (amt / 10) * 0.5
 export const fenvAmtToOctaves = (amt: number) => (amt / 10) * 3
 // FILTER ENV DECAY は「つまみ 0〜10」を 50ms〜1.5s に。
 export const fenvDecayAmtToSec = (amt: number) => 0.05 + (amt / 10) * 1.45
+// FILTER ENV の追加段（裏方）。ATTACK/RELEASE は 0〜1.2s（0=即）、SUSTAIN は 0〜1 の割合。
+export const fenvAttackAmtToSec = (amt: number) => (amt / 10) * 1.2
+export const fenvReleaseAmtToSec = (amt: number) => (amt / 10) * 1.2
+export const fenvSustainAmtToFrac = (amt: number) => Math.max(0, Math.min(1, amt / 10))
+
+// PITCH ENV DECAY は「つまみ 0〜10」を 5ms〜805ms に（出だしのしゃくりが収まる時間）。
+export const pitchEnvDecayAmtToSec = (amt: number) => 0.005 + (amt / 10) * 0.8
 
 // OSC2 DETUNE は「つまみ 0〜10」を 0〜50 セントに（広めの厚み）。
 export const detuneAmtToCents = (amt: number) => amt * 5

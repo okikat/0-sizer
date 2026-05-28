@@ -13,6 +13,10 @@ import {
   glideAmtToTau,
   fenvAmtToOctaves,
   fenvDecayAmtToSec,
+  fenvAttackAmtToSec,
+  fenvReleaseAmtToSec,
+  fenvSustainAmtToFrac,
+  pitchEnvDecayAmtToSec,
   detuneAmtToCents,
   mixAmtToBalance,
   fmtTime,
@@ -91,6 +95,25 @@ describe('params: knob → engine value', () => {
   it('fenvDecayAmtToSec: 0→0.05s, 10→1.5s', () => {
     expect(fenvDecayAmtToSec(0)).toBeCloseTo(0.05)
     expect(fenvDecayAmtToSec(10)).toBeCloseTo(1.5)
+  })
+
+  it('fenvAttack/Release: 0→0s, 10→1.2s', () => {
+    expect(fenvAttackAmtToSec(0)).toBeCloseTo(0)
+    expect(fenvAttackAmtToSec(10)).toBeCloseTo(1.2)
+    expect(fenvReleaseAmtToSec(0)).toBeCloseTo(0)
+    expect(fenvReleaseAmtToSec(10)).toBeCloseTo(1.2)
+  })
+
+  it('fenvSustainAmtToFrac: 0→0, 10→1（範囲外はクランプ）', () => {
+    expect(fenvSustainAmtToFrac(0)).toBe(0)
+    expect(fenvSustainAmtToFrac(10)).toBe(1)
+    expect(fenvSustainAmtToFrac(20)).toBe(1)
+    expect(fenvSustainAmtToFrac(-5)).toBe(0)
+  })
+
+  it('pitchEnvDecayAmtToSec: 0→0.005s, 10→0.805s', () => {
+    expect(pitchEnvDecayAmtToSec(0)).toBeCloseTo(0.005)
+    expect(pitchEnvDecayAmtToSec(10)).toBeCloseTo(0.805)
   })
 
   it('detuneAmtToCents: 0→0, 10→50 セント', () => {

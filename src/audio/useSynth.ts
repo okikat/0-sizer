@@ -82,7 +82,12 @@ export function useSynth() {
   const mixBalanceRef = useRef(0.5) // OSC1↔OSC2 のミックス（0=OSC1のみ, 1=OSC2のみ, 0.5=等量）
   const noiseLevelRef = useRef(0) // NOISE 音源の音量（0=オフ、1で結構うるさい）
   const filterEnvAmtRef = useRef(0) // 弾いた瞬間のフィルター持ち上げ量（オクターブ）
-  const filterEnvDecayRef = useRef(0.3) // フィルターが基準値へ戻る時間（秒）
+  const filterEnvDecayRef = useRef(0.3) // フィルターが decay でサステイン位置へ向かう時間（秒）
+  const filterEnvAttackRef = useRef(0) // base→peak の立ち上がり時間（秒、0=即）
+  const filterEnvSustainRef = useRef(0) // 保持する割合（0=base まで減衰, 1=peak 維持）
+  const filterEnvReleaseRef = useRef(0) // 離鍵後 base へ戻る時間（秒、0=即）
+  const pitchEnvSemiRef = useRef(0) // 発音直後の音程ずれ（半音、署名付き）
+  const pitchEnvTauRef = useRef(0.005) // 目標音程へ収まる時定数（秒）
   const masterVolRef = useRef(1) // マスター音量（0〜1、既定=全開）
   const panRef = useRef(0) // 定位（-1=左 〜 1=右、既定=中央）
   const delayTimeRef = useRef(0.32) // 秒（既定 320ms ≒ 4分音符@80bpm 相当）
@@ -260,10 +265,20 @@ export function useSynth() {
     noise.connect(noiseGain)
     noiseGain.connect(filter)
 
-    // ピッチ初期値：他のボイスが鳴っていれば lastFreq から滑り、なければ即座に目標へ。
+    // ピッチ初期値の決定。優先度：
+    //   1) ピッチEnv あり → 目標から半音ぶんずらした位置から発音し、tau で目標へしゃくる
+    //   2) 他ボイスが鳴っている → GLIDE（lastFreq から滑る）
+    //   3) それ以外 → 即座に目標
     const target = midiToFreq(midi) * Math.pow(2, tuneRef.current / 12)
     const now = ctx.currentTime
-    if (voicesRef.current.size > 0) {
+    if (pitchEnvSemiRef.current !== 0) {
+      const start = target * Math.pow(2, pitchEnvSemiRef.current / 12)
+      const tau = Math.max(0.002, pitchEnvTauRef.current)
+      osc1.frequency.setValueAtTime(start, now)
+      osc2.frequency.setValueAtTime(start, now)
+      osc1.frequency.setTargetAtTime(target, now, tau)
+      osc2.frequency.setTargetAtTime(target, now, tau)
+    } else if (voicesRef.current.size > 0) {
       const tau = glideTauRef.current
       osc1.frequency.setValueAtTime(lastFreqRef.current, now)
       osc2.frequency.setValueAtTime(lastFreqRef.current, now)
@@ -348,14 +363,27 @@ export function useSynth() {
         voice.envGain.gain.setValueAtTime(cur, now)
         voice.envGain.gain.linearRampToValueAtTime(peakGain, now + a)
         voice.envGain.gain.linearRampToValueAtTime(peakGain * sustain, now + a + d)
-        // フィルターエンベロープ：弾いた瞬間に cutoff を envAmt オクターブ上げ、decay 秒で基準へ。
+        // フィルターエンベロープ（ADSR）。amount=0 なら無効（base 固定）。
+        //   attack=0 / sustain=0 のとき、従来の「即ピーク → base へ減衰」と完全に一致する。
         const envAmt = filterEnvAmtRef.current
         const base = cutoffRef.current
-        const peak = envAmt > 0 ? Math.min(20000, base * Math.pow(2, envAmt)) : base
         voice.filter.frequency.cancelScheduledValues(now)
-        voice.filter.frequency.setValueAtTime(peak, now)
-        const tau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
-        voice.filter.frequency.setTargetAtTime(base, now + 0.005, tau)
+        if (envAmt > 0) {
+          const peak = Math.min(20000, base * Math.pow(2, envAmt))
+          const sustainHz = Math.min(20000, base * Math.pow(2, envAmt * filterEnvSustainRef.current))
+          const fA = filterEnvAttackRef.current
+          const decayTau = Math.max(0.02, filterEnvDecayRef.current) * 0.33
+          if (fA <= 0.005) {
+            voice.filter.frequency.setValueAtTime(peak, now)
+            voice.filter.frequency.setTargetAtTime(sustainHz, now + 0.005, decayTau)
+          } else {
+            voice.filter.frequency.setValueAtTime(base, now)
+            voice.filter.frequency.linearRampToValueAtTime(peak, now + fA)
+            voice.filter.frequency.setTargetAtTime(sustainHz, now + fA + 0.005, decayTau)
+          }
+        } else {
+          voice.filter.frequency.setValueAtTime(base, now)
+        }
         // suspended 中に noteOff を取りこぼしていたら、ここでリリースを入れる。
         // アタック頂点（now + a）以降だけキャンセルしてリリース ramp を追加 → アタックは聴かせる。
         if (pendingOffRef.current.has(midi)) {
@@ -409,6 +437,15 @@ export function useSynth() {
       voice.envGain.gain.cancelScheduledValues(now)
       voice.envGain.gain.setValueAtTime(cur, now)
       voice.envGain.gain.linearRampToValueAtTime(0.0001, now + r)
+      // フィルターEnv のリリース：サステインで base より明るい位置に居る音を、base へ戻す。
+      // release=0（既定）なら何もしない＝従来挙動。
+      const fR = filterEnvReleaseRef.current
+      if (fR > 0.005 && filterEnvAmtRef.current > 0) {
+        const baseHz = cutoffRef.current
+        voice.filter.frequency.cancelScheduledValues(now)
+        voice.filter.frequency.setValueAtTime(voice.filter.frequency.value, now)
+        voice.filter.frequency.setTargetAtTime(baseHz, now, fR * 0.33)
+      }
       // クリーンアップ：リリースが終わったらノードを停止・解放。
       if (voice.cleanupTimer) clearTimeout(voice.cleanupTimer)
       voice.cleanupTimer = setTimeout(() => {
@@ -524,6 +561,19 @@ export function useSynth() {
     filterEnvDecayRef.current = decaySec
   }, [])
 
+  // フィルターEnv の追加段（裏方）。次の noteOn から効く（ref のみ更新）。
+  const setFilterEnvAdsr = useCallback((attackSec: number, sustainFrac: number, releaseSec: number) => {
+    filterEnvAttackRef.current = attackSec
+    filterEnvSustainRef.current = Math.max(0, Math.min(1, sustainFrac))
+    filterEnvReleaseRef.current = releaseSec
+  }, [])
+
+  // ピッチEnv（裏方）。次の noteOn から効く。
+  const setPitchEnv = useCallback((semitones: number, decaySec: number) => {
+    pitchEnvSemiRef.current = semitones
+    pitchEnvTauRef.current = Math.max(0.002, decaySec)
+  }, [])
+
   const setLfoRate = useCallback((hz: number) => {
     lfoRateRef.current = hz
     const ctx = ctxRef.current
@@ -636,6 +686,8 @@ export function useSynth() {
     setMix,
     setNoise,
     setFilterEnv,
+    setFilterEnvAdsr,
+    setPitchEnv,
     setLfoRate,
     setLfoDepth,
     setLfoDest,

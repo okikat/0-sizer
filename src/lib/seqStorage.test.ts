@@ -151,6 +151,14 @@ describe('seqStorage: 構造的デフォルト', () => {
     expect(DEFAULT_SOUND.filterType).toBe('lowpass')
   })
 
+  it('DEFAULT_SOUND の裏方 Env（filterEnv ADSR / pitchEnv）は中立＝0', () => {
+    expect(DEFAULT_SOUND.fenvAttack).toBe(0)
+    expect(DEFAULT_SOUND.fenvSustain).toBe(0)
+    expect(DEFAULT_SOUND.fenvRelease).toBe(0)
+    expect(DEFAULT_SOUND.pitchEnvAmt).toBe(0)
+    expect(DEFAULT_SOUND.pitchEnvDecay).toBe(0)
+  })
+
   it('DEFAULT_SONG_SEQUENCE は全て 0 ≤ v < SLOTS_PER_TRACK', () => {
     expect(DEFAULT_SONG_SEQUENCE.length).toBeGreaterThan(0)
     for (const v of DEFAULT_SONG_SEQUENCE) {

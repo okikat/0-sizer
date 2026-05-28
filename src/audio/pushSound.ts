@@ -17,6 +17,10 @@ import {
   glideAmtToTau,
   fenvAmtToOctaves,
   fenvDecayAmtToSec,
+  fenvAttackAmtToSec,
+  fenvReleaseAmtToSec,
+  fenvSustainAmtToFrac,
+  pitchEnvDecayAmtToSec,
   volAmtToGain,
   panAmtToPos,
 } from './params'
@@ -41,6 +45,8 @@ export function pushSoundToEngine(engine: ReturnType<typeof useSynth>, s: SoundS
   engine.setDelayMix(delayMixAmtToLevel(s.delayMix))
   engine.setGlideTime(glideAmtToTau(s.glide))
   engine.setFilterEnv(fenvAmtToOctaves(s.fenvAmt), fenvDecayAmtToSec(s.fenvDecay))
+  engine.setFilterEnvAdsr(fenvAttackAmtToSec(s.fenvAttack), fenvSustainAmtToFrac(s.fenvSustain), fenvReleaseAmtToSec(s.fenvRelease))
+  engine.setPitchEnv(s.pitchEnvAmt, pitchEnvDecayAmtToSec(s.pitchEnvDecay))
   engine.setReverbMix(reverbMixAmtToLevel(s.reverb))
   engine.setMasterVol(volAmtToGain(s.vol))
   engine.setPan(panAmtToPos(s.pan))

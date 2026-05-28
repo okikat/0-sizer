@@ -106,6 +106,24 @@ describe('project: シリアライズの往復', () => {
     expect(round.tracks[0].filterType).toBe('highpass')
   })
 
+  it('裏方 Env（filterEnv ADSR / pitchEnv）が往復し、範囲外はクランプ', () => {
+    const p = sampleProject()
+    p.tracks[0] = { ...p.tracks[0], fenvAttack: 5, fenvSustain: 7, fenvRelease: 3, pitchEnvAmt: -7, pitchEnvDecay: 4 }
+    const round = deserializeProject(serializeProject(p))!
+    expect(round.tracks[0].fenvAttack).toBe(5)
+    expect(round.tracks[0].fenvSustain).toBe(7)
+    expect(round.tracks[0].fenvRelease).toBe(3)
+    expect(round.tracks[0].pitchEnvAmt).toBe(-7)
+    expect(round.tracks[0].pitchEnvDecay).toBe(4)
+    // 範囲外はクランプ（pitchEnvAmt は -12〜+12、つまみは 0〜10）
+    const bad = deserializeProject({
+      bpm: 120, songSequence: [0],
+      tracks: [{ fenvAttack: 99, pitchEnvAmt: -99 }],
+    })!
+    expect(bad.tracks[0].fenvAttack).toBe(10)
+    expect(bad.tracks[0].pitchEnvAmt).toBe(-12)
+  })
+
   it('追加パラメータの型違い・範囲外は既定へ寄せる', () => {
     const raw = {
       v: 1,

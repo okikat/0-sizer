@@ -1129,6 +1129,11 @@ export default function App() {
       glide: p.glideAmt,
       fenvAmt: p.filterEnvAmt,
       fenvDecay: p.filterEnvDecay,
+      fenvAttack: p.filterEnvAttack ?? 0,
+      fenvSustain: p.filterEnvSustain ?? 0,
+      fenvRelease: p.filterEnvRelease ?? 0,
+      pitchEnvAmt: p.pitchEnvAmt ?? 0,
+      pitchEnvDecay: p.pitchEnvDecay ?? 0,
       reverb: p.reverbMixAmt,
       vol: currentSound.vol, // プリセットは VOL/PAN を持たない（マスター側）
       pan: currentSound.pan,
@@ -1151,6 +1156,11 @@ export default function App() {
         osc2Oct: target.osc2Oct,   // 離散：即
         filterType: target.filterType, // 離散：即
         lfoDest: target.lfoDest,   // 離散：即
+        fenvAttack: target.fenvAttack,   // 裏方：即
+        fenvSustain: target.fenvSustain, // 裏方：即
+        fenvRelease: target.fenvRelease, // 裏方：即
+        pitchEnvAmt: target.pitchEnvAmt, // 裏方：即
+        pitchEnvDecay: target.pitchEnvDecay, // 裏方：即
         cutoff: lp(start.cutoff, target.cutoff, e),
         res: lp(start.res, target.res, e),
         lfoRate: lp(start.lfoRate, target.lfoRate, e),
