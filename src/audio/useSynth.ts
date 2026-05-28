@@ -41,6 +41,20 @@ interface Voice {
   cleanupTimer: ReturnType<typeof setTimeout> | null
 }
 
+// AudioParam を「今この瞬間の実際の値」で固定してから次のランプを始める。
+// 再トリガや離鍵で cancelScheduledValues + setValueAtTime(.value) を使うと、
+// 進行中ランプの途中値ではなく“最後に明示設定した値”へ飛んで段差（クリック）が出る。
+// cancelAndHoldAtTime があればそれで現在値を保持（最も滑らか）、無ければ近似フォールバック。
+function holdParamAtNow(param: AudioParam, now: number) {
+  const p = param as AudioParam & { cancelAndHoldAtTime?: (t: number) => void }
+  if (typeof p.cancelAndHoldAtTime === 'function') {
+    try { p.cancelAndHoldAtTime(now); return } catch { /* fall through */ }
+  }
+  const cur = Math.max(param.value, 0.0001)
+  param.cancelScheduledValues(now)
+  param.setValueAtTime(cur, now)
+}
+
 export function useSynth() {
   const ctxRef = useRef<AudioContext | null>(null)
 
@@ -354,6 +368,21 @@ export function useSynth() {
     }
   }, [])
 
+  // ボイス奪取（発音数オーバー）用：無フェードで止めるとクリックが出るので、
+  // 12ms だけ急速フェードしてから破棄する。サイン/三角のような純音で特に効く。
+  const softStopVoice = useCallback((v: Voice) => {
+    const ctx = ctxRef.current
+    if (!ctx) { hardStopVoice(v); return }
+    const now = ctx.currentTime
+    const FADE = 0.012
+    try {
+      holdParamAtNow(v.envGain.gain, now)
+      v.envGain.gain.linearRampToValueAtTime(0.0001, now + FADE)
+    } catch { /* noop */ }
+    if (v.cleanupTimer) clearTimeout(v.cleanupTimer)
+    v.cleanupTimer = setTimeout(() => hardStopVoice(v), (FADE + 0.03) * 1000)
+  }, [hardStopVoice])
+
   const noteOn = useCallback(
     // velScale：0〜1 の音量倍率（SEQ のベロシティ用）。鍵盤直弾きは既定 1（フル）。
     (midi: number, velScale = 1) => {
@@ -375,7 +404,7 @@ export function useSynth() {
             const sorted = Array.from(voicesRef.current.values()).sort((a, b) => a.startedAt - b.startedAt)
             const oldest = sorted[0]
             if (oldest) {
-              hardStopVoice(oldest)
+              softStopVoice(oldest)
               voicesRef.current.delete(oldest.midi)
             }
           }
@@ -387,11 +416,9 @@ export function useSynth() {
         // 音量エンベロープ。
         const now = ctx.currentTime
         const { attack, decay, sustain } = envRef.current
-        const a = Math.max(0.005, attack)
+        const a = Math.max(0.006, attack)
         const d = Math.max(0.005, decay)
-        const cur = Math.max(voice.envGain.gain.value, 0.0001)
-        voice.envGain.gain.cancelScheduledValues(now)
-        voice.envGain.gain.setValueAtTime(cur, now)
+        holdParamAtNow(voice.envGain.gain, now)
         voice.envGain.gain.linearRampToValueAtTime(peakGain, now + a)
         voice.envGain.gain.linearRampToValueAtTime(peakGain * sustain, now + a + d)
         // フィルターエンベロープ（ADSR）。amount=0 なら無効（base 固定）。
@@ -448,7 +475,7 @@ export function useSynth() {
           else ctx2.resume().then(trigger).catch(() => {})
         })
     },
-    [ensure, createVoice, hardStopVoice],
+    [ensure, createVoice, hardStopVoice, softStopVoice],
   )
 
   const noteOff = useCallback(
@@ -463,10 +490,8 @@ export function useSynth() {
         return
       }
       const now = ctx.currentTime
-      const r = Math.max(0.01, envRef.current.release)
-      const cur = voice.envGain.gain.value
-      voice.envGain.gain.cancelScheduledValues(now)
-      voice.envGain.gain.setValueAtTime(cur, now)
+      const r = Math.max(0.012, envRef.current.release)
+      holdParamAtNow(voice.envGain.gain, now)
       voice.envGain.gain.linearRampToValueAtTime(0.0001, now + r)
       // フィルターEnv のリリース：サステインで base より明るい位置に居る音を、base へ戻す。
       // release=0（既定）なら何もしない＝従来挙動。
