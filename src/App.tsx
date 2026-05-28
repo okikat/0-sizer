@@ -681,9 +681,9 @@ export default function App() {
   const toggleMute = (track: number) => {
     setTrackMute((prev) => prev.map((v, i) => (i === track ? !v : v)))
   }
-  // SOLO は排他（1 トラックのみ）。押したトラックをトグルし、他は必ず解除。
+  // SOLO は複数同時ソロ可（DAW 標準）。点いている S の集合＝いま聴こえるトラック。
   const toggleSolo = (track: number) => {
-    setTrackSolo((prev) => prev.map((v, i) => (i === track ? !v : false)))
+    setTrackSolo((prev) => prev.map((v, i) => (i === track ? !v : v)))
   }
 
   // 編集対象スロット：pending（予約中）があればそれを編集、なければ current。
