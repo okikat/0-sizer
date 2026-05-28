@@ -302,8 +302,10 @@ export function useSynth() {
   }, [])
 
   const noteOn = useCallback(
-    (midi: number) => {
+    // velScale：0〜1 の音量倍率（SEQ のベロシティ用）。鍵盤直弾きは既定 1（フル）。
+    (midi: number, velScale = 1) => {
       ensure()
+      const peakGain = PEAK * Math.max(0, Math.min(1, velScale))
       const trigger = () => {
         const ctx = ctxRef.current
         if (!ctx) return
@@ -337,8 +339,8 @@ export function useSynth() {
         const cur = Math.max(voice.envGain.gain.value, 0.0001)
         voice.envGain.gain.cancelScheduledValues(now)
         voice.envGain.gain.setValueAtTime(cur, now)
-        voice.envGain.gain.linearRampToValueAtTime(PEAK, now + a)
-        voice.envGain.gain.linearRampToValueAtTime(PEAK * sustain, now + a + d)
+        voice.envGain.gain.linearRampToValueAtTime(peakGain, now + a)
+        voice.envGain.gain.linearRampToValueAtTime(peakGain * sustain, now + a + d)
         // フィルターエンベロープ：弾いた瞬間に cutoff を envAmt オクターブ上げ、decay 秒で基準へ。
         const envAmt = filterEnvAmtRef.current
         const base = cutoffRef.current

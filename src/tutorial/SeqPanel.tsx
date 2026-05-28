@@ -39,8 +39,12 @@ interface Props {
   onAddSongPosition: () => void
   onRemoveSongPosition: () => void
   /** アクティブトラック × 編集中スロットのパターン。
-   *  on = 点灯セルキー、tied = 「次のステップへ繋ぐ」フラグ付きセルキー。 */
-  pattern: { on: Set<string>; tied: Set<string> }
+   *  on = 点灯セルキー、tied = 「次のステップへ繋ぐ」フラグ付きセルキー、
+   *  vel = セル別ベロシティ段階（0=弱,1=中、未登録=強）。 */
+  pattern: { on: Set<string>; tied: Set<string>; vel: Map<string, number> }
+  /** ベロシティ編集モード。ON のときタップで 強→中→弱→消す と循環。OFF はオン/オフのみ。 */
+  velocityMode: boolean
+  onToggleVelocityMode: () => void
   /** スライドでのタイ塗り：from→to の方向で隣り合うセル間にタイを引く。 */
   onPaintTie: (from: { step: number; midi: number }, to: { step: number; midi: number }) => void
   /** タイ描画中の "戻り消し"：1 セルを off にして、塗った側の tied だけを整理する。
@@ -99,6 +103,8 @@ export function SeqPanel({
   onToggleMute,
   onToggleSolo,
   pattern,
+  velocityMode,
+  onToggleVelocityMode,
   onPaintTie,
   onEraseSeqCell,
   automation,
@@ -438,6 +444,16 @@ export function SeqPanel({
             <button className="seq-bump" onClick={() => bumpSwing(1)} aria-label="SWING +1">＋</button>
             <button className="seq-bump" onClick={() => bumpSwing(10)} aria-label="SWING +10">＋10</button>
           </div>
+          {/* 強弱（ベロシティ）編集モード：ON の間、セルのタップが 強→中→弱→消す と循環。
+              OFF（既定）は単純なオン/オフトグルで、いつでも強。 */}
+          <button
+            className={'seq-velmode' + (velocityMode ? ' on' : '')}
+            onClick={onToggleVelocityMode}
+            aria-pressed={velocityMode}
+            title={velocityMode ? '強弱モード：ON（タップで強→中→弱→消す）' : '強弱モード：OFF（タップでオン/オフ）'}
+          >
+            強弱
+          </button>
           <button className="seq-clear" onClick={onClear}>クリア</button>
         </div>
       </div>
@@ -566,8 +582,12 @@ export function SeqPanel({
                     // tied 表示は「次セルへの繋ぎ」を持っているかどうか。前セル側の tied フラグも見て tied-prev を描く。
                     const tiedNext = on && pattern.tied.has(key) && step < SEQ_STEPS - 1 && pattern.on.has(cellKey(step + 1, midi))
                     const tiedPrev = on && step > 0 && pattern.tied.has(cellKey(step - 1, midi)) && pattern.on.has(cellKey(step - 1, midi))
+                    // ベロシティ段階（未登録＝強）。明るさで表現する。
+                    const vel = on ? (pattern.vel.get(key) ?? 2) : 2
                     const cls = 'seq-cell'
                       + (on ? ' on' : '')
+                      + (on && vel === 1 ? ' vel-mid' : '')
+                      + (on && vel === 0 ? ' vel-low' : '')
                       + (inCol ? ' col-active' : '')
                       + (step > 0 && step % 4 === 0 ? ' bar-start' : '')
                       + (tiedPrev ? ' tied-prev' : '')

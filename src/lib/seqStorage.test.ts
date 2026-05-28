@@ -9,21 +9,26 @@ import {
   DEFAULT_SOUND,
   DEFAULT_SONG_SEQUENCE,
   TRACK_COUNT,
+  VEL_SCALES,
+  VEL_STRONG,
 } from './seqStorage'
 import { SEQ_STEPS, SLOTS_PER_TRACK } from '../tutorial/seqConst'
 
 describe('seqStorage: emptyPattern', () => {
-  it('空の on / tied Set を持つ', () => {
+  it('空の on / tied Set と vel Map を持つ', () => {
     const p = emptyPattern()
     expect(p.on.size).toBe(0)
     expect(p.tied.size).toBe(0)
+    expect(p.vel.size).toBe(0)
   })
 
-  it('呼び出すたびに独立した Set（共有でない）', () => {
+  it('呼び出すたびに独立した Set/Map（共有でない）', () => {
     const a = emptyPattern()
     const b = emptyPattern()
     a.on.add('0_60')
+    a.vel.set('0_60', 1)
     expect(b.on.size).toBe(0)
+    expect(b.vel.size).toBe(0)
   })
 })
 
@@ -32,6 +37,11 @@ describe('seqStorage: migrateOldSet（旧 v0.1〜v0.3 → 新フォーマット�
     const p = migrateOldSet(['0_60', '1_60'])
     expect(p.on).toEqual(new Set(['0_60', '1_60']))
     expect(p.tied).toEqual(new Set(['0_60'])) // 0→1 への繋ぎ
+  })
+
+  it('移行時は vel 空（全て強扱い）で音量が変わらない', () => {
+    const p = migrateOldSet(['0_60', '1_60'])
+    expect(p.vel.size).toBe(0)
   })
 
   it('隣接しない（step が飛んでる）なら tied は付かない', () => {
@@ -141,5 +151,18 @@ describe('seqStorage: 構造的デフォルト', () => {
       expect(v).toBeGreaterThanOrEqual(0)
       expect(v).toBeLessThan(SLOTS_PER_TRACK)
     }
+  })
+
+  it('VEL_SCALES は弱<中<強の昇順、全て 0〜1、強(=VEL_STRONG)はフル(1.0)', () => {
+    expect(VEL_SCALES.length).toBe(3)
+    expect(VEL_SCALES[0]).toBeLessThan(VEL_SCALES[1])
+    expect(VEL_SCALES[1]).toBeLessThan(VEL_SCALES[2])
+    for (const v of VEL_SCALES) {
+      expect(v).toBeGreaterThan(0)
+      expect(v).toBeLessThanOrEqual(1)
+    }
+    // 強は VEL_STRONG=2 番目のインデックス、音量フル。既存パターンの音が変わらない担保。
+    expect(VEL_STRONG).toBe(2)
+    expect(VEL_SCALES[VEL_STRONG]).toBe(1.0)
   })
 })

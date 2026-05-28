@@ -25,21 +25,31 @@ export const SONG_MODE_KEY = '0sizer.songMode'                      // SONG モ�
 export const CUTOFF_LANE_OPEN_KEY = '0sizer.cutoffLaneOpen'         // CUTOFF レーンを表示しているか（既定 ON）
 export const KEYBOARD_VISIBLE_KEY = '0sizer.keyboardVisible'        // 鍵盤を表示しているか（既定 ON）
 export const SEQ_ZOOM_KEY = '0sizer.seqZoom'                        // SEQ セルのズーム倍率
+export const VELOCITY_MODE_KEY = '0sizer.velocityMode'             // ベロシティ編集モード（'1' / null）
 
 // ====== トラック数（音作りトラック ＝ SEQ トラック）======
 export const TRACK_COUNT = 2
 
 // ====== 1 スロット分のパターン ======
-/** `on` = 点灯セル、`tied` = 「次のステップへ繋ぐ」フラグ付きセル。
- *  tied は on の部分集合という前提（tied セルが off になる場合は tied からも消す）。 */
+/** `on` = 点灯セル、`tied` = 「次のステップへ繋ぐ」フラグ付きセル、
+ *  `vel` = セル別ベロシティ段階（0=弱, 1=中）。未登録の ON セルは強(=2)扱い。
+ *  tied は on の部分集合という前提（tied セルが off になる場合は tied からも消す）。
+ *  vel も on の部分集合（強の時はエントリを持たない＝省メモリ＆移行が自明）。 */
 export interface TrackSlotPattern {
   on: Set<string>
   tied: Set<string>
+  vel: Map<string, number>
 }
 
-export const emptyPattern = (): TrackSlotPattern => ({ on: new Set(), tied: new Set() })
+// ベロシティ段階 → 音量スケール。0=弱, 1=中, 2=強。
+export const VEL_SCALES = [0.42, 0.7, 1.0] as const
+/** 強(2)＝エントリなし。中(1)/弱(0)のみ vel に持つ。 */
+export const VEL_STRONG = 2
 
-/** 旧 v0.1〜v0.3 形式の Set<string> から「隣接 ON → tied」を導出して新フォーマットへ。 */
+export const emptyPattern = (): TrackSlotPattern => ({ on: new Set(), tied: new Set(), vel: new Map() })
+
+/** 旧 v0.1〜v0.3 形式の Set<string> から「隣接 ON → tied」を導出して新フォーマットへ。
+ *  ベロシティ情報は無いので全て強（vel 空）で移行する。 */
 export const migrateOldSet = (oldOnArr: string[]): TrackSlotPattern => {
   const on = new Set(oldOnArr)
   const tied = new Set<string>()
@@ -52,7 +62,7 @@ export const migrateOldSet = (oldOnArr: string[]): TrackSlotPattern => {
       if (on.has(`${step + 1}_${midi}`)) tied.add(key)
     }
   }
-  return { on, tied }
+  return { on, tied, vel: new Map() }
 }
 
 // ====== 1 トラック分の音色全パラメータ ======
@@ -214,4 +224,9 @@ export const loadSongSequence = (): number[] => {
 export const loadSongMode = (): boolean => {
   if (typeof localStorage === 'undefined') return false
   return localStorage.getItem(SONG_MODE_KEY) === '1'
+}
+
+export const loadVelocityMode = (): boolean => {
+  if (typeof localStorage === 'undefined') return false
+  return localStorage.getItem(VELOCITY_MODE_KEY) === '1'
 }

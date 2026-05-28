@@ -44,7 +44,10 @@ import {
   CUTOFF_LANE_OPEN_KEY,
   KEYBOARD_VISIBLE_KEY,
   SEQ_ZOOM_KEY,
+  VELOCITY_MODE_KEY,
   TRACK_COUNT,
+  VEL_SCALES,
+  VEL_STRONG,
   type TrackSlotPattern,
   type SoundState,
   emptyPattern,
@@ -55,6 +58,7 @@ import {
   loadAutomationEnabled,
   loadSongSequence,
   loadSongMode,
+  loadVelocityMode,
 } from './lib/seqStorage'
 
 type Phase = 'start' | 'intro' | 'ghost' | 'lesson' | 'panel'
@@ -129,15 +133,25 @@ export default function App() {
             first[0] !== null && typeof first[0] === 'object' && !Array.isArray(first[0])
           const isThreeD = Array.isArray(first) && first.length > 0 && Array.isArray(first[0])
           if (isObjectSlot) {
-            // v0.4：そのまま読む
+            // v0.4（{on,tied}）/ v0.5（+vel）：そのまま読む
             for (let t = 0; t < Math.min(TRACK_COUNT, parsed.length); t++) {
-              const slots = parsed[t] as Array<{ on?: string[]; tied?: string[] }>
+              const slots = parsed[t] as unknown[]
               if (!Array.isArray(slots)) continue
               for (let s = 0; s < Math.min(SLOTS_PER_TRACK, slots.length); s++) {
-                const p = slots[s] ?? {}
+                const p = (slots[s] ?? {}) as { on?: string[]; tied?: string[]; vel?: Record<string, number> }
+                const on = new Set(Array.isArray(p.on) ? p.on : [])
+                const vel = new Map<string, number>()
+                // v0.5 以降のみ vel を持つ。中(1)/弱(0) のみ保存され、ON かつ未登録は強。
+                if (p.vel && typeof p.vel === 'object') {
+                  for (const [k, v] of Object.entries(p.vel)) {
+                    const n = Number(v)
+                    if (on.has(k) && (n === 0 || n === 1)) vel.set(k, n)
+                  }
+                }
                 out[t][s] = {
-                  on: new Set(Array.isArray(p.on) ? p.on : []),
+                  on,
                   tied: new Set(Array.isArray(p.tied) ? p.tied : []),
+                  vel,
                 }
               }
             }
@@ -231,7 +245,7 @@ export default function App() {
   const [historyFutureLen, setHistoryFutureLen] = useState(0)
 
   const takeSnapshot = useCallback((): SeqSnapshot => ({
-    patterns: seqPatterns.map((slots) => slots.map((p) => ({ on: new Set(p.on), tied: new Set(p.tied) }))),
+    patterns: seqPatterns.map((slots) => slots.map((p) => ({ on: new Set(p.on), tied: new Set(p.tied), vel: new Map(p.vel) }))),
     automations: seqAutomations.map((slots) => slots.map((arr) => [...arr])),
   }), [seqPatterns, seqAutomations])
 
@@ -296,6 +310,11 @@ export default function App() {
   useEffect(() => {
     try { localStorage.setItem(SEQ_ZOOM_KEY, String(seqZoom)) } catch { /* */ }
   }, [seqZoom])
+  // ベロシティ編集モード：OFF＝タップでオン/オフ（常に強）、ON＝タップで強→中→弱→消すと循環。
+  const [velocityMode, setVelocityMode] = useState<boolean>(() => loadVelocityMode())
+  useEffect(() => {
+    try { localStorage.setItem(VELOCITY_MODE_KEY, velocityMode ? '1' : '0') } catch { /* */ }
+  }, [velocityMode])
   const songSequenceRef = useRef(songSequence)
   useEffect(() => { songSequenceRef.current = songSequence }, [songSequence])
   const songModeRef = useRef(songMode)
@@ -422,7 +441,7 @@ export default function App() {
       localStorage.setItem(
         SEQ_PATTERNS_KEY,
         JSON.stringify(seqPatterns.map((slots) =>
-          slots.map((p) => ({ on: Array.from(p.on), tied: Array.from(p.tied) })),
+          slots.map((p) => ({ on: Array.from(p.on), tied: Array.from(p.tied), vel: Object.fromEntries(p.vel) })),
         )),
       )
       // 旧キーが残っていたら掃除（次回ロード時の救出は不要なので消してよい）。
@@ -568,7 +587,10 @@ export default function App() {
           const isContinuation = prevKey !== null
             && pattern.on.has(prevKey)
             && pattern.tied.has(prevKey)
-          if (!isContinuation) onFn(m)
+          if (!isContinuation) {
+            const vel = pattern.vel.get(key) ?? VEL_STRONG
+            onFn(m, VEL_SCALES[vel])
+          }
           // 「このセルが tied かつ次セルも ON」なら release を仕込まない（次セルへ伸ばす）。
           const nextKey = curStep < SEQ_STEPS - 1 ? seqCellKey(curStep + 1, m) : null
           const continuesToNext = pattern.tied.has(key)
@@ -725,6 +747,7 @@ export default function App() {
   const toggleSeqCell = (step: number, midi: number) => {
     pushHistory()
     const slotIdx = editSlotFor(activeTrack)
+    const velMode = velocityMode
     setSeqPatterns((prev) => prev.map((slots, t) => {
       if (t !== activeTrack) return slots
       return slots.map((p, s) => {
@@ -732,13 +755,32 @@ export default function App() {
         const k = seqCellKey(step, midi)
         const newOn = new Set(p.on)
         const newTied = new Set(p.tied)
+        const newVel = new Map(p.vel)
         if (newOn.has(k)) {
-          newOn.delete(k)
-          newTied.delete(k)
+          if (velMode) {
+            // 強(=エントリ無し/2) → 中(1) → 弱(0) → 消す と循環。
+            const cur = newVel.get(k) ?? VEL_STRONG
+            if (cur === VEL_STRONG) {
+              newVel.set(k, 1) // 強→中
+            } else if (cur === 1) {
+              newVel.set(k, 0) // 中→弱
+            } else {
+              // 弱→消す
+              newOn.delete(k)
+              newTied.delete(k)
+              newVel.delete(k)
+            }
+          } else {
+            // 通常モード：オン/オフのトグル。
+            newOn.delete(k)
+            newTied.delete(k)
+            newVel.delete(k)
+          }
         } else {
+          // 空セル → 強で点灯（vel エントリ無し＝強）。
           newOn.add(k)
         }
-        return { on: newOn, tied: newTied }
+        return { on: newOn, tied: newTied, vel: newVel }
       })
     }))
   }
@@ -759,10 +801,11 @@ export default function App() {
         if (s !== slotIdx) return p
         const newOn = new Set(p.on)
         const newTied = new Set(p.tied)
+        // 新規 ON セルは vel エントリを持たない＝強。既存の中/弱はそのまま維持。
         newOn.add(seqCellKey(left.step, left.midi))
         newOn.add(seqCellKey(right.step, right.midi))
         newTied.add(seqCellKey(left.step, left.midi))
-        return { on: newOn, tied: newTied }
+        return { on: newOn, tied: newTied, vel: p.vel }
       })
     }))
   }
@@ -785,13 +828,15 @@ export default function App() {
         if (!p.on.has(k)) return p
         const newOn = new Set(p.on)
         const newTied = new Set(p.tied)
+        const newVel = new Map(p.vel)
         newOn.delete(k)
+        newVel.delete(k)
         if (side === 'left') {
           newTied.delete(k)
         } else {
           if (step > 0) newTied.delete(seqCellKey(step - 1, midi))
         }
-        return { on: newOn, tied: newTied }
+        return { on: newOn, tied: newTied, vel: newVel }
       })
     }))
   }
@@ -1135,6 +1180,8 @@ export default function App() {
             onToggleMute={toggleMute}
             onToggleSolo={toggleSolo}
             pattern={seqPatterns[activeTrack]?.[editSlotFor(activeTrack)] ?? emptyPattern()}
+            velocityMode={velocityMode}
+            onToggleVelocityMode={() => setVelocityMode((v) => !v)}
             onPaintTie={paintTie}
             onEraseSeqCell={eraseSeqCell}
             automation={seqAutomations[activeTrack]?.[editSlotFor(activeTrack)] ?? Array(SEQ_STEPS).fill(0.5)}
