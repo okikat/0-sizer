@@ -171,7 +171,9 @@ export function useSynth() {
     }
     if (!ctxRef.current) {
       const Ctor = window.AudioContext || (window as unknown as { webkitAudioContext: typeof AudioContext }).webkitAudioContext
-      const ctx = new Ctor()
+      // latencyHint: 'playback' でバッファを大きめにし、Bluetooth でのアンダーラン（プツプツ）を防ぐ。
+      // タップ→発音のレイテンシは増えるが、BT は元々 100ms 以上の遅延があるので体感差は小さい。
+      const ctx = new Ctor({ latencyHint: 'playback' })
       // 共有出力チェーン：voice.envGain → tremolo → limiter → master → panner → 出力
       // tremolo は LFO(AMP) で揺らす共有ゲイン。
       const tremolo = ctx.createGain()
