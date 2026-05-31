@@ -12,6 +12,10 @@ import { midiToFreq } from '../lib/notes'
 // 出力直前の DynamicsCompressor（リミッター）で頭打ちにする。
 const PEAK = 0.18
 const MAX_VOICES = 8
+// 極小の白色ノイズを envGain でゲートして混ぜることで、BT コーデック（SBC/AAC 等）が
+// 純音区間で起こす量子化 crackle を曖昧化する。-48dB ≒ 0.004 は耳でほぼ気付かないが、
+// コーデックの判定はふらつかせる十分な量。耳に薄く「サー」を感じたら下げる。
+const DITHER_LEVEL = 0.004
 
 export interface EnvParams {
   attack: number
@@ -35,6 +39,8 @@ interface Voice {
   osc2Gain: GainNode
   noise: AudioBufferSourceNode
   noiseGain: GainNode
+  dither: AudioBufferSourceNode
+  ditherGain: GainNode
   filter: BiquadFilterNode
   envGain: GainNode
   startedAt: number
@@ -312,6 +318,16 @@ export function useSynth() {
     noise.connect(noiseGain)
     noiseGain.connect(filter)
 
+    // BT コーデック crackle 対策のディザ：filter を介さず envGain に直結。
+    // envGain が 0 のとき完全に無音、ノートと一緒に立ち上がる／落ちる。
+    const dither = ctx.createBufferSource()
+    dither.buffer = noiseBuf
+    dither.loop = true
+    const ditherGain = ctx.createGain()
+    ditherGain.gain.value = DITHER_LEVEL
+    dither.connect(ditherGain)
+    ditherGain.connect(envGain)
+
     // ピッチ初期値の決定。優先度：
     //   1) ピッチEnv あり → 目標から半音ぶんずらした位置から発音し、tau で目標へしゃくる
     //   2) 他ボイスが鳴っている → GLIDE（lastFreq から滑る）
@@ -340,11 +356,13 @@ export function useSynth() {
     osc1.start()
     osc2.start()
     noise.start()
+    dither.start()
 
     return {
       midi,
       osc1, osc2, osc1Gain, osc2Gain,
       noise, noiseGain,
+      dither, ditherGain,
       filter, envGain,
       startedAt: now,
       cleanupTimer: null,
@@ -356,11 +374,14 @@ export function useSynth() {
     try { v.osc1.stop() } catch { /* already stopped */ }
     try { v.osc2.stop() } catch { /* already stopped */ }
     try { v.noise.stop() } catch { /* already stopped */ }
+    try { v.dither.stop() } catch { /* already stopped */ }
     try { v.envGain.disconnect() } catch { /* already disconnected */ }
     try { v.filter.disconnect() } catch { /* already disconnected */ }
     try { v.osc1.disconnect() } catch { /* */ }
     try { v.osc2.disconnect() } catch { /* */ }
     try { v.noise.disconnect() } catch { /* */ }
+    try { v.dither.disconnect() } catch { /* */ }
+    try { v.ditherGain.disconnect() } catch { /* */ }
     try { v.osc1Gain.disconnect() } catch { /* */ }
     try { v.osc2Gain.disconnect() } catch { /* */ }
     try { v.noiseGain.disconnect() } catch { /* */ }
@@ -727,6 +748,7 @@ export function useSynth() {
           try { v.osc1.stop() } catch { /* */ }
           try { v.osc2.stop() } catch { /* */ }
           try { v.noise.stop() } catch { /* */ }
+          try { v.dither.stop() } catch { /* */ }
           if (v.cleanupTimer) clearTimeout(v.cleanupTimer)
         })
         voices.current.clear()
